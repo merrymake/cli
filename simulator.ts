@@ -7,7 +7,7 @@ import {
   detectProjectType,
   ProjectType,
   RUN_COMMAND,
-} from "@mist-cloud-eu/project-type-detect";
+} from "@merrymake/detect-project-type";
 import http from "http";
 
 export class Run {
@@ -114,28 +114,31 @@ export class Run {
       server.listen(this.port, () => {
         output2("");
         output2(
-          "              .8.                               8                        8 "
+          `88.     .88                                                88           `
         );
         output2(
-          '              "8"           od8                 8                        8 '
+          `888.   .888                                                88           `
         );
         output2(
-          "                            888                 8                        8 "
+          `88Y8. .8P88                                                88           `
         );
         output2(
-          "88d88b.d88b.  888 .d8888b 88888888       .d88b. 8  .d88b.  8     8  .d8888 "
+          `88 Y8o8P 88  .88.  88.d8 88.d8 Yb     dP 8888bd88b   .88.8 88  .8P .88. `
         );
         output2(
-          '888 "888 "88b 888 88K       888         d"    " 8 d"    "b 8     8 d"    8 '
+          `88  Y8P  88 d"  "b 88"   88"    Yb   dP  88 '88 '8b d"  "8 88 .8P d"  "b`
         );
         output2(
-          '888  888  888 888 "Y8888b.  888  888888 8       8 8      8 8     8 8     8 '
+          `88   "   88 888888 88    88      Yb dP   88  88  88 8    8 88d8P  888888`
         );
         output2(
-          "888  888  888 888      X88  Y8b. .      Y.    . 8 Y.    .P Y.    8 Y.    8 "
+          `88       88 Y.     88    88       Y8P    88  88  88 Y.  .8 88" 8b Y.    `
         );
         output2(
-          '888  888  888 888  88888P\'  "Y888Y       "Y88P" 8  "Y88P"   "Y88"8  "Y88"8 '
+          `88       88  "88P  88    88       dP     88  88  88  "88"8 88  "8b "88P `
+        );
+        output2(
+          `                                 dP                                     `
         );
         output2("");
         output2(`Running local Rapids on http://localhost:${this.port}/rapids`);

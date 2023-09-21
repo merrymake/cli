@@ -12,13 +12,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
 const config_1 = require("./config");
-const project_type_detect_1 = require("@mist-cloud-eu/project-type-detect");
+const detect_project_type_1 = require("@merrymake/detect-project-type");
 const child_process_1 = require("child_process");
+const prompt_1 = require("./prompt");
 function clone(struct, name) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -98,142 +99,219 @@ rm fetch.bat fetch.sh`, () => { });
 }
 function do_clone(name) {
     return __awaiter(this, void 0, void 0, function* () {
-        let reply = yield (0, utils_1.sshReq)(`clone`, name);
-        if (!reply.startsWith("{")) {
-            (0, utils_1.output2)(reply);
-            return;
+        try {
+            let reply = yield (0, utils_1.sshReq)(`clone`, name);
+            if (!reply.startsWith("{")) {
+                (0, utils_1.output2)(reply);
+                return;
+            }
+            let structure = JSON.parse(reply);
+            yield clone(structure, name);
         }
-        let structure = JSON.parse(reply);
-        yield clone(structure, name);
+        catch (e) {
+            throw e;
+        }
     });
 }
 exports.do_clone = do_clone;
 function createOrganization(name) {
     return __awaiter(this, void 0, void 0, function* () {
-        let reply = yield (0, utils_1.sshReq)(`org`, name);
-        if (!reply.startsWith("{")) {
-            (0, utils_1.output2)(reply);
-            return;
+        try {
+            let reply = yield (0, utils_1.sshReq)(`org`, name);
+            if (!reply.startsWith("{")) {
+                (0, utils_1.output2)(reply);
+                return;
+            }
+            let structure = JSON.parse(reply);
+            yield clone(structure, name);
         }
-        let structure = JSON.parse(reply);
-        yield clone(structure, name);
+        catch (e) {
+            throw e;
+        }
     });
 }
 exports.createOrganization = createOrganization;
 function createServiceGroup(pth, name) {
     return __awaiter(this, void 0, void 0, function* () {
-        let before = process.cwd();
-        process.chdir(pth.toString());
-        console.log("Creating service group...");
-        let { org } = (0, utils_1.fetchOrg)();
-        fs_1.default.mkdirSync(name);
-        yield (0, utils_1.sshReq)(`team`, name, `--org`, org.name);
-        process.chdir(before);
+        try {
+            let before = process.cwd();
+            process.chdir(pth.toString());
+            console.log("Creating service group...");
+            let { org } = (0, utils_1.fetchOrg)();
+            fs_1.default.mkdirSync(name);
+            yield (0, utils_1.sshReq)(`team`, name, `--org`, org.name);
+            process.chdir(before);
+        }
+        catch (e) {
+            throw e;
+        }
     });
 }
 exports.createServiceGroup = createServiceGroup;
 function createService(pth, group, name) {
     return __awaiter(this, void 0, void 0, function* () {
-        let before = process.cwd();
-        process.chdir(pth.toString());
-        console.log("Creating service...");
-        let { org } = (0, utils_1.fetchOrg)();
-        yield (0, utils_1.sshReq)(`service`, name, `--team`, group, `--org`, org.name);
-        let repoBase = `${config_1.GIT_HOST}/${org.name}/${group}`;
-        yield (0, utils_1.execPromise)(`git clone -q "${repoBase}/${name}" ${name}`);
-        console.log(`Use 'cd ${pth.with(name).toString().replace(/\\/g, "\\\\")}' to go there`);
-        process.chdir(before);
+        try {
+            let before = process.cwd();
+            process.chdir(pth.toString());
+            console.log("Creating service...");
+            let { org } = (0, utils_1.fetchOrg)();
+            yield (0, utils_1.sshReq)(`service`, name, `--team`, group, `--org`, org.name);
+            let repoBase = `${config_1.GIT_HOST}/${org.name}/${group}`;
+            try {
+                yield (0, utils_1.execPromise)(`git clone -q "${repoBase}/${name}" ${name}`);
+            }
+            catch (e) {
+                if (("" + e).startsWith("warning: You appear to have cloned an empty repository.")) {
+                }
+                else
+                    throw e;
+            }
+            (0, utils_1.addExitMessage)(`Use '${prompt_1.COLOR3}cd ${pth
+                .with(name)
+                .toString()
+                .replace(/\\/g, "\\\\")}${prompt_1.NORMAL_COLOR}' to go to the new service. \nThen use '${prompt_1.COLOR3}${process.env["COMMAND"]} deploy${prompt_1.NORMAL_COLOR}' to deploy it.`);
+            process.chdir(before);
+        }
+        catch (e) {
+            throw e;
+        }
     });
 }
 exports.createService = createService;
-function fetch_template(path, template, language) {
+function do_pull(pth, repo) {
     return __awaiter(this, void 0, void 0, function* () {
-        // TODO
-        console.log("Fetching template...");
-        // await execPromise(`git pull -q "${repoBase}/${this.name}" ${name}`);
+        try {
+            let before = process.cwd();
+            process.chdir(pth.toString());
+            yield (0, utils_1.execPromise)(`git pull -q "${repo}"`);
+            process.chdir(before);
+        }
+        catch (e) {
+            throw e;
+        }
     });
 }
+function fetch_template(pth, template, language) {
+    console.log("Fetching template...");
+    return do_pull(pth, `https://github.com/merrymake/${language}-${template}-template`);
+}
 exports.fetch_template = fetch_template;
+function do_duplicate(pth, org, group, service) {
+    console.log("Duplicating service...");
+    return do_pull(pth, `${config_1.GIT_HOST}/${org}/${group}/${service}`);
+}
+exports.do_duplicate = do_duplicate;
 function do_register(keyAction, email) {
     return __awaiter(this, void 0, void 0, function* () {
-        let key = yield keyAction();
-        console.log("Registering...");
-        fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, "\napi.mist-cloud.io ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n");
-        let result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", {
-            email,
-            key,
-        });
-        if (/^\d+$/.test(result.body)) {
-            (0, utils_1.saveCache)({ registered: true, hasOrgs: +result.body > 0 });
-            (0, utils_1.output2)("Registered user.");
-        }
-        else {
-            if (result.code === 200) {
-                (0, utils_1.saveCache)({ registered: true, hasOrgs: false });
+        try {
+            let key = yield keyAction();
+            console.log("Registering...");
+            fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, "\napi.mist-cloud.io ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n");
+            let result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", {
+                email,
+                key,
+            });
+            if (/^\d+$/.test(result.body)) {
+                (0, utils_1.saveCache)({ registered: true, hasOrgs: +result.body > 0 });
+                (0, utils_1.output2)("Registered user.");
             }
-            (0, utils_1.output2)(result.body);
+            else {
+                if (result.code === 200) {
+                    (0, utils_1.saveCache)({ registered: true, hasOrgs: false });
+                }
+                (0, utils_1.output2)(result.body);
+            }
+        }
+        catch (e) {
+            throw e;
         }
     });
 }
 exports.do_register = do_register;
 function useExistingKey(path) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log(`Reading ${path}.pub`);
-        return "" + fs_1.default.readFileSync(os_1.default.homedir() + `/.ssh/${path}.pub`);
+        try {
+            console.log(`Reading ${path}.pub`);
+            return "" + fs_1.default.readFileSync(os_1.default.homedir() + `/.ssh/${path}.pub`);
+        }
+        catch (e) {
+            throw e;
+        }
     });
 }
 exports.useExistingKey = useExistingKey;
 function generateNewKey() {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log(`Generating new ssh key`);
-        if (!fs_1.default.existsSync(os_1.default.homedir() + "/.ssh"))
-            fs_1.default.mkdirSync(os_1.default.homedir() + "/.ssh");
-        yield (0, utils_1.execPromise)(`ssh-keygen -t rsa -b 4096 -f "${os_1.default.homedir()}/.ssh/merrymake" -N ""`);
-        fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/config`, `\nHost api.mist-cloud.io
+        try {
+            console.log(`Generating new ssh key`);
+            if (!fs_1.default.existsSync(os_1.default.homedir() + "/.ssh"))
+                fs_1.default.mkdirSync(os_1.default.homedir() + "/.ssh");
+            yield (0, utils_1.execPromise)(`ssh-keygen -t rsa -b 4096 -f "${os_1.default.homedir()}/.ssh/merrymake" -N ""`);
+            fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/config`, `\nHost api.mist-cloud.io
     User mist
     HostName api.mist-cloud.io
     PreferredAuthentications publickey
     IdentityFile ~/.ssh/merrymake\n`);
-        return "" + fs_1.default.readFileSync(os_1.default.homedir() + "/.ssh/merrymake.pub");
+            return "" + fs_1.default.readFileSync(os_1.default.homedir() + "/.ssh/merrymake.pub");
+        }
+        catch (e) {
+            throw e;
+        }
     });
 }
 exports.generateNewKey = generateNewKey;
 function deploy_internal(commit) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield (0, utils_1.execStreamPromise)(`git add -A && ${commit} && git push origin HEAD 2>&1`, utils_1.output2);
+        try {
+            yield (0, utils_1.execStreamPromise)(`git add -A && ${commit} && git push origin HEAD 2>&1`, utils_1.output2);
+        }
+        catch (e) {
+            throw e;
+        }
     });
 }
-function do_deploy() {
+function do_deploy(pathToService) {
     return __awaiter(this, void 0, void 0, function* () {
-        deploy_internal("(git diff-index --quiet HEAD || git commit -m 'Deploy')");
+        try {
+            let before = process.cwd();
+            process.chdir(pathToService.toString());
+            yield deploy_internal("(git diff-index --quiet HEAD || git commit -m 'Deploy')");
+            process.chdir(before);
+        }
+        catch (e) {
+            throw e;
+        }
     });
 }
 exports.do_deploy = do_deploy;
 function do_redeploy() {
-    return __awaiter(this, void 0, void 0, function* () {
-        deploy_internal("git commit --allow-empty -m 'Redeploy'");
-    });
+    return deploy_internal("git commit --allow-empty -m 'Redeploy'");
 }
 exports.do_redeploy = do_redeploy;
 function do_build() {
     return __awaiter(this, void 0, void 0, function* () {
-        let projectType = (0, project_type_detect_1.detectProjectType)(".");
-        project_type_detect_1.BUILD_SCRIPT_MAKERS[projectType](".").forEach((x) => {
-            let [cmd, ...args] = x.split(" ");
-            const options = {
-                shell: "sh",
-            };
-            if (process.env["DEBUG"])
-                console.log(cmd, args);
+        try {
+            let projectType = (0, detect_project_type_1.detectProjectType)(".");
             (0, utils_1.output2)(`Building ${projectType} project...`);
-            let ls = (0, child_process_1.spawn)(cmd, args, options);
-            ls.stdout.on("data", (data) => {
-                (0, utils_1.output2)(data.toString());
+            detect_project_type_1.BUILD_SCRIPT_MAKERS[projectType](".").forEach((x) => {
+                let [cmd, ...args] = x.split(" ");
+                const options = {
+                    shell: "sh",
+                };
+                if (process.env["DEBUG"])
+                    console.log(cmd, args);
+                let ls = (0, child_process_1.spawn)(cmd, args, options);
+                ls.stdout.on("data", (data) => {
+                    (0, utils_1.output2)(data.toString());
+                });
+                ls.stderr.on("data", (data) => {
+                    (0, utils_1.output2)(data.toString());
+                });
             });
-            ls.stderr.on("data", (data) => {
-                (0, utils_1.output2)(data.toString());
-            });
-        });
+        }
+        catch (e) {
+            throw e;
+        }
     });
 }
 exports.do_build = do_build;
@@ -262,6 +340,7 @@ function do_key(org, key, name, duration) {
             if (key === null) {
                 let { key, expiry } = JSON.parse(yield (0, utils_1.sshReq)(...cmd));
                 (0, utils_1.output2)(`${key} expires on ${new Date(expiry).toLocaleString()}.`);
+                (0, utils_1.addExitMessage)(`Key: ${prompt_1.COLOR3}${key}${prompt_1.NORMAL_COLOR}`);
             }
             else {
                 cmd.push(`--update`, key);
@@ -288,13 +367,18 @@ function do_envvar(org, group, overwrite, key, value, access, visibility) {
 exports.do_envvar = do_envvar;
 function do_cron(org, name, overwrite, event, expr) {
     return __awaiter(this, void 0, void 0, function* () {
-        let call = yield (0, utils_1.sshReq)(`cron`, name, overwrite, event, `--expr`, expr, `--org`, org);
-        if (expr === "") {
-            (0, utils_1.output2)(call);
+        try {
+            let call = yield (0, utils_1.sshReq)(`cron`, name, overwrite, event, `--expr`, expr, `--org`, org);
+            if (expr === "") {
+                (0, utils_1.output2)(call);
+            }
+            else {
+                let { s, n } = JSON.parse(call);
+                (0, utils_1.output2)(`Cron '${s}' set to run next time at ${new Date(n).toLocaleString()}`);
+            }
         }
-        else {
-            let { s, n } = JSON.parse(call);
-            (0, utils_1.output2)(`Cron '${s}' set to run next time at ${new Date(n).toLocaleString()}`);
+        catch (e) {
+            throw e;
         }
     });
 }

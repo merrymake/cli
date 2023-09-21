@@ -17,7 +17,7 @@ const utils_1 = require("./utils");
 const express_1 = __importDefault(require("express"));
 const fs_1 = __importDefault(require("fs"));
 const child_process_1 = require("child_process");
-const project_type_detect_1 = require("@mist-cloud-eu/project-type-detect");
+const detect_project_type_1 = require("@merrymake/detect-project-type");
 const http_1 = __importDefault(require("http"));
 class Run {
     constructor(port) {
@@ -96,14 +96,15 @@ class Run {
                 });
                 server.listen(this.port, () => {
                     (0, utils_1.output2)("");
-                    (0, utils_1.output2)("              .8.                               8                        8 ");
-                    (0, utils_1.output2)('              "8"           od8                 8                        8 ');
-                    (0, utils_1.output2)("                            888                 8                        8 ");
-                    (0, utils_1.output2)("88d88b.d88b.  888 .d8888b 88888888       .d88b. 8  .d88b.  8     8  .d8888 ");
-                    (0, utils_1.output2)('888 "888 "88b 888 88K       888         d"    " 8 d"    "b 8     8 d"    8 ');
-                    (0, utils_1.output2)('888  888  888 888 "Y8888b.  888  888888 8       8 8      8 8     8 8     8 ');
-                    (0, utils_1.output2)("888  888  888 888      X88  Y8b. .      Y.    . 8 Y.    .P Y.    8 Y.    8 ");
-                    (0, utils_1.output2)('888  888  888 888  88888P\'  "Y888Y       "Y88P" 8  "Y88P"   "Y88"8  "Y88"8 ');
+                    (0, utils_1.output2)(`88.     .88                                                88           `);
+                    (0, utils_1.output2)(`888.   .888                                                88           `);
+                    (0, utils_1.output2)(`88Y8. .8P88                                                88           `);
+                    (0, utils_1.output2)(`88 Y8o8P 88  .88.  88.d8 88.d8 Yb     dP 8888bd88b   .88.8 88  .8P .88. `);
+                    (0, utils_1.output2)(`88  Y8P  88 d"  "b 88"   88"    Yb   dP  88 '88 '8b d"  "8 88 .8P d"  "b`);
+                    (0, utils_1.output2)(`88   "   88 888888 88    88      Yb dP   88  88  88 8    8 88d8P  888888`);
+                    (0, utils_1.output2)(`88       88 Y.     88    88       Y8P    88  88  88 Y.  .8 88" 8b Y.    `);
+                    (0, utils_1.output2)(`88       88  "88P  88    88       dP     88  88  88  "88"8 88  "8b "88P `);
+                    (0, utils_1.output2)(`                                 dP                                     `);
                     (0, utils_1.output2)("");
                     (0, utils_1.output2)(`Running local Rapids on http://localhost:${this.port}/rapids`);
                     (0, utils_1.output2)(`To exit, press ctrl+c`);
@@ -212,8 +213,8 @@ function processFolder(folder, hooks) {
         let projectType;
         let cmd;
         try {
-            projectType = (0, project_type_detect_1.detectProjectType)(folder);
-            cmd = project_type_detect_1.RUN_COMMAND[projectType](folder);
+            projectType = (0, detect_project_type_1.detectProjectType)(folder);
+            cmd = detect_project_type_1.RUN_COMMAND[projectType](folder);
         }
         catch (e) {
             console.log(e);
@@ -243,8 +244,8 @@ function processFolder(folder, hooks) {
         let projectType;
         let cmd;
         try {
-            projectType = (0, project_type_detect_1.detectProjectType)(folder);
-            cmd = project_type_detect_1.RUN_COMMAND[projectType](folder);
+            projectType = (0, detect_project_type_1.detectProjectType)(folder);
+            cmd = detect_project_type_1.RUN_COMMAND[projectType](folder);
         }
         catch (e) {
             console.log(e);

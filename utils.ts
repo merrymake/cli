@@ -11,12 +11,16 @@ import { COLOR3, NORMAL_COLOR, exit } from "./prompt";
 
 export class Path {
   constructor(private offset = ".") {
-    let end = offset.length;
-    while (offset.charAt(end - 1) === "/") end--;
-    offset = offset.substring(0, end);
+    let end = this.offset.length;
+    while (this.offset.charAt(end - 1) === "/") end--;
+    this.offset = this.offset.substring(0, end);
+    if (this.offset.length === 0) this.offset = ".";
   }
   with(next: string) {
     return new Path(path.join(this.offset, next));
+  }
+  withoutLastUp() {
+    return new Path(this.offset.substring(0, this.offset.lastIndexOf("..")));
   }
   toString() {
     return this.offset;
@@ -41,13 +45,16 @@ export function addToExecuteQueue(f: () => void) {
   if (!dryrun) toExecute.push(f);
 }
 
-let printOnExit: undefined | string;
-export function setExitMessage(str: string) {
-  printOnExit = str;
+let printOnExit: string[] = [];
+export function addExitMessage(str: string) {
+  printOnExit.push(str);
+}
+function printExitMessages() {
+  printOnExit.forEach((x) => console.log(x));
 }
 export function abort(): never {
   exit();
-  if (printOnExit !== undefined) console.log(printOnExit);
+  printExitMessages();
   process.exit(0);
 }
 export async function finish(): Promise<never> {
@@ -56,7 +63,7 @@ export async function finish(): Promise<never> {
     for (let i = 0; i < toExecute.length; i++) {
       await toExecute[i]();
     }
-    if (printOnExit !== undefined) console.log(printOnExit);
+    printExitMessages();
     process.exit(0);
   } catch (e) {
     throw e;
@@ -173,9 +180,9 @@ export async function checkVersion() {
       let call = await execPromise("npm show @merrymake/cli dist-tags --json");
       let version: { latest: string } = JSON.parse(call);
       if (versionIsOlder(conf.version, version.latest)) {
-        setExitMessage(`
-${COLOR3}New version of merrymake-cli available, to update run the command:
-    npm update -g @merrymake/cli${NORMAL_COLOR}`);
+        addExitMessage(`
+New version of merrymake-cli available, to update run the command:
+    ${COLOR3}npm update -g @merrymake/cli${NORMAL_COLOR}`);
       }
     } catch (e) {}
     fs.writeFileSync(historyFolder + updateFile, "" + Date.now());

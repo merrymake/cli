@@ -30,11 +30,9 @@ import {
   do_key,
   do_envvar,
   do_cron,
+  do_duplicate,
 } from "./executors";
-import {
-  VERSION_CMD,
-  type ProjectType,
-} from "@mist-cloud-eu/project-type-detect";
+import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
 import { languages, templates } from "./templates";
 import { Run } from "./simulator";
@@ -55,7 +53,7 @@ function register_key_email(keyAction: () => Promise<string>, email: string) {
 }
 
 function deploy() {
-  addToExecuteQueue(() => do_deploy());
+  addToExecuteQueue(() => do_deploy(new Path()));
   return finish();
 }
 
@@ -74,7 +72,7 @@ function fetch() {
   return finish();
 }
 
-async function service_template(path: Path, template: string) {
+async function service_template(pathToService: Path, template: string) {
   try {
     let langs = await Promise.all(
       templates[template].languages.map((x) =>
@@ -92,7 +90,8 @@ async function service_template(path: Path, template: string) {
         long: x.long,
         short: x.short,
         text: x.long,
-        action: () => service_template_language(path, template, x.long),
+        action: () =>
+          service_template_language(pathToService, template, x.long),
       }))
     ).then((x) => x);
   } catch (e) {
@@ -100,7 +99,59 @@ async function service_template(path: Path, template: string) {
   }
 }
 
-async function service(pathToGroup: Path, group: string) {
+async function duplicate_service_deploy(
+  pathToService: Path,
+  org: string,
+  group: string,
+  service: string,
+  deploy: boolean
+) {
+  addToExecuteQueue(() => do_duplicate(pathToService, org, group, service));
+  if (deploy) addToExecuteQueue(() => do_deploy(pathToService));
+  return finish();
+}
+
+function duplicate_service(
+  pathToService: Path,
+  org: string,
+  group: string,
+  service: string
+) {
+  return choice([
+    {
+      long: "deploy",
+      short: "d",
+      text: "deploy the service immediately",
+      action: () =>
+        duplicate_service_deploy(pathToService, org, group, service, true),
+    },
+    {
+      long: "clone",
+      short: "c",
+      text: "only clone it, no deploy",
+      action: () =>
+        duplicate_service_deploy(pathToService, org, group, service, false),
+    },
+  ]);
+}
+
+async function duplicate(pathToService: Path, org: string, group: string) {
+  try {
+    let resp = await sshReq(`list-services`, `--org`, org, `--team`, group);
+    let repos: string[] = JSON.parse(resp);
+    return await choice(
+      repos.map((x) => ({
+        long: x,
+        text: `${x}`,
+        action: () => duplicate_service(pathToService, org, group, x),
+      }))
+    ).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function service(pathToGroup: Path, org: string, group: string) {
   try {
     let name = await shortText(
       "Repository name",
@@ -110,12 +161,12 @@ async function service(pathToGroup: Path, group: string) {
     addToExecuteQueue(() => createService(pathToGroup, group, name));
     let options: Option[] = [];
     let services = directoryNames(pathToGroup, []);
-    if (services.length > 1) {
+    if (services.length > 0) {
       options.push({
         long: "duplicate",
         short: "d",
         text: "duplicate an existing service",
-        action: TODO,
+        action: () => duplicate(pathToGroup.with(name), org, group),
       });
     }
     Object.keys(templates).forEach((x) =>
@@ -123,7 +174,7 @@ async function service(pathToGroup: Path, group: string) {
         long: templates[x].long,
         short: templates[x].short,
         text: templates[x].text,
-        action: () => service_template(pathToGroup.with(group).with(name), x),
+        action: () => service_template(pathToGroup.with(name), x),
       })
     );
     options.push({
@@ -138,7 +189,7 @@ async function service(pathToGroup: Path, group: string) {
   }
 }
 
-async function group(path: Path) {
+async function group(path: Path, org: string) {
   try {
     let name = await shortText(
       "Service group name",
@@ -146,7 +197,7 @@ async function group(path: Path) {
       "services"
     ).then((x) => x);
     addToExecuteQueue(() => createServiceGroup(path, name));
-    return service(path.with(name), name);
+    return service(path.with(name), org, name);
   } catch (e) {
     throw e;
   }
@@ -161,7 +212,7 @@ async function org() {
       defName
     ).then((x) => x);
     addToExecuteQueue(() => createOrganization(name));
-    return group(new Path(name));
+    return group(new Path(name), name);
   } catch (e) {
     throw e;
   }
@@ -238,27 +289,19 @@ let cache_queue: {
   r: string;
 }[];
 
-async function queue_id(org: string, id: string) {
-  try {
-    return await choice(
-      cache_queue
-        .filter((x) => x.id === id)
-        .map((x) => ({
-          long: x.r,
-          text: `${
-            x.r.length > 12
-              ? x.r.substring(0, 9) + "..."
-              : x.r.padStart(12, " ")
-          } │ ${
-            x.e.length > 12 ? x.e.substring(0, 9) + "..." : x.e.padEnd(12, " ")
-          } │ ${x.s} │ ${new Date(x.q).toLocaleString()}`,
-          action: () => queue_event(org, x.id, x.r),
-        })),
-      false
-    ).then((x) => x);
-  } catch (e) {
-    throw e;
-  }
+function queue_id(org: string, id: string) {
+  return choice(
+    cache_queue
+      .filter((x) => x.id === id)
+      .map((x) => ({
+        long: x.r,
+        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${
+          x.s
+        } │ ${new Date(x.q).toLocaleString()}`,
+        action: () => queue_event(org, x.id, x.r),
+      })),
+    false
+  ).then((x) => x);
 }
 
 async function queue(org: string) {
@@ -268,11 +311,9 @@ async function queue(org: string) {
     return await choice(
       cache_queue.map((x) => ({
         long: x.id,
-        text: `${x.id} │ ${
-          x.r.length > 12 ? x.r.substring(0, 9) + "..." : x.r.padStart(12, " ")
-        } │ ${
-          x.e.length > 12 ? x.e.substring(0, 9) + "..." : x.e.padEnd(12, " ")
-        } │ ${x.s} │ ${new Date(x.q).toLocaleString()}`,
+        text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${
+          x.s
+        } │ ${new Date(x.q).toLocaleString()}`,
         action: () => {
           if (getArgs().length === 0) initializeArgs([x.r]);
           return queue_id(org, x.id);
@@ -336,7 +377,7 @@ function envvar_key_value_access_visible(
   return finish();
 }
 
-async function envvar_key_value_access(
+function envvar_key_value_access(
   org: string,
   group: string,
   overwrite: string,
@@ -344,85 +385,73 @@ async function envvar_key_value_access(
   value: string,
   access: string[]
 ) {
-  try {
-    return choice([
-      {
-        long: "secret",
-        short: "s",
-        text: "keep value secret",
-        action: () =>
-          envvar_key_value_access_visible(
-            org,
-            group,
-            overwrite,
-            key,
-            value,
-            access,
-            ""
-          ),
-      },
-      {
-        long: "public",
-        short: "p",
-        text: "the value is public",
-        action: () =>
-          envvar_key_value_access_visible(
-            org,
-            group,
-            overwrite,
-            key,
-            value,
-            access,
-            "--public"
-          ),
-      },
-    ]);
-  } catch (e) {
-    throw e;
-  }
+  return choice([
+    {
+      long: "secret",
+      short: "s",
+      text: "keep value secret",
+      action: () =>
+        envvar_key_value_access_visible(
+          org,
+          group,
+          overwrite,
+          key,
+          value,
+          access,
+          ""
+        ),
+    },
+    {
+      long: "public",
+      short: "p",
+      text: "the value is public",
+      action: () =>
+        envvar_key_value_access_visible(
+          org,
+          group,
+          overwrite,
+          key,
+          value,
+          access,
+          "--public"
+        ),
+    },
+  ]);
 }
 
-async function envvar_key_value(
+function envvar_key_value(
   org: string,
   group: string,
   overwrite: string,
   key: string,
   value: string
 ) {
-  try {
-    return choice([
-      {
-        long: "both",
-        short: "b",
-        text: "accessible in both prod and test",
-        action: () =>
-          envvar_key_value_access(org, group, overwrite, key, value, [
-            "--prod",
-            "--test",
-          ]),
-      },
-      {
-        long: "prod",
-        short: "p",
-        text: "accessible in prod",
-        action: () =>
-          envvar_key_value_access(org, group, overwrite, key, value, [
-            "--prod",
-          ]),
-      },
-      {
-        long: "test",
-        short: "t",
-        text: "accessible in test",
-        action: () =>
-          envvar_key_value_access(org, group, overwrite, key, value, [
-            "--test",
-          ]),
-      },
-    ]);
-  } catch (e) {
-    throw e;
-  }
+  return choice([
+    {
+      long: "both",
+      short: "b",
+      text: "accessible in both prod and test",
+      action: () =>
+        envvar_key_value_access(org, group, overwrite, key, value, [
+          "--prod",
+          "--test",
+        ]),
+    },
+    {
+      long: "prod",
+      short: "p",
+      text: "accessible in prod",
+      action: () =>
+        envvar_key_value_access(org, group, overwrite, key, value, ["--prod"]),
+    },
+    {
+      long: "test",
+      short: "t",
+      text: "accessible in test",
+      action: () =>
+        envvar_key_value_access(org, group, overwrite, key, value, ["--test"]),
+    },
+  ]);
 }
 
 async function envvar_key(
@@ -440,6 +469,18 @@ async function envvar_key(
   }
 }
 
+function alignRight(str: string, width: number) {
+  return str.length > width
+    ? str.substring(0, width - 3) + "..."
+    : str.padStart(width, " ");
+}
+
+function alignLeft(str: string, width: number) {
+  return str.length > width
+    ? str.substring(0, width - 3) + "..."
+    : str.padEnd(width, " ");
+}
+
 async function keys(org: string) {
   try {
     let resp = await sshReq(`list-keys`, `--org`, org);
@@ -453,9 +494,7 @@ async function keys(org: string) {
       let n = x.name || "";
       return {
         long: x.key,
-        text: `${x.key} │ ${
-          n.length > 10 ? n.substring(0, 7) + "..." : n.padStart(10, " ")
-        } │ ${ds}`,
+        text: `${x.key} │ ${alignLeft(n, 12)} │ ${ds}`,
         action: () => keys_key(org, x.key, x.name),
       };
     });
@@ -583,15 +622,9 @@ async function cron(org: string) {
       JSON.parse(resp);
     let options: Option[] = orgs.map((x) => ({
       long: x.name,
-      text: `${
-        x.name.length > 10
-          ? x.name.substring(0, 7) + "..."
-          : x.name.padStart(10, " ")
-      } │ ${
-        x.event.length > 10
-          ? x.event.substring(0, 7) + "..."
-          : x.event.padStart(10, " ")
-      } │ ${x.expression}`,
+      text: `${alignRight(x.name, 10)} │ ${alignRight(x.event, 10)} │ ${
+        x.expression
+      }`,
       action: () => cron_name(org, x.name, x.event, x.expression),
     }));
     options.push({
@@ -613,12 +646,13 @@ function quickstart() {
   let orgName = "org" + ("" + Math.random()).substring(2);
   let pth = new Path();
   addToExecuteQueue(() => createOrganization(orgName));
-  pth = pth.with(orgName);
-  addToExecuteQueue(() => createServiceGroup(pth, "services"));
-  pth = pth.with("services");
-  addToExecuteQueue(() => createService(pth, "services", "Merrymake"));
-  pth = pth.with("Merrymake");
-  return service_template(pth, "basic");
+  let pathToOrg = pth.with(orgName);
+  addToExecuteQueue(() => do_key(orgName, null, "from quickcreate", "14days"));
+  addToExecuteQueue(() => createServiceGroup(pathToOrg, "services"));
+  let pathToGroup = pathToOrg.with("services");
+  addToExecuteQueue(() => createService(pathToGroup, "services", "Merrymake"));
+  let pathToService = pathToGroup.with("Merrymake");
+  return service_template(pathToService, "basic");
 }
 
 function sim() {
@@ -633,13 +667,19 @@ export async function start() {
       let orgName = struct.org.name;
       // If in org
       let options: Option[] = [];
-      let selectedServicePath: string | null = null;
+      let selectedGroup: { name: string; path: Path } | null = null;
       if (struct.serviceGroup !== null) {
-        selectedServicePath = path.join(struct.pathToRoot, struct.serviceGroup);
+        selectedGroup = {
+          name: struct.serviceGroup,
+          path: new Path(struct.pathToRoot).withoutLastUp(),
+        };
       } else {
         let serviceGroups = directoryNames(new Path(), ["event-catalogue"]);
         if (serviceGroups.length === 1) {
-          selectedServicePath = serviceGroups[0].name;
+          selectedGroup = {
+            name: serviceGroups[0].name,
+            path: new Path(serviceGroups[0].name),
+          };
         }
       }
 
@@ -683,30 +723,31 @@ export async function start() {
           text: "fetch updates to service groups and services",
           action: () => fetch(),
         });
-        if (selectedServicePath !== null) {
+        if (selectedGroup !== null) {
           // Inside a service group or has one service
-          let selectedServicePath_hack = selectedServicePath;
+          let selectedGroup_hack = selectedGroup;
           options.push({
             long: "repo",
             short: "r",
             text: "create a new repo",
             action: () =>
               service(
-                new Path(selectedServicePath_hack),
-                selectedServicePath_hack
+                selectedGroup_hack.path,
+                orgName,
+                selectedGroup_hack.name
               ),
           });
         }
       }
 
-      if (selectedServicePath !== null) {
+      if (selectedGroup !== null) {
         // Inside a service group or service
-        let selectedServicePath_hack = selectedServicePath;
+        let selectedGroup_hack = selectedGroup;
         options.push({
           long: "envvar",
           short: "e",
           text: "add or edit envvar for service group",
-          action: () => envvar(orgName, selectedServicePath_hack),
+          action: () => envvar(orgName, selectedGroup_hack.name),
         });
       }
 
@@ -716,7 +757,7 @@ export async function start() {
           long: "group",
           short: "g",
           text: "create a new service group",
-          action: () => group(new Path()),
+          action: () => group(new Path(), orgName),
         });
       }
 

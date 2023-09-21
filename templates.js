@@ -17,16 +17,16 @@ exports.templates = {
         text: "initialize with a basic template",
         languages: ["typescript"],
     },
-    web: {
-        long: "web",
-        short: "w",
-        text: "initialize with a webapp/website template",
-        languages: ["typescript"],
-    },
-    service: {
-        long: "service",
-        short: "s",
-        text: "initialize with a backend service template",
-        languages: ["typescript"],
-    },
+    // web: {
+    //   long: "web",
+    //   short: "w",
+    //   text: "initialize with a webapp/website template",
+    //   languages: ["typescript"],
+    // },
+    // service: {
+    //   long: "service",
+    //   short: "s",
+    //   text: "initialize with a backend service template",
+    //   languages: ["typescript"],
+    // },
 };

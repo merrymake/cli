@@ -8,16 +8,18 @@ import {
   fetchOrg,
   output2,
   saveCache,
+  addExitMessage,
   sshReq,
   urlReq,
 } from "./utils";
 import { GIT_HOST, HTTP_HOST } from "./config";
-import path from "path";
 import {
   detectProjectType,
   BUILD_SCRIPT_MAKERS,
-} from "@mist-cloud-eu/project-type-detect";
+} from "@merrymake/detect-project-type";
 import { ExecOptions, spawn } from "child_process";
+import { COLOR3, NORMAL_COLOR } from "./prompt";
+import path from "path";
 
 async function clone(struct: any, name: string) {
   try {
@@ -111,138 +113,218 @@ rm fetch.bat fetch.sh`,
 }
 
 export async function do_clone(name: string) {
-  let reply = await sshReq(`clone`, name);
-  if (!reply.startsWith("{")) {
-    output2(reply);
-    return;
+  try {
+    let reply = await sshReq(`clone`, name);
+    if (!reply.startsWith("{")) {
+      output2(reply);
+      return;
+    }
+    let structure = JSON.parse(reply);
+    await clone(structure, name);
+  } catch (e) {
+    throw e;
   }
-  let structure = JSON.parse(reply);
-  await clone(structure, name);
 }
 
 export async function createOrganization(name: string) {
-  let reply = await sshReq(`org`, name);
-  if (!reply.startsWith("{")) {
-    output2(reply);
-    return;
+  try {
+    let reply = await sshReq(`org`, name);
+    if (!reply.startsWith("{")) {
+      output2(reply);
+      return;
+    }
+    let structure = JSON.parse(reply);
+    await clone(structure, name);
+  } catch (e) {
+    throw e;
   }
-  let structure = JSON.parse(reply);
-  await clone(structure, name);
 }
 
 export async function createServiceGroup(pth: Path, name: string) {
-  let before = process.cwd();
-  process.chdir(pth.toString());
-  console.log("Creating service group...");
-  let { org } = fetchOrg();
-  fs.mkdirSync(name);
-  await sshReq(`team`, name, `--org`, org.name);
-  process.chdir(before);
+  try {
+    let before = process.cwd();
+    process.chdir(pth.toString());
+    console.log("Creating service group...");
+    let { org } = fetchOrg();
+    fs.mkdirSync(name);
+    await sshReq(`team`, name, `--org`, org.name);
+    process.chdir(before);
+  } catch (e) {
+    throw e;
+  }
 }
 
 export async function createService(pth: Path, group: string, name: string) {
-  let before = process.cwd();
-  process.chdir(pth.toString());
-  console.log("Creating service...");
-  let { org } = fetchOrg();
-  await sshReq(`service`, name, `--team`, group, `--org`, org.name);
-  let repoBase = `${GIT_HOST}/${org.name}/${group}`;
-  await execPromise(`git clone -q "${repoBase}/${name}" ${name}`);
-  console.log(
-    `Use 'cd ${pth.with(name).toString().replace(/\\/g, "\\\\")}' to go there`
-  );
-  process.chdir(before);
+  try {
+    let before = process.cwd();
+    process.chdir(pth.toString());
+    console.log("Creating service...");
+    let { org } = fetchOrg();
+    await sshReq(`service`, name, `--team`, group, `--org`, org.name);
+    let repoBase = `${GIT_HOST}/${org.name}/${group}`;
+    try {
+      await execPromise(`git clone -q "${repoBase}/${name}" ${name}`);
+    } catch (e) {
+      if (
+        ("" + e).startsWith(
+          "warning: You appear to have cloned an empty repository."
+        )
+      ) {
+      } else throw e;
+    }
+    addExitMessage(
+      `Use '${COLOR3}cd ${pth
+        .with(name)
+        .toString()
+        .replace(
+          /\\/g,
+          "\\\\"
+        )}${NORMAL_COLOR}' to go to the new service. \nThen use '${COLOR3}${
+        process.env["COMMAND"]
+      } deploy${NORMAL_COLOR}' to deploy it.`
+    );
+    process.chdir(before);
+  } catch (e) {
+    throw e;
+  }
 }
 
-export async function fetch_template(
-  path: Path,
-  template: string,
-  language: string
-) {
-  // TODO
+async function do_pull(pth: Path, repo: string) {
+  try {
+    let before = process.cwd();
+    process.chdir(pth.toString());
+    await execPromise(`git pull -q "${repo}"`);
+    process.chdir(before);
+  } catch (e) {
+    throw e;
+  }
+}
+
+export function fetch_template(pth: Path, template: string, language: string) {
   console.log("Fetching template...");
-  // await execPromise(`git pull -q "${repoBase}/${this.name}" ${name}`);
+  return do_pull(
+    pth,
+    `https://github.com/merrymake/${language}-${template}-template`
+  );
+}
+export function do_duplicate(
+  pth: Path,
+  org: string,
+  group: string,
+  service: string
+) {
+  console.log("Duplicating service...");
+  return do_pull(pth, `${GIT_HOST}/${org}/${group}/${service}`);
 }
 
 export async function do_register(
   keyAction: () => Promise<string>,
   email: string
 ) {
-  let key = await keyAction();
-  console.log("Registering...");
-  fs.appendFileSync(
-    `${os.homedir()}/.ssh/known_hosts`,
-    "\napi.mist-cloud.io ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n"
-  );
-  let result = await urlReq(`${HTTP_HOST}/admin/user`, "POST", {
-    email,
-    key,
-  });
-  if (/^\d+$/.test(result.body)) {
-    saveCache({ registered: true, hasOrgs: +result.body > 0 });
-    output2("Registered user.");
-  } else {
-    if (result.code === 200) {
-      saveCache({ registered: true, hasOrgs: false });
+  try {
+    let key = await keyAction();
+    console.log("Registering...");
+    fs.appendFileSync(
+      `${os.homedir()}/.ssh/known_hosts`,
+      "\napi.mist-cloud.io ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n"
+    );
+    let result = await urlReq(`${HTTP_HOST}/admin/user`, "POST", {
+      email,
+      key,
+    });
+    if (/^\d+$/.test(result.body)) {
+      saveCache({ registered: true, hasOrgs: +result.body > 0 });
+      output2("Registered user.");
+    } else {
+      if (result.code === 200) {
+        saveCache({ registered: true, hasOrgs: false });
+      }
+      output2(result.body);
     }
-    output2(result.body);
+  } catch (e) {
+    throw e;
   }
 }
 
 export async function useExistingKey(path: string) {
-  console.log(`Reading ${path}.pub`);
-  return "" + fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`);
+  try {
+    console.log(`Reading ${path}.pub`);
+    return "" + fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`);
+  } catch (e) {
+    throw e;
+  }
 }
 
 export async function generateNewKey() {
-  console.log(`Generating new ssh key`);
-  if (!fs.existsSync(os.homedir() + "/.ssh"))
-    fs.mkdirSync(os.homedir() + "/.ssh");
-  await execPromise(
-    `ssh-keygen -t rsa -b 4096 -f "${os.homedir()}/.ssh/merrymake" -N ""`
-  );
-  fs.appendFileSync(
-    `${os.homedir()}/.ssh/config`,
-    `\nHost api.mist-cloud.io
+  try {
+    console.log(`Generating new ssh key`);
+    if (!fs.existsSync(os.homedir() + "/.ssh"))
+      fs.mkdirSync(os.homedir() + "/.ssh");
+    await execPromise(
+      `ssh-keygen -t rsa -b 4096 -f "${os.homedir()}/.ssh/merrymake" -N ""`
+    );
+    fs.appendFileSync(
+      `${os.homedir()}/.ssh/config`,
+      `\nHost api.mist-cloud.io
     User mist
     HostName api.mist-cloud.io
     PreferredAuthentications publickey
     IdentityFile ~/.ssh/merrymake\n`
-  );
-  return "" + fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub");
+    );
+    return "" + fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub");
+  } catch (e) {
+    throw e;
+  }
 }
 
 async function deploy_internal(commit: string) {
-  await execStreamPromise(
-    `git add -A && ${commit} && git push origin HEAD 2>&1`,
-    output2
-  );
+  try {
+    await execStreamPromise(
+      `git add -A && ${commit} && git push origin HEAD 2>&1`,
+      output2
+    );
+  } catch (e) {
+    throw e;
+  }
 }
 
-export async function do_deploy() {
-  deploy_internal("(git diff-index --quiet HEAD || git commit -m 'Deploy')");
+export async function do_deploy(pathToService: Path) {
+  try {
+    let before = process.cwd();
+    process.chdir(pathToService.toString());
+    await deploy_internal(
+      "(git diff-index --quiet HEAD || git commit -m 'Deploy')"
+    );
+    process.chdir(before);
+  } catch (e) {
+    throw e;
+  }
 }
-export async function do_redeploy() {
-  deploy_internal("git commit --allow-empty -m 'Redeploy'");
+export function do_redeploy() {
+  return deploy_internal("git commit --allow-empty -m 'Redeploy'");
 }
 
 export async function do_build() {
-  let projectType = detectProjectType(".");
-  BUILD_SCRIPT_MAKERS[projectType](".").forEach((x) => {
-    let [cmd, ...args] = x.split(" ");
-    const options: ExecOptions = {
-      shell: "sh",
-    };
-    if (process.env["DEBUG"]) console.log(cmd, args);
+  try {
+    let projectType = detectProjectType(".");
     output2(`Building ${projectType} project...`);
-    let ls = spawn(cmd, args, options);
-    ls.stdout.on("data", (data: Buffer | string) => {
-      output2(data.toString());
+    BUILD_SCRIPT_MAKERS[projectType](".").forEach((x) => {
+      let [cmd, ...args] = x.split(" ");
+      const options: ExecOptions = {
+        shell: "sh",
+      };
+      if (process.env["DEBUG"]) console.log(cmd, args);
+      let ls = spawn(cmd, args, options);
+      ls.stdout.on("data", (data: Buffer | string) => {
+        output2(data.toString());
+      });
+      ls.stderr.on("data", (data: Buffer | string) => {
+        output2(data.toString());
+      });
     });
-    ls.stderr.on("data", (data: Buffer | string) => {
-      output2(data.toString());
-    });
-  });
+  } catch (e) {
+    throw e;
+  }
 }
 
 export async function do_inspect(org: string, id: string, river: string) {
@@ -274,6 +356,7 @@ export async function do_key(
         await sshReq(...cmd)
       );
       output2(`${key} expires on ${new Date(expiry).toLocaleString()}.`);
+      addExitMessage(`Key: ${COLOR3}${key}${NORMAL_COLOR}`);
     } else {
       cmd.push(`--update`, key);
       let { count, expiry }: { count: number; expiry: string } = JSON.parse(
@@ -327,22 +410,26 @@ export async function do_cron(
   event: string,
   expr: string
 ) {
-  let call = await sshReq(
-    `cron`,
-    name,
-    overwrite,
-    event,
-    `--expr`,
-    expr,
-    `--org`,
-    org
-  );
-  if (expr === "") {
-    output2(call);
-  } else {
-    let { s, n }: { s: string; n: Date } = JSON.parse(call);
-    output2(
-      `Cron '${s}' set to run next time at ${new Date(n).toLocaleString()}`
+  try {
+    let call = await sshReq(
+      `cron`,
+      name,
+      overwrite,
+      event,
+      `--expr`,
+      expr,
+      `--org`,
+      org
     );
+    if (expr === "") {
+      output2(call);
+    } else {
+      let { s, n }: { s: string; n: Date } = JSON.parse(call);
+      output2(
+        `Cron '${s}' set to run next time at ${new Date(n).toLocaleString()}`
+      );
+    }
+  } catch (e) {
+    throw e;
   }
 }

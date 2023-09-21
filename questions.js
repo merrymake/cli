@@ -13,14 +13,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.start = void 0;
-const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
 const fs_1 = __importDefault(require("fs"));
 const prompt_1 = require("./prompt");
 const utils_1 = require("./utils");
 const utils_2 = require("./utils");
 const executors_1 = require("./executors");
-const project_type_detect_1 = require("@mist-cloud-eu/project-type-detect");
+const detect_project_type_1 = require("@merrymake/detect-project-type");
 const templates_1 = require("./templates");
 const simulator_1 = require("./simulator");
 const args_1 = require("./args");
@@ -33,7 +32,7 @@ function register_key_email(keyAction, email) {
     return (0, utils_1.finish)();
 }
 function deploy() {
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_deploy)());
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_deploy)(new utils_2.Path()));
     return (0, utils_1.finish)();
 }
 function redeploy() {
@@ -48,11 +47,11 @@ function fetch() {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_fetch)());
     return (0, utils_1.finish)();
 }
-function service_template(path, template) {
+function service_template(pathToService, template) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let langs = yield Promise.all(templates_1.templates[template].languages.map((x) => (() => __awaiter(this, void 0, void 0, function* () {
-                return (Object.assign(Object.assign({}, templates_1.languages[x]), { weight: yield (0, utils_1.execPromise)(project_type_detect_1.VERSION_CMD[templates_1.languages[x].projectType])
+                return (Object.assign(Object.assign({}, templates_1.languages[x]), { weight: yield (0, utils_1.execPromise)(detect_project_type_1.VERSION_CMD[templates_1.languages[x].projectType])
                         .then((x) => 10)
                         .catch((e) => 1) }));
             }))()));
@@ -61,7 +60,7 @@ function service_template(path, template) {
                 long: x.long,
                 short: x.short,
                 text: x.long,
-                action: () => service_template_language(path, template, x.long),
+                action: () => service_template_language(pathToService, template, x.long),
             }))).then((x) => x);
         }
         catch (e) {
@@ -69,26 +68,66 @@ function service_template(path, template) {
         }
     });
 }
-function service(pathToGroup, group) {
+function duplicate_service_deploy(pathToService, org, group, service, deploy) {
+    return __awaiter(this, void 0, void 0, function* () {
+        (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_duplicate)(pathToService, org, group, service));
+        if (deploy)
+            (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_deploy)(pathToService));
+        return (0, utils_1.finish)();
+    });
+}
+function duplicate_service(pathToService, org, group, service) {
+    return (0, prompt_1.choice)([
+        {
+            long: "deploy",
+            short: "d",
+            text: "deploy the service immediately",
+            action: () => duplicate_service_deploy(pathToService, org, group, service, true),
+        },
+        {
+            long: "clone",
+            short: "c",
+            text: "only clone it, no deploy",
+            action: () => duplicate_service_deploy(pathToService, org, group, service, false),
+        },
+    ]);
+}
+function duplicate(pathToService, org, group) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-services`, `--org`, org, `--team`, group);
+            let repos = JSON.parse(resp);
+            return yield (0, prompt_1.choice)(repos.map((x) => ({
+                long: x,
+                text: `${x}`,
+                action: () => duplicate_service(pathToService, org, group, x),
+            }))).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function service(pathToGroup, org, group) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let name = yield (0, prompt_1.shortText)("Repository name", "This is where the code lives.", "Merrymake").then((x) => x);
             (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createService)(pathToGroup, group, name));
             let options = [];
             let services = (0, utils_1.directoryNames)(pathToGroup, []);
-            if (services.length > 1) {
+            if (services.length > 0) {
                 options.push({
                     long: "duplicate",
                     short: "d",
                     text: "duplicate an existing service",
-                    action: utils_2.TODO,
+                    action: () => duplicate(pathToGroup.with(name), org, group),
                 });
             }
             Object.keys(templates_1.templates).forEach((x) => options.push({
                 long: templates_1.templates[x].long,
                 short: templates_1.templates[x].short,
                 text: templates_1.templates[x].text,
-                action: () => service_template(pathToGroup.with(group).with(name), x),
+                action: () => service_template(pathToGroup.with(name), x),
             }));
             options.push({
                 long: "empty",
@@ -103,12 +142,12 @@ function service(pathToGroup, group) {
         }
     });
 }
-function group(path) {
+function group(path, org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let name = yield (0, prompt_1.shortText)("Service group name", "Used to share envvars.", "services").then((x) => x);
             (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createServiceGroup)(path, name));
-            return service(path.with(name), name);
+            return service(path.with(name), org, name);
         }
         catch (e) {
             throw e;
@@ -121,7 +160,7 @@ function org() {
             let defName = "org" + ("" + Math.random()).substring(2);
             let name = yield (0, prompt_1.shortText)("Organization name", "Used when collaborating with others.", defName).then((x) => x);
             (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createOrganization)(name));
-            return group(new utils_2.Path(name));
+            return group(new utils_2.Path(name), name);
         }
         catch (e) {
             throw e;
@@ -191,22 +230,13 @@ function checkout() {
 }
 let cache_queue;
 function queue_id(org, id) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            return yield (0, prompt_1.choice)(cache_queue
-                .filter((x) => x.id === id)
-                .map((x) => ({
-                long: x.r,
-                text: `${x.r.length > 12
-                    ? x.r.substring(0, 9) + "..."
-                    : x.r.padStart(12, " ")} │ ${x.e.length > 12 ? x.e.substring(0, 9) + "..." : x.e.padEnd(12, " ")} │ ${x.s} │ ${new Date(x.q).toLocaleString()}`,
-                action: () => queue_event(org, x.id, x.r),
-            })), false).then((x) => x);
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+    return (0, prompt_1.choice)(cache_queue
+        .filter((x) => x.id === id)
+        .map((x) => ({
+        long: x.r,
+        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${x.s} │ ${new Date(x.q).toLocaleString()}`,
+        action: () => queue_event(org, x.id, x.r),
+    })), false).then((x) => x);
 }
 function queue(org) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -215,7 +245,7 @@ function queue(org) {
             cache_queue = JSON.parse(resp);
             return yield (0, prompt_1.choice)(cache_queue.map((x) => ({
                 long: x.id,
-                text: `${x.id} │ ${x.r.length > 12 ? x.r.substring(0, 9) + "..." : x.r.padStart(12, " ")} │ ${x.e.length > 12 ? x.e.substring(0, 9) + "..." : x.e.padEnd(12, " ")} │ ${x.s} │ ${new Date(x.q).toLocaleString()}`,
+                text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${x.s} │ ${new Date(x.q).toLocaleString()}`,
                 action: () => {
                     if ((0, args_1.getArgs)().length === 0)
                         (0, args_1.initializeArgs)([x.r]);
@@ -259,63 +289,45 @@ function envvar_key_value_access_visible(org, group, overwrite, key, value, acce
     return (0, utils_1.finish)();
 }
 function envvar_key_value_access(org, group, overwrite, key, value, access) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            return (0, prompt_1.choice)([
-                {
-                    long: "secret",
-                    short: "s",
-                    text: "keep value secret",
-                    action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, access, ""),
-                },
-                {
-                    long: "public",
-                    short: "p",
-                    text: "the value is public",
-                    action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, access, "--public"),
-                },
-            ]);
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+    return (0, prompt_1.choice)([
+        {
+            long: "secret",
+            short: "s",
+            text: "keep value secret",
+            action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, access, ""),
+        },
+        {
+            long: "public",
+            short: "p",
+            text: "the value is public",
+            action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, access, "--public"),
+        },
+    ]);
 }
 function envvar_key_value(org, group, overwrite, key, value) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            return (0, prompt_1.choice)([
-                {
-                    long: "both",
-                    short: "b",
-                    text: "accessible in both prod and test",
-                    action: () => envvar_key_value_access(org, group, overwrite, key, value, [
-                        "--prod",
-                        "--test",
-                    ]),
-                },
-                {
-                    long: "prod",
-                    short: "p",
-                    text: "accessible in prod",
-                    action: () => envvar_key_value_access(org, group, overwrite, key, value, [
-                        "--prod",
-                    ]),
-                },
-                {
-                    long: "test",
-                    short: "t",
-                    text: "accessible in test",
-                    action: () => envvar_key_value_access(org, group, overwrite, key, value, [
-                        "--test",
-                    ]),
-                },
-            ]);
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+    return (0, prompt_1.choice)([
+        {
+            long: "both",
+            short: "b",
+            text: "accessible in both prod and test",
+            action: () => envvar_key_value_access(org, group, overwrite, key, value, [
+                "--prod",
+                "--test",
+            ]),
+        },
+        {
+            long: "prod",
+            short: "p",
+            text: "accessible in prod",
+            action: () => envvar_key_value_access(org, group, overwrite, key, value, ["--prod"]),
+        },
+        {
+            long: "test",
+            short: "t",
+            text: "accessible in test",
+            action: () => envvar_key_value_access(org, group, overwrite, key, value, ["--test"]),
+        },
+    ]);
 }
 function envvar_key(org, group, overwrite, key, currentValue) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -327,6 +339,16 @@ function envvar_key(org, group, overwrite, key, currentValue) {
             throw e;
         }
     });
+}
+function alignRight(str, width) {
+    return str.length > width
+        ? str.substring(0, width - 3) + "..."
+        : str.padStart(width, " ");
+}
+function alignLeft(str, width) {
+    return str.length > width
+        ? str.substring(0, width - 3) + "..."
+        : str.padEnd(width, " ");
 }
 function keys(org) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -341,7 +363,7 @@ function keys(org) {
                 let n = x.name || "";
                 return {
                     long: x.key,
-                    text: `${x.key} │ ${n.length > 10 ? n.substring(0, 7) + "..." : n.padStart(10, " ")} │ ${ds}`,
+                    text: `${x.key} │ ${alignLeft(n, 12)} │ ${ds}`,
                     action: () => keys_key(org, x.key, x.name),
                 };
             });
@@ -447,11 +469,7 @@ function cron(org) {
             let orgs = JSON.parse(resp);
             let options = orgs.map((x) => ({
                 long: x.name,
-                text: `${x.name.length > 10
-                    ? x.name.substring(0, 7) + "..."
-                    : x.name.padStart(10, " ")} │ ${x.event.length > 10
-                    ? x.event.substring(0, 7) + "..."
-                    : x.event.padStart(10, " ")} │ ${x.expression}`,
+                text: `${alignRight(x.name, 10)} │ ${alignRight(x.event, 10)} │ ${x.expression}`,
                 action: () => cron_name(org, x.name, x.event, x.expression),
             }));
             options.push({
@@ -474,12 +492,13 @@ function quickstart() {
     let orgName = "org" + ("" + Math.random()).substring(2);
     let pth = new utils_2.Path();
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createOrganization)(orgName));
-    pth = pth.with(orgName);
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createServiceGroup)(pth, "services"));
-    pth = pth.with("services");
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createService)(pth, "services", "Merrymake"));
-    pth = pth.with("Merrymake");
-    return service_template(pth, "basic");
+    let pathToOrg = pth.with(orgName);
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_key)(orgName, null, "from quickcreate", "14days"));
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createServiceGroup)(pathToOrg, "services"));
+    let pathToGroup = pathToOrg.with("services");
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createService)(pathToGroup, "services", "Merrymake"));
+    let pathToService = pathToGroup.with("Merrymake");
+    return service_template(pathToService, "basic");
 }
 function sim() {
     (0, utils_1.addToExecuteQueue)(() => new simulator_1.Run(3000).execute());
@@ -493,14 +512,20 @@ function start() {
                 let orgName = struct.org.name;
                 // If in org
                 let options = [];
-                let selectedServicePath = null;
+                let selectedGroup = null;
                 if (struct.serviceGroup !== null) {
-                    selectedServicePath = path_1.default.join(struct.pathToRoot, struct.serviceGroup);
+                    selectedGroup = {
+                        name: struct.serviceGroup,
+                        path: new utils_2.Path(struct.pathToRoot).withoutLastUp(),
+                    };
                 }
                 else {
                     let serviceGroups = (0, utils_1.directoryNames)(new utils_2.Path(), ["event-catalogue"]);
                     if (serviceGroups.length === 1) {
-                        selectedServicePath = serviceGroups[0].name;
+                        selectedGroup = {
+                            name: serviceGroups[0].name,
+                            path: new utils_2.Path(serviceGroups[0].name),
+                        };
                     }
                 }
                 options.push({
@@ -544,25 +569,25 @@ function start() {
                         text: "fetch updates to service groups and services",
                         action: () => fetch(),
                     });
-                    if (selectedServicePath !== null) {
+                    if (selectedGroup !== null) {
                         // Inside a service group or has one service
-                        let selectedServicePath_hack = selectedServicePath;
+                        let selectedGroup_hack = selectedGroup;
                         options.push({
                             long: "repo",
                             short: "r",
                             text: "create a new repo",
-                            action: () => service(new utils_2.Path(selectedServicePath_hack), selectedServicePath_hack),
+                            action: () => service(selectedGroup_hack.path, orgName, selectedGroup_hack.name),
                         });
                     }
                 }
-                if (selectedServicePath !== null) {
+                if (selectedGroup !== null) {
                     // Inside a service group or service
-                    let selectedServicePath_hack = selectedServicePath;
+                    let selectedGroup_hack = selectedGroup;
                     options.push({
                         long: "envvar",
                         short: "e",
                         text: "add or edit envvar for service group",
-                        action: () => envvar(orgName, selectedServicePath_hack),
+                        action: () => envvar(orgName, selectedGroup_hack.name),
                     });
                 }
                 if (struct.serviceGroup === null) {
@@ -571,7 +596,7 @@ function start() {
                         long: "group",
                         short: "g",
                         text: "create a new service group",
-                        action: () => group(new utils_2.Path()),
+                        action: () => group(new utils_2.Path(), orgName),
                     });
                 }
                 options.push({

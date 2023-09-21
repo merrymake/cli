@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.setExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
+exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
 const http_1 = __importDefault(require("http"));
 const https_1 = __importDefault(require("https"));
 const config_1 = require("./config");
@@ -49,13 +49,18 @@ const prompt_1 = require("./prompt");
 class Path {
     constructor(offset = ".") {
         this.offset = offset;
-        let end = offset.length;
-        while (offset.charAt(end - 1) === "/")
+        let end = this.offset.length;
+        while (this.offset.charAt(end - 1) === "/")
             end--;
-        offset = offset.substring(0, end);
+        this.offset = this.offset.substring(0, end);
+        if (this.offset.length === 0)
+            this.offset = ".";
     }
     with(next) {
         return new Path(path_1.default.join(this.offset, next));
+    }
+    withoutLastUp() {
+        return new Path(this.offset.substring(0, this.offset.lastIndexOf("..")));
     }
     toString() {
         return this.offset;
@@ -79,15 +84,17 @@ function addToExecuteQueue(f) {
         toExecute.push(f);
 }
 exports.addToExecuteQueue = addToExecuteQueue;
-let printOnExit;
-function setExitMessage(str) {
-    printOnExit = str;
+let printOnExit = [];
+function addExitMessage(str) {
+    printOnExit.push(str);
 }
-exports.setExitMessage = setExitMessage;
+exports.addExitMessage = addExitMessage;
+function printExitMessages() {
+    printOnExit.forEach((x) => console.log(x));
+}
 function abort() {
     (0, prompt_1.exit)();
-    if (printOnExit !== undefined)
-        console.log(printOnExit);
+    printExitMessages();
     process.exit(0);
 }
 exports.abort = abort;
@@ -98,8 +105,7 @@ function finish() {
             for (let i = 0; i < toExecute.length; i++) {
                 yield toExecute[i]();
             }
-            if (printOnExit !== undefined)
-                console.log(printOnExit);
+            printExitMessages();
             process.exit(0);
         }
         catch (e) {
@@ -215,9 +221,9 @@ function checkVersion() {
                 let call = yield execPromise("npm show @merrymake/cli dist-tags --json");
                 let version = JSON.parse(call);
                 if (versionIsOlder(conf.version, version.latest)) {
-                    setExitMessage(`
-${prompt_1.COLOR3}New version of merrymake-cli available, to update run the command:
-    npm update -g @merrymake/cli${prompt_1.NORMAL_COLOR}`);
+                    addExitMessage(`
+New version of merrymake-cli available, to update run the command:
+    ${prompt_1.COLOR3}npm update -g @merrymake/cli${prompt_1.NORMAL_COLOR}`);
                 }
             }
             catch (e) { }
