@@ -23,8 +23,8 @@ const detect_project_type_1 = require("@merrymake/detect-project-type");
 const templates_1 = require("./templates");
 const simulator_1 = require("./simulator");
 const args_1 = require("./args");
-function service_template_language(path, template, language) {
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.fetch_template)(path, template, language));
+function service_template_language(path, template, projectType) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.fetch_template)(path, template, projectType));
     return (0, utils_1.finish)();
 }
 function register_key_email(keyAction, email) {
@@ -60,7 +60,7 @@ function service_template(pathToService, template) {
                 long: x.long,
                 short: x.short,
                 text: x.long,
-                action: () => service_template_language(pathToService, template, x.long),
+                action: () => service_template_language(pathToService, template, x.projectType),
             }))).then((x) => x);
         }
         catch (e) {

@@ -29,7 +29,7 @@ export const templates: {
     long: "basic",
     short: "b",
     text: "initialize with a basic template",
-    languages: ["typescript"],
+    languages: ["typescript", "csharp"],
   },
   // web: {
   //   long: "web",

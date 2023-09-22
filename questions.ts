@@ -41,9 +41,9 @@ import { getArgs, initializeArgs } from "./args";
 function service_template_language(
   path: Path,
   template: string,
-  language: string
+  projectType: string
 ) {
-  addToExecuteQueue(() => fetch_template(path, template, language));
+  addToExecuteQueue(() => fetch_template(path, template, projectType));
   return finish();
 }
 
@@ -91,7 +91,7 @@ async function service_template(pathToService: Path, template: string) {
         short: x.short,
         text: x.long,
         action: () =>
-          service_template_language(pathToService, template, x.long),
+          service_template_language(pathToService, template, x.projectType),
       }))
     ).then((x) => x);
   } catch (e) {

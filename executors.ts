@@ -200,11 +200,15 @@ async function do_pull(pth: Path, repo: string) {
   }
 }
 
-export function fetch_template(pth: Path, template: string, language: string) {
+export function fetch_template(
+  pth: Path,
+  template: string,
+  projectType: string
+) {
   console.log("Fetching template...");
   return do_pull(
     pth,
-    `https://github.com/merrymake/${language}-${template}-template`
+    `https://github.com/merrymake/${projectType}-${template}-template`
   );
 }
 export function do_duplicate(

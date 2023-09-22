@@ -191,9 +191,9 @@ function do_pull(pth, repo) {
         }
     });
 }
-function fetch_template(pth, template, language) {
+function fetch_template(pth, template, projectType) {
     console.log("Fetching template...");
-    return do_pull(pth, `https://github.com/merrymake/${language}-${template}-template`);
+    return do_pull(pth, `https://github.com/merrymake/${projectType}-${template}-template`);
 }
 exports.fetch_template = fetch_template;
 function do_duplicate(pth, org, group, service) {
