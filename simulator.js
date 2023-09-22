@@ -19,101 +19,97 @@ const fs_1 = __importDefault(require("fs"));
 const child_process_1 = require("child_process");
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const http_1 = __importDefault(require("http"));
+const prompt_1 = require("./prompt");
 class Run {
     constructor(port) {
         this.port = port;
     }
     execute() {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const { pathToRoot } = (0, utils_1.fetchOrg)();
-                let teams = (0, utils_1.directoryNames)(new utils_1.Path(pathToRoot), ["event-catalogue"]).map((x) => x.name);
-                const app = (0, express_1.default)();
-                const server = http_1.default.createServer(app);
-                app.use((req, res, next) => {
-                    if (req.is("multipart/form-data") ||
-                        req.is("application/x-www-form-urlencoded")) {
-                        express_1.default.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
-                    }
-                    else {
-                        express_1.default.raw({ type: "*/*", limit: "10mb" })(req, res, next);
-                    }
-                });
-                let hooks;
-                app.post("/trace/:traceId/:event", (req, res) => __awaiter(this, void 0, void 0, function* () {
-                    try {
-                        let traceId = req.params.traceId;
-                        let event = req.params.event;
-                        let payload = req.body;
-                        this.runService(pathToRoot, this.port, event, payload, traceId, hooks, req.headers["content-type"]);
-                        res.send("Done");
-                    }
-                    catch (e) {
-                        if (e.data !== undefined)
-                            console.log("" + e.data);
-                        else
-                            throw e;
-                    }
-                }));
-                app.get("/rapids/:event", (req, res) => __awaiter(this, void 0, void 0, function* () {
-                    try {
-                        let event = req.params.event;
-                        hooks = new PublicHooks(pathToRoot);
-                        let payload = Buffer.from(JSON.stringify(req.query));
-                        processFolders(pathToRoot, teams, hooks);
-                        let traceId = "s" + Math.random();
-                        let response = yield this.runWithReply(pathToRoot, this.port, res, event, payload, traceId, hooks, req.headers["content-type"]);
-                    }
-                    catch (e) {
-                        if (e.data !== undefined)
-                            reply(res, e, undefined);
-                        else
-                            throw e;
-                    }
-                }));
-                app.all("/rapids/:event", (req, res) => __awaiter(this, void 0, void 0, function* () {
-                    try {
-                        let event = req.params.event;
-                        hooks = new PublicHooks(pathToRoot);
-                        let payload = !Buffer.isBuffer(req.body)
-                            ? typeof req.body === "object"
-                                ? Buffer.from(JSON.stringify(req.body))
-                                : Buffer.from(req.body)
-                            : req.body;
-                        processFolders(pathToRoot, teams, hooks);
-                        let traceId = "s" + Math.random();
-                        let response = yield this.runWithReply(pathToRoot, this.port, res, event, payload, traceId, hooks, req.headers["content-type"]);
-                    }
-                    catch (e) {
-                        if (e.data !== undefined)
-                            reply(res, e, undefined);
-                        else
-                            throw e;
-                    }
-                }));
-                app.get("/rapids", (req, res) => {
-                    res.send("Running...");
-                });
-                server.listen(this.port, () => {
-                    (0, utils_1.output2)("");
-                    (0, utils_1.output2)(`88.     .88                                                88           `);
-                    (0, utils_1.output2)(`888.   .888                                                88           `);
-                    (0, utils_1.output2)(`88Y8. .8P88                                                88           `);
-                    (0, utils_1.output2)(`88 Y8o8P 88  .88.  88.d8 88.d8 Yb     dP 8888bd88b   .88.8 88  .8P .88. `);
-                    (0, utils_1.output2)(`88  Y8P  88 d"  "b 88"   88"    Yb   dP  88 '88 '8b d"  "8 88 .8P d"  "b`);
-                    (0, utils_1.output2)(`88   "   88 888888 88    88      Yb dP   88  88  88 8    8 88d8P  888888`);
-                    (0, utils_1.output2)(`88       88 Y.     88    88       Y8P    88  88  88 Y.  .8 88" 8b Y.    `);
-                    (0, utils_1.output2)(`88       88  "88P  88    88       dP     88  88  88  "88"8 88  "8b "88P `);
-                    (0, utils_1.output2)(`                                 dP                                     `);
-                    (0, utils_1.output2)("");
-                    (0, utils_1.output2)(`Running local Rapids on http://localhost:${this.port}/rapids`);
-                    (0, utils_1.output2)(`To exit, press ctrl+c`);
-                    (0, utils_1.output2)("");
-                });
-            }
-            catch (e) {
-                throw e;
-            }
+        return new Promise((resolve) => {
+            const { pathToRoot } = (0, utils_1.fetchOrg)();
+            let teams = (0, utils_1.directoryNames)(new utils_1.Path(pathToRoot), ["event-catalogue"]).map((x) => x.name);
+            const app = (0, express_1.default)();
+            const server = http_1.default.createServer(app);
+            app.use((req, res, next) => {
+                if (req.is("multipart/form-data") ||
+                    req.is("application/x-www-form-urlencoded")) {
+                    express_1.default.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
+                }
+                else {
+                    express_1.default.raw({ type: "*/*", limit: "10mb" })(req, res, next);
+                }
+            });
+            let hooks;
+            app.post("/trace/:traceId/:event", (req, res) => __awaiter(this, void 0, void 0, function* () {
+                try {
+                    let traceId = req.params.traceId;
+                    let event = req.params.event;
+                    let payload = req.body;
+                    this.runService(pathToRoot, this.port, event, payload, traceId, hooks, req.headers["content-type"]);
+                    res.send("Done");
+                }
+                catch (e) {
+                    if (e.data !== undefined)
+                        console.log("" + e.data);
+                    else
+                        throw e;
+                }
+            }));
+            app.get("/rapids/:event", (req, res) => __awaiter(this, void 0, void 0, function* () {
+                try {
+                    let event = req.params.event;
+                    hooks = new PublicHooks(pathToRoot);
+                    let payload = Buffer.from(JSON.stringify(req.query));
+                    processFolders(pathToRoot, teams, hooks);
+                    let traceId = "s" + Math.random();
+                    let response = yield this.runWithReply(pathToRoot, this.port, res, event, payload, traceId, hooks, req.headers["content-type"]);
+                }
+                catch (e) {
+                    if (e.data !== undefined)
+                        reply(res, e, undefined);
+                    else
+                        throw e;
+                }
+            }));
+            app.all("/rapids/:event", (req, res) => __awaiter(this, void 0, void 0, function* () {
+                try {
+                    let event = req.params.event;
+                    hooks = new PublicHooks(pathToRoot);
+                    let payload = !Buffer.isBuffer(req.body)
+                        ? typeof req.body === "object"
+                            ? Buffer.from(JSON.stringify(req.body))
+                            : Buffer.from(req.body)
+                        : req.body;
+                    processFolders(pathToRoot, teams, hooks);
+                    let traceId = "s" + Math.random();
+                    let response = yield this.runWithReply(pathToRoot, this.port, res, event, payload, traceId, hooks, req.headers["content-type"]);
+                }
+                catch (e) {
+                    if (e.data !== undefined)
+                        reply(res, e, undefined);
+                    else
+                        throw e;
+                }
+            }));
+            app.get("/rapids", (req, res) => {
+                res.send("Running...");
+            });
+            server.listen(this.port, () => {
+                (0, utils_1.output2)("");
+                (0, utils_1.output2)(`88.     .88                                                88           `);
+                (0, utils_1.output2)(`888.   .888                                                88           `);
+                (0, utils_1.output2)(`88Y8. .8P88                                                88           `);
+                (0, utils_1.output2)(`88 Y8o8P 88  .88.  88.d8 88.d8 Yb     dP 8888bd88b   .88.8 88  .8P .88. `);
+                (0, utils_1.output2)(`88  Y8P  88 d"  "b 88"   88"    Yb   dP  88 '88 '8b d"  "8 88 .8P d"  "b`);
+                (0, utils_1.output2)(`88   "   88 888888 88    88      Yb dP   88  88  88 8    8 88d8P  888888`);
+                (0, utils_1.output2)(`88       88 Y.     88    88       Y8P    88  88  88 Y.  .8 88" 8b Y.    `);
+                (0, utils_1.output2)(`88       88  "88P  88    88       dP     88  88  88  "88"8 88  "8b "88P `);
+                (0, utils_1.output2)(`                                 dP                                     `);
+                (0, utils_1.output2)("");
+                (0, utils_1.output2)(`Running local Rapids on ${prompt_1.COLOR3}http://localhost:${this.port}/rapids${prompt_1.NORMAL_COLOR}`);
+                (0, utils_1.output2)(`To exit, press ctrl+c`);
+                (0, utils_1.output2)("");
+            });
         });
     }
     runService(pathToRoot, port, event, payload, traceId, hooks, contentType) {

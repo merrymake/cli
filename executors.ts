@@ -308,24 +308,36 @@ export function do_redeploy() {
   return deploy_internal("git commit --allow-empty -m 'Redeploy'");
 }
 
+function spawnPromise(str: string) {
+  return new Promise<void>((resolve, reject) => {
+    let [cmd, ...args] = str.split(" ");
+    const options: ExecOptions = {
+      cwd: ".",
+      shell: "sh",
+    };
+    let ls = spawn(cmd, args, options);
+    ls.stdout.on("data", (data: Buffer | string) => {
+      output2(data.toString());
+    });
+    ls.stderr.on("data", (data: Buffer | string) => {
+      output2(data.toString());
+    });
+    ls.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject();
+    });
+  });
+}
+
 export async function do_build() {
   try {
     let projectType = detectProjectType(".");
     output2(`Building ${projectType} project...`);
-    BUILD_SCRIPT_MAKERS[projectType](".").forEach((x) => {
-      let [cmd, ...args] = x.split(" ");
-      const options: ExecOptions = {
-        shell: "sh",
-      };
-      if (process.env["DEBUG"]) console.log(cmd, args);
-      let ls = spawn(cmd, args, options);
-      ls.stdout.on("data", (data: Buffer | string) => {
-        output2(data.toString());
-      });
-      ls.stderr.on("data", (data: Buffer | string) => {
-        output2(data.toString());
-      });
-    });
+    let buildCommands = BUILD_SCRIPT_MAKERS[projectType](".");
+    for (let i = 0; i < buildCommands.length; i++) {
+      let x = buildCommands[i];
+      await spawnPromise(x);
+    }
   } catch (e) {
     throw e;
   }

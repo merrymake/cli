@@ -288,26 +288,38 @@ function do_redeploy() {
     return deploy_internal("git commit --allow-empty -m 'Redeploy'");
 }
 exports.do_redeploy = do_redeploy;
+function spawnPromise(str) {
+    return new Promise((resolve, reject) => {
+        let [cmd, ...args] = str.split(" ");
+        const options = {
+            cwd: ".",
+            shell: "sh",
+        };
+        let ls = (0, child_process_1.spawn)(cmd, args, options);
+        ls.stdout.on("data", (data) => {
+            (0, utils_1.output2)(data.toString());
+        });
+        ls.stderr.on("data", (data) => {
+            (0, utils_1.output2)(data.toString());
+        });
+        ls.on("close", (code) => {
+            if (code === 0)
+                resolve();
+            else
+                reject();
+        });
+    });
+}
 function do_build() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let projectType = (0, detect_project_type_1.detectProjectType)(".");
             (0, utils_1.output2)(`Building ${projectType} project...`);
-            detect_project_type_1.BUILD_SCRIPT_MAKERS[projectType](".").forEach((x) => {
-                let [cmd, ...args] = x.split(" ");
-                const options = {
-                    shell: "sh",
-                };
-                if (process.env["DEBUG"])
-                    console.log(cmd, args);
-                let ls = (0, child_process_1.spawn)(cmd, args, options);
-                ls.stdout.on("data", (data) => {
-                    (0, utils_1.output2)(data.toString());
-                });
-                ls.stderr.on("data", (data) => {
-                    (0, utils_1.output2)(data.toString());
-                });
-            });
+            let buildCommands = detect_project_type_1.BUILD_SCRIPT_MAKERS[projectType](".");
+            for (let i = 0; i < buildCommands.length; i++) {
+                let x = buildCommands[i];
+                yield spawnPromise(x);
+            }
         }
         catch (e) {
             throw e;

@@ -9,11 +9,12 @@ import {
   RUN_COMMAND,
 } from "@merrymake/detect-project-type";
 import http from "http";
+import { COLOR3, NORMAL_COLOR } from "./prompt";
 
 export class Run {
   constructor(private port: number) {}
-  async execute() {
-    try {
+  execute() {
+    return new Promise<void>((resolve) => {
       const { pathToRoot } = fetchOrg();
 
       let teams = directoryNames(new Path(pathToRoot), ["event-catalogue"]).map(
@@ -141,13 +142,13 @@ export class Run {
           `                                 dP                                     `
         );
         output2("");
-        output2(`Running local Rapids on http://localhost:${this.port}/rapids`);
+        output2(
+          `Running local Rapids on ${COLOR3}http://localhost:${this.port}/rapids${NORMAL_COLOR}`
+        );
         output2(`To exit, press ctrl+c`);
         output2("");
       });
-    } catch (e) {
-      throw e;
-    }
+    });
   }
 
   runService(
