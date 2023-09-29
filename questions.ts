@@ -1,7 +1,14 @@
 import path from "path";
 import os from "os";
 import fs from "fs";
-import { COLOR1, NORMAL_COLOR, choice, shortText } from "./prompt";
+import {
+  COLOR1,
+  NORMAL_COLOR,
+  choice,
+  shortText,
+  spinner_start,
+  spinner_stop,
+} from "./prompt";
 import {
   addToExecuteQueue,
   directoryNames,
@@ -787,7 +794,7 @@ export async function start() {
       });
       options.push({
         long: "quickstart",
-        text: "automatically register, and setup a standard demo organization",
+        text: "quickstart with auto registration and a standard demo organization",
         action: () => quickstart(),
         weight: !cache.registered ? 15 : 2,
       });

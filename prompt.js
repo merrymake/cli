@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exit = exports.shortText = exports.choice = exports.INVISIBLE = exports.COLOR3 = exports.COLOR2 = exports.COLOR1 = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
+exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start = exports.choice = exports.INVISIBLE = exports.COLOR3 = exports.COLOR2 = exports.COLOR1 = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
 const node_process_1 = require("node:process");
 const args_1 = require("./args");
+const utils_1 = require("./utils");
 exports.CTRL_C = "\u0003";
 // const CR = "\u000D";
 exports.BACKSPACE = "\b";
@@ -72,7 +73,8 @@ let command = "$ " + process.env["COMMAND"];
 function makeSelectionInternal(option, extra) {
     moveToBottom();
     cleanup();
-    extra();
+    if (option.short !== "x")
+        extra();
     if (listener !== undefined)
         node_process_1.stdin.removeListener("data", listener);
     return option.action();
@@ -95,9 +97,15 @@ function cleanup() {
     output(exports.SHOW_CURSOR);
 }
 function choice(options, invertedQuiet = true, def = 0) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         let quick = {};
         let str = [];
+        options.push({
+            short: "x",
+            long: "x",
+            text: "exit",
+            action: () => (0, utils_1.abort)(),
+        });
         for (let i = 0; i < options.length; i++) {
             const o = options[i];
             if ((0, args_1.getArgs)()[0] === o.long || (0, args_1.getArgs)()[0] === `-${o.short}`) {
@@ -122,7 +130,7 @@ function choice(options, invertedQuiet = true, def = 0) {
         }
         if ((0, args_1.getArgs)().length > 0) {
             output(`Invalid argument in the current context: ${(0, args_1.getArgs)()[0]}\n`);
-            return;
+            (0, args_1.getArgs)().splice(0, (0, args_1.getArgs)().length);
         }
         if (options.length === 1) {
             resolve(makeSelection(options[0]));
@@ -178,6 +186,24 @@ function choice(options, invertedQuiet = true, def = 0) {
     });
 }
 exports.choice = choice;
+let interval;
+let spinnerIndex = 0;
+const SPINNER = ["│", "/", "─", "\\"];
+function spinner_start() {
+    interval = setInterval(spin, 200);
+}
+exports.spinner_start = spinner_start;
+function spin() {
+    output(SPINNER[(spinnerIndex = (spinnerIndex + 1) % SPINNER.length)]);
+    moveCursor(-1, 0);
+}
+function spinner_stop() {
+    if (interval !== undefined) {
+        clearInterval(interval);
+        interval = undefined;
+    }
+}
+exports.spinner_stop = spinner_stop;
 function shortText(prompt, description, defaultValue) {
     return new Promise((resolve) => {
         if ((0, args_1.getArgs)()[0] !== undefined) {

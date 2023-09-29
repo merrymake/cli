@@ -63,7 +63,7 @@ export async function do_fetch() {
     }
     output2(`Fetching...`);
     let structure = JSON.parse(reply);
-    await fetch(org.pathToRoot, org.org.name, structure);
+    await fetch(path.join(org.pathToRoot, ".."), org.org.name, structure);
   } catch (e) {
     throw e;
   }

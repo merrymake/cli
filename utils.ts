@@ -7,7 +7,13 @@ import fs from "fs";
 import { exec, spawn } from "child_process";
 import { readdirSync } from "node:fs";
 import * as conf from "./package.json";
-import { COLOR3, NORMAL_COLOR, exit } from "./prompt";
+import {
+  COLOR3,
+  NORMAL_COLOR,
+  exit,
+  spinner_start,
+  spinner_stop,
+} from "./prompt";
 
 export class Path {
   constructor(private offset = ".") {
@@ -217,12 +223,19 @@ export function execStreamPromise(
 function sshReqInternal(cmd: string) {
   return execPromise(`ssh mist@${SSH_HOST} "${cmd}"`);
 }
-export function sshReq(...cmd: string[]) {
-  return sshReqInternal(
-    cmd
-      .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
-      .join(" ")
-  );
+export async function sshReq(...cmd: string[]) {
+  try {
+    spinner_start();
+    let result = await sshReqInternal(
+      cmd
+        .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
+        .join(" ")
+    );
+    spinner_stop();
+    return result;
+  } catch (e) {
+    throw e;
+  }
 }
 
 export function partition(str: string, radix: string) {

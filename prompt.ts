@@ -1,5 +1,6 @@
 import { stdin, stdout } from "node:process";
 import { getArgs } from "./args";
+import { abort } from "./utils";
 
 export const CTRL_C = "\u0003";
 // const CR = "\u000D";
@@ -82,7 +83,7 @@ let command = "$ " + process.env["COMMAND"];
 function makeSelectionInternal(option: Option, extra: () => void) {
   moveToBottom();
   cleanup();
-  extra();
+  if (option.short !== "x") extra();
   if (listener !== undefined) stdin.removeListener("data", listener);
   return option.action();
 }
@@ -118,9 +119,15 @@ export function choice(
   invertedQuiet = true,
   def: number = 0
 ) {
-  return new Promise<never>((resolve) => {
+  return new Promise<never>((resolve, reject) => {
     let quick: { [key: string]: Option } = {};
     let str: string[] = [];
+    options.push({
+      short: "x",
+      long: "x",
+      text: "exit",
+      action: () => abort(),
+    });
     for (let i = 0; i < options.length; i++) {
       const o = options[i];
       if (getArgs()[0] === o.long || getArgs()[0] === `-${o.short}`) {
@@ -144,7 +151,7 @@ export function choice(
     }
     if (getArgs().length > 0) {
       output(`Invalid argument in the current context: ${getArgs()[0]}\n`);
-      return;
+      getArgs().splice(0, getArgs().length);
     }
     if (options.length === 1) {
       resolve(makeSelection(options[0]));
@@ -201,6 +208,23 @@ export function choice(
       })
     );
   });
+}
+
+let interval: NodeJS.Timer | undefined;
+let spinnerIndex = 0;
+const SPINNER = ["│", "/", "─", "\\"];
+export function spinner_start() {
+  interval = setInterval(spin, 200);
+}
+function spin() {
+  output(SPINNER[(spinnerIndex = (spinnerIndex + 1) % SPINNER.length)]);
+  moveCursor(-1, 0);
+}
+export function spinner_stop() {
+  if (interval !== undefined) {
+    clearInterval(interval);
+    interval = undefined;
+  }
 }
 
 export function shortText(

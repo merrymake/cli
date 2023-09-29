@@ -625,7 +625,7 @@ function start() {
                 });
                 options.push({
                     long: "quickstart",
-                    text: "automatically register, and setup a standard demo organization",
+                    text: "quickstart with auto registration and a standard demo organization",
                     action: () => quickstart(),
                     weight: !cache.registered ? 15 : 2,
                 });

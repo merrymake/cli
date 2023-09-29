@@ -259,9 +259,19 @@ function sshReqInternal(cmd) {
     return execPromise(`ssh mist@${config_1.SSH_HOST} "${cmd}"`);
 }
 function sshReq(...cmd) {
-    return sshReqInternal(cmd
-        .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
-        .join(" "));
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            (0, prompt_1.spinner_start)();
+            let result = yield sshReqInternal(cmd
+                .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
+                .join(" "));
+            (0, prompt_1.spinner_stop)();
+            return result;
+        }
+        catch (e) {
+            throw e;
+        }
+    });
 }
 exports.sshReq = sshReq;
 function partition(str, radix) {

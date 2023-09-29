@@ -20,6 +20,7 @@ const config_1 = require("./config");
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const child_process_1 = require("child_process");
 const prompt_1 = require("./prompt");
+const path_1 = __importDefault(require("path"));
 function clone(struct, name) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -59,7 +60,7 @@ function do_fetch() {
             }
             (0, utils_1.output2)(`Fetching...`);
             let structure = JSON.parse(reply);
-            yield fetch(org.pathToRoot, org.org.name, structure);
+            yield fetch(path_1.default.join(org.pathToRoot, ".."), org.org.name, structure);
         }
         catch (e) {
             throw e;
