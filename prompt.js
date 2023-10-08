@@ -97,9 +97,15 @@ function cleanup() {
     output(exports.SHOW_CURSOR);
 }
 function choice(options, invertedQuiet = true, def = 0) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         let quick = {};
         let str = [];
+        if (options.length === 1) {
+            if ((0, args_1.getArgs)().length > 0)
+                (0, args_1.getArgs)().splice(0, 1);
+            resolve(makeSelection(options[0]));
+            return;
+        }
         options.push({
             short: "x",
             long: "x",
@@ -131,10 +137,6 @@ function choice(options, invertedQuiet = true, def = 0) {
         if ((0, args_1.getArgs)().length > 0) {
             output(`Invalid argument in the current context: ${(0, args_1.getArgs)()[0]}\n`);
             (0, args_1.getArgs)().splice(0, (0, args_1.getArgs)().length);
-        }
-        if (options.length === 1) {
-            resolve(makeSelection(options[0]));
-            return;
         }
         output(exports.HIDE_CURSOR);
         output(str.join(""));

@@ -210,13 +210,24 @@ async function group(path: Path, org: string) {
   }
 }
 
+const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+function generateString(length: number) {
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+
+  return result;
+}
+
 async function org() {
   try {
-    let defName = "org" + ("" + Math.random()).substring(2);
+    let orgName = generateOrgName();
     let name = await shortText(
       "Organization name",
       "Used when collaborating with others.",
-      defName
+      orgName
     ).then((x) => x);
     addToExecuteQueue(() => createOrganization(name));
     return group(new Path(name), name);
@@ -291,7 +302,6 @@ async function checkout() {
 let cache_queue: {
   id: string;
   q: string;
-  s: string;
   e: string;
   r: string;
 }[];
@@ -302,9 +312,9 @@ function queue_id(org: string, id: string) {
       .filter((x) => x.id === id)
       .map((x) => ({
         long: x.r,
-        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${
-          x.s
-        } │ ${new Date(x.q).toLocaleString()}`,
+        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${new Date(
+          x.q
+        ).toLocaleString()}`,
         action: () => queue_event(org, x.id, x.r),
       })),
     false
@@ -318,9 +328,10 @@ async function queue(org: string) {
     return await choice(
       cache_queue.map((x) => ({
         long: x.id,
-        text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${
-          x.s
-        } │ ${new Date(x.q).toLocaleString()}`,
+        text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(
+          x.e,
+          12
+        )} │ ${new Date(x.q).toLocaleString()}`,
         action: () => {
           if (getArgs().length === 0) initializeArgs([x.r]);
           return queue_id(org, x.id);
@@ -646,11 +657,27 @@ async function cron(org: string) {
   }
 }
 
+function generateOrgName() {
+  if (
+    process.env["MERRYMAKE_NAME_LENGTH"] !== undefined &&
+    !Number.isNaN(+process.env["MERRYMAKE_NAME_LENGTH"])
+  )
+    return "org" + generateString(+process.env["MERRYMAKE_NAME_LENGTH"] - 3);
+  else
+    return (
+      ADJECTIVE[~~(ADJECTIVE.length * Math.random())] +
+      "-" +
+      NOUN[~~(NOUN.length * Math.random())] +
+      "-" +
+      NOUN[~~(NOUN.length * Math.random())]
+    );
+}
+
 function quickstart() {
   let cache = getCache();
   if (!cache.registered)
     addToExecuteQueue(() => do_register(generateNewKey, ""));
-  let orgName = "org" + ("" + Math.random()).substring(2);
+  let orgName = generateOrgName();
   let pth = new Path();
   addToExecuteQueue(() => createOrganization(orgName));
   let pathToOrg = pth.with(orgName);

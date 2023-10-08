@@ -119,9 +119,14 @@ export function choice(
   invertedQuiet = true,
   def: number = 0
 ) {
-  return new Promise<never>((resolve, reject) => {
+  return new Promise<never>((resolve) => {
     let quick: { [key: string]: Option } = {};
     let str: string[] = [];
+    if (options.length === 1) {
+      if (getArgs().length > 0) getArgs().splice(0, 1);
+      resolve(makeSelection(options[0]));
+      return;
+    }
     options.push({
       short: "x",
       long: "x",
@@ -152,10 +157,6 @@ export function choice(
     if (getArgs().length > 0) {
       output(`Invalid argument in the current context: ${getArgs()[0]}\n`);
       getArgs().splice(0, getArgs().length);
-    }
-    if (options.length === 1) {
-      resolve(makeSelection(options[0]));
-      return;
     }
 
     output(HIDE_CURSOR);

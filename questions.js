@@ -154,11 +154,19 @@ function group(path, org) {
         }
     });
 }
+const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
+function generateString(length) {
+    let result = "";
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+}
 function org() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let defName = "org" + ("" + Math.random()).substring(2);
-            let name = yield (0, prompt_1.shortText)("Organization name", "Used when collaborating with others.", defName).then((x) => x);
+            let orgName = generateOrgName();
+            let name = yield (0, prompt_1.shortText)("Organization name", "Used when collaborating with others.", orgName).then((x) => x);
             (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createOrganization)(name));
             return group(new utils_2.Path(name), name);
         }
@@ -234,7 +242,7 @@ function queue_id(org, id) {
         .filter((x) => x.id === id)
         .map((x) => ({
         long: x.r,
-        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${x.s} │ ${new Date(x.q).toLocaleString()}`,
+        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${new Date(x.q).toLocaleString()}`,
         action: () => queue_event(org, x.id, x.r),
     })), false).then((x) => x);
 }
@@ -245,7 +253,7 @@ function queue(org) {
             cache_queue = JSON.parse(resp);
             return yield (0, prompt_1.choice)(cache_queue.map((x) => ({
                 long: x.id,
-                text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${x.s} │ ${new Date(x.q).toLocaleString()}`,
+                text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${new Date(x.q).toLocaleString()}`,
                 action: () => {
                     if ((0, args_1.getArgs)().length === 0)
                         (0, args_1.initializeArgs)([x.r]);
@@ -485,11 +493,22 @@ function cron(org) {
         }
     });
 }
+function generateOrgName() {
+    if (process.env["MERRYMAKE_NAME_LENGTH"] !== undefined &&
+        !Number.isNaN(+process.env["MERRYMAKE_NAME_LENGTH"]))
+        return "org" + generateString(+process.env["MERRYMAKE_NAME_LENGTH"] - 3);
+    else
+        return (ADJECTIVE[~~(ADJECTIVE.length * Math.random())] +
+            "-" +
+            NOUN[~~(NOUN.length * Math.random())] +
+            "-" +
+            NOUN[~~(NOUN.length * Math.random())]);
+}
 function quickstart() {
     let cache = (0, utils_1.getCache)();
     if (!cache.registered)
         (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_register)(executors_1.generateNewKey, ""));
-    let orgName = "org" + ("" + Math.random()).substring(2);
+    let orgName = generateOrgName();
     let pth = new utils_2.Path();
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createOrganization)(orgName));
     let pathToOrg = pth.with(orgName);
