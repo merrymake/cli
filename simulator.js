@@ -125,15 +125,16 @@ class Run {
         if (rivers === undefined)
             return;
         let messageId = "m" + Math.random();
-        let envelope = `'${JSON.stringify({
+        let envelope = JSON.stringify({
             messageId,
             traceId,
-        })}'`;
+        });
         Object.keys(rivers).forEach((river) => {
             let services = rivers[river];
             let service = services[~~(Math.random() * services.length)];
+            console.log(service.cmd);
             let [cmd, ...rest] = service.cmd.split(" ");
-            const args = [...rest, service.action, envelope];
+            const args = [...rest, `'${service.action}'`, `'${envelope}'`];
             const options = {
                 cwd: service.dir,
                 env: Object.assign(Object.assign({}, process.env), { RAPIDS: `http://localhost:${port}/trace/${traceId}` }),

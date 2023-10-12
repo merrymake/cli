@@ -170,15 +170,16 @@ export class Run {
     let rivers = hooks.riversFor(event)?.hooks;
     if (rivers === undefined) return;
     let messageId = "m" + Math.random();
-    let envelope = `'${JSON.stringify({
+    let envelope = JSON.stringify({
       messageId,
       traceId,
-    })}'`;
+    });
     Object.keys(rivers).forEach((river) => {
       let services = rivers[river];
       let service = services[~~(Math.random() * services.length)];
+      console.log(service.cmd);
       let [cmd, ...rest] = service.cmd.split(" ");
-      const args = [...rest, service.action, envelope];
+      const args = [...rest, `'${service.action}'`, `'${envelope}'`];
       const options: ExecOptions = {
         cwd: service.dir,
         env: {

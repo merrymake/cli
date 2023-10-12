@@ -15,7 +15,7 @@ exports.templates = {
         long: "basic",
         short: "b",
         text: "initialize with a basic template",
-        languages: ["csharp", "rust", "typescript", "javascript"],
+        languages: ["python", "csharp", "rust", "typescript", "javascript"],
     },
     // web: {
     //   long: "web",
