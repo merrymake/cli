@@ -82,7 +82,8 @@ function makeSelectionInternal(option, extra) {
 function makeSelection(option) {
     return makeSelectionInternal(option, () => {
         output("\n");
-        output((command += " " + option.long));
+        output((command +=
+            " " + (option.long.includes(" ") ? `'${option.long}'` : option.long)));
         output("\n");
     });
 }
@@ -96,7 +97,7 @@ function cleanup() {
     output(exports.NORMAL_COLOR);
     output(exports.SHOW_CURSOR);
 }
-function choice(options, invertedQuiet = true, def = 0) {
+function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) {
     return new Promise((resolve) => {
         let quick = {};
         let str = [];
@@ -116,7 +117,7 @@ function choice(options, invertedQuiet = true, def = 0) {
             const o = options[i];
             if ((0, args_1.getArgs)()[0] === o.long || (0, args_1.getArgs)()[0] === `-${o.short}`) {
                 (0, args_1.getArgs)().splice(0, 1);
-                resolve(invertedQuiet ? makeSelectionQuietly(o) : makeSelection(o));
+                resolve(invertedQuiet.cmd ? makeSelection(o) : makeSelectionQuietly(o));
                 return;
             }
             if (o.short)
@@ -154,7 +155,7 @@ function choice(options, invertedQuiet = true, def = 0) {
             // stdout.write("" + yOffset);
             // moveCursor(-("" + yOffset).length, -options.length + pos);
             if (k === exports.ENTER) {
-                resolve(invertedQuiet
+                resolve(invertedQuiet.select
                     ? makeSelection(options[pos])
                     : makeSelectionQuietly(options[pos]));
                 return;
@@ -291,7 +292,7 @@ function shortText(prompt, description, defaultValue) {
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (/^[A-Za-z0-9@_.-/:;#=&?]$/.test(k)) {
+            else if (/^[A-Za-z0-9@_, .-/:;#=&?]$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
                 node_process_1.stdout.clearLine(1);

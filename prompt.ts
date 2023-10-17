@@ -90,7 +90,10 @@ function makeSelectionInternal(option: Option, extra: () => void) {
 function makeSelection(option: Option) {
   return makeSelectionInternal(option, () => {
     output("\n");
-    output((command += " " + option.long));
+    output(
+      (command +=
+        " " + (option.long.includes(" ") ? `'${option.long}'` : option.long))
+    );
     output("\n");
   });
 }
@@ -116,7 +119,7 @@ export type Option = {
 
 export function choice(
   options: Option[],
-  invertedQuiet = true,
+  invertedQuiet = { cmd: false, select: true },
   def: number = 0
 ) {
   return new Promise<never>((resolve) => {
@@ -137,7 +140,7 @@ export function choice(
       const o = options[i];
       if (getArgs()[0] === o.long || getArgs()[0] === `-${o.short}`) {
         getArgs().splice(0, 1);
-        resolve(invertedQuiet ? makeSelectionQuietly(o) : makeSelection(o));
+        resolve(invertedQuiet.cmd ? makeSelection(o) : makeSelectionQuietly(o));
         return;
       }
       if (o.short) quick[o.short] = o;
@@ -180,7 +183,7 @@ export function choice(
         // moveCursor(-("" + yOffset).length, -options.length + pos);
         if (k === ENTER) {
           resolve(
-            invertedQuiet
+            invertedQuiet.select
               ? makeSelection(options[pos])
               : makeSelectionQuietly(options[pos])
           );
@@ -310,7 +313,7 @@ export function shortText(
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
-        } else if (/^[A-Za-z0-9@_.-/:;#=&?]$/.test(k)) {
+        } else if (/^[A-Za-z0-9@_, .-/:;#=&?]$/.test(k)) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += k;
           stdout.clearLine(1);

@@ -69,12 +69,10 @@ function service_template(pathToService, template) {
     });
 }
 function duplicate_service_deploy(pathToService, org, group, service, deploy) {
-    return __awaiter(this, void 0, void 0, function* () {
-        (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_duplicate)(pathToService, org, group, service));
-        if (deploy)
-            (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_deploy)(pathToService));
-        return (0, utils_1.finish)();
-    });
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_duplicate)(pathToService, org, group, service));
+    if (deploy)
+        (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_deploy)(pathToService));
+    return (0, utils_1.finish)();
 }
 function duplicate_service(pathToService, org, group, service) {
     return (0, prompt_1.choice)([
@@ -205,7 +203,7 @@ function register() {
                 text: "Setup new key specifically for Merrymake",
                 action: () => register_key(executors_1.generateNewKey),
             });
-            return yield (0, prompt_1.choice)(keys, true, keys.length - 1).then((x) => x);
+            return yield (0, prompt_1.choice)(keys, { cmd: false, select: true }, keys.length - 1).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -238,28 +236,80 @@ function checkout() {
 }
 let cache_queue;
 function queue_id(org, id) {
+    (0, executors_1.printTableHeader)("      ", {
+        River: 12,
+        Event: 12,
+        Status: 7,
+        "Queue time": 20,
+    });
     return (0, prompt_1.choice)(cache_queue
         .filter((x) => x.id === id)
         .map((x) => ({
         long: x.r,
-        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${new Date(x.q).toLocaleString()}`,
+        text: `${(0, executors_1.alignRight)(x.r, 12)} │ ${(0, executors_1.alignLeft)(x.e, 12)} │ ${(0, executors_1.alignLeft)(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`,
         action: () => queue_event(org, x.id, x.r),
-    })), false).then((x) => x);
+    })), { cmd: true, select: true }).then((x) => x);
 }
-function queue(org) {
+function queue_time_value(org, time) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_queue_time)(org, time));
+    return (0, utils_1.finish)();
+}
+function queue_time(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let resp = yield (0, utils_1.sshReq)(`queue`, `--org`, org);
-            cache_queue = JSON.parse(resp);
-            return yield (0, prompt_1.choice)(cache_queue.map((x) => ({
-                long: x.id,
-                text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${new Date(x.q).toLocaleString()}`,
-                action: () => {
-                    if ((0, args_1.getArgs)().length === 0)
-                        (0, args_1.initializeArgs)([x.r]);
-                    return queue_id(org, x.id);
-                },
-            })), false).then((x) => x);
+            let d = new Date(yield (0, prompt_1.shortText)("Time", "Displays events _around_ specified time.", "1995-12-17T03:24:00")).getTime();
+            while (isNaN(d)) {
+                (0, utils_1.output2)("Invalid date, please try again.");
+                d = new Date(yield (0, prompt_1.shortText)("Time", "Displays events _around_ specified time.", "1995-12-17T03:24:00")).getTime();
+            }
+            return queue_time_value(org, d);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+const QUEUE_COUNT = 15;
+function queue(org, offset) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let options;
+            if (["time", "next"].includes((0, args_1.getArgs)()[0])) {
+                options = [];
+            }
+            else {
+                let resp = yield (0, utils_1.sshReq)(`queue`, `--org`, org, "--count", "" + QUEUE_COUNT, "--offset", "" + offset);
+                cache_queue = JSON.parse(resp);
+                (0, executors_1.printTableHeader)("      ", {
+                    Id: 6,
+                    River: 12,
+                    Event: 12,
+                    Status: 7,
+                    "Queue time": 20,
+                });
+                options = cache_queue.map((x) => ({
+                    long: x.id,
+                    text: `${x.id} │ ${(0, executors_1.alignRight)(x.r, 12)} │ ${(0, executors_1.alignLeft)(x.e, 12)} │ ${(0, executors_1.alignLeft)(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`,
+                    action: () => {
+                        if ((0, args_1.getArgs)().length === 0)
+                            (0, args_1.initializeArgs)([x.r]);
+                        return queue_id(org, x.id);
+                    },
+                }));
+            }
+            options.push({
+                long: `next`,
+                short: `n`,
+                text: `next page`,
+                action: () => queue(org, offset + QUEUE_COUNT),
+            });
+            options.push({
+                long: `time`,
+                short: `t`,
+                text: `specify time`,
+                action: () => queue_time(org),
+            });
+            return yield (0, prompt_1.choice)(options, { cmd: false, select: false }).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -348,16 +398,6 @@ function envvar_key(org, group, overwrite, key, currentValue) {
         }
     });
 }
-function alignRight(str, width) {
-    return str.length > width
-        ? str.substring(0, width - 3) + "..."
-        : str.padStart(width, " ");
-}
-function alignLeft(str, width) {
-    return str.length > width
-        ? str.substring(0, width - 3) + "..."
-        : str.padEnd(width, " ");
-}
 function keys(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -371,7 +411,7 @@ function keys(org) {
                 let n = x.name || "";
                 return {
                     long: x.key,
-                    text: `${x.key} │ ${alignLeft(n, 12)} │ ${ds}`,
+                    text: `${x.key} │ ${(0, executors_1.alignLeft)(n, 12)} │ ${ds}`,
                     action: () => keys_key(org, x.key, x.name),
                 };
             });
@@ -381,6 +421,7 @@ function keys(org) {
                 text: `add a new apikey`,
                 action: () => keys_key(org, null, ""),
             });
+            (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12, "Expiry time": 20 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
@@ -477,7 +518,7 @@ function cron(org) {
             let orgs = JSON.parse(resp);
             let options = orgs.map((x) => ({
                 long: x.name,
-                text: `${alignRight(x.name, 10)} │ ${alignRight(x.event, 10)} │ ${x.expression}`,
+                text: `${(0, executors_1.alignRight)(x.name, 10)} │ ${(0, executors_1.alignRight)(x.event, 10)} │ ${x.expression}`,
                 action: () => cron_name(org, x.name, x.event, x.expression),
             }));
             options.push({
@@ -486,6 +527,7 @@ function cron(org) {
                 text: `setup a new cron job`,
                 action: () => cron_new(org),
             });
+            (0, executors_1.printTableHeader)("      ", { Name: 10, Event: 10, Expression: 20 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
@@ -557,7 +599,7 @@ function start() {
                     long: "queue",
                     short: "q",
                     text: "display the message queues or events",
-                    action: () => queue(orgName),
+                    action: () => queue(orgName, 0),
                 });
                 if (fs_1.default.existsSync("mist.json") || fs_1.default.existsSync("merrymake.json")) {
                     // Inside a service

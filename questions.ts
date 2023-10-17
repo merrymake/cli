@@ -16,6 +16,7 @@ import {
   finish,
   getCache,
   getFiles,
+  output2,
   sshReq,
 } from "./utils";
 import { Option } from "./prompt";
@@ -38,6 +39,10 @@ import {
   do_envvar,
   do_cron,
   do_duplicate,
+  do_queue_time,
+  printTableHeader,
+  alignRight,
+  alignLeft,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -106,7 +111,7 @@ async function service_template(pathToService: Path, template: string) {
   }
 }
 
-async function duplicate_service_deploy(
+function duplicate_service_deploy(
   pathToService: Path,
   org: string,
   group: string,
@@ -267,7 +272,11 @@ async function register() {
       text: "Setup new key specifically for Merrymake",
       action: () => register_key(generateNewKey),
     });
-    return await choice(keys, true, keys.length - 1).then((x) => x);
+    return await choice(
+      keys,
+      { cmd: false, select: true },
+      keys.length - 1
+    ).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -304,41 +313,110 @@ let cache_queue: {
   q: string;
   e: string;
   r: string;
+  s: string;
 }[];
 
 function queue_id(org: string, id: string) {
+  printTableHeader("      ", {
+    River: 12,
+    Event: 12,
+    Status: 7,
+    "Queue time": 20,
+  });
   return choice(
     cache_queue
       .filter((x) => x.id === id)
       .map((x) => ({
         long: x.r,
-        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${new Date(
-          x.q
-        ).toLocaleString()}`,
+        text: `${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${alignLeft(
+          x.s,
+          7
+        )} │ ${new Date(x.q).toLocaleString()}`,
         action: () => queue_event(org, x.id, x.r),
       })),
-    false
+    { cmd: true, select: true }
   ).then((x) => x);
 }
 
-async function queue(org: string) {
+function queue_time_value(org: string, time: number) {
+  addToExecuteQueue(() => do_queue_time(org, time));
+  return finish();
+}
+
+async function queue_time(org: string) {
   try {
-    let resp = await sshReq(`queue`, `--org`, org);
-    cache_queue = JSON.parse(resp);
-    return await choice(
-      cache_queue.map((x) => ({
+    let d = new Date(
+      await shortText(
+        "Time",
+        "Displays events _around_ specified time.",
+        "1995-12-17T03:24:00"
+      )
+    ).getTime();
+    while (isNaN(d)) {
+      output2("Invalid date, please try again.");
+      d = new Date(
+        await shortText(
+          "Time",
+          "Displays events _around_ specified time.",
+          "1995-12-17T03:24:00"
+        )
+      ).getTime();
+    }
+    return queue_time_value(org, d);
+  } catch (e) {
+    throw e;
+  }
+}
+
+const QUEUE_COUNT = 15;
+async function queue(org: string, offset: number) {
+  try {
+    let options: Option[];
+    if (["time", "next"].includes(getArgs()[0])) {
+      options = [];
+    } else {
+      let resp = await sshReq(
+        `queue`,
+        `--org`,
+        org,
+        "--count",
+        "" + QUEUE_COUNT,
+        "--offset",
+        "" + offset
+      );
+      cache_queue = JSON.parse(resp);
+      printTableHeader("      ", {
+        Id: 6,
+        River: 12,
+        Event: 12,
+        Status: 7,
+        "Queue time": 20,
+      });
+      options = cache_queue.map((x) => ({
         long: x.id,
         text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(
           x.e,
           12
-        )} │ ${new Date(x.q).toLocaleString()}`,
+        )} │ ${alignLeft(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`,
         action: () => {
           if (getArgs().length === 0) initializeArgs([x.r]);
           return queue_id(org, x.id);
         },
-      })),
-      false
-    ).then((x) => x);
+      }));
+    }
+    options.push({
+      long: `next`,
+      short: `n`,
+      text: `next page`,
+      action: () => queue(org, offset + QUEUE_COUNT),
+    });
+    options.push({
+      long: `time`,
+      short: `t`,
+      text: `specify time`,
+      action: () => queue_time(org),
+    });
+    return await choice(options, { cmd: false, select: false }).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -487,18 +565,6 @@ async function envvar_key(
   }
 }
 
-function alignRight(str: string, width: number) {
-  return str.length > width
-    ? str.substring(0, width - 3) + "..."
-    : str.padStart(width, " ");
-}
-
-function alignLeft(str: string, width: number) {
-  return str.length > width
-    ? str.substring(0, width - 3) + "..."
-    : str.padEnd(width, " ");
-}
-
 async function keys(org: string) {
   try {
     let resp = await sshReq(`list-keys`, `--org`, org);
@@ -522,6 +588,7 @@ async function keys(org: string) {
       text: `add a new apikey`,
       action: () => keys_key(org, null, ""),
     });
+    printTableHeader("      ", { Key: 36, Name: 12, "Expiry time": 20 });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
@@ -651,6 +718,7 @@ async function cron(org: string) {
       text: `setup a new cron job`,
       action: () => cron_new(org),
     });
+    printTableHeader("      ", { Name: 10, Event: 10, Expression: 20 });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
@@ -727,7 +795,7 @@ export async function start() {
         long: "queue",
         short: "q",
         text: "display the message queues or events",
-        action: () => queue(orgName),
+        action: () => queue(orgName, 0),
       });
       if (fs.existsSync("mist.json") || fs.existsSync("merrymake.json")) {
         // Inside a service

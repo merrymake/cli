@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -396,3 +396,48 @@ function do_cron(org, name, overwrite, event, expr) {
     });
 }
 exports.do_cron = do_cron;
+function alignRight(str, width) {
+    return str.length > width
+        ? str.substring(0, width - 3) + "..."
+        : str.padStart(width, " ");
+}
+exports.alignRight = alignRight;
+function alignLeft(str, width) {
+    return str.length > width
+        ? str.substring(0, width - 3) + "..."
+        : str.padEnd(width, " ");
+}
+exports.alignLeft = alignLeft;
+function printTableHeader(prefix, widths) {
+    let header = prefix +
+        Object.keys(widths)
+            .map((k) => k.trim().padEnd(widths[k]))
+            .join(" │ ");
+    (0, utils_1.output2)(header);
+    let divider = prefix +
+        Object.keys(widths)
+            .map((k) => "─".repeat(widths[k]))
+            .join("─┼─");
+    (0, utils_1.output2)(divider);
+}
+exports.printTableHeader = printTableHeader;
+function do_queue_time(org, time) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`queue`, `--org`, org, `--time`, "" + time);
+            let queue = JSON.parse(resp);
+            printTableHeader("", {
+                Id: 6,
+                River: 12,
+                Event: 12,
+                Status: 7,
+                "Queue time": 20,
+            });
+            queue.forEach((x) => (0, utils_1.output2)(`${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${alignLeft(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`));
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_queue_time = do_queue_time;

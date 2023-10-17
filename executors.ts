@@ -449,3 +449,63 @@ export async function do_cron(
     throw e;
   }
 }
+
+export function alignRight(str: string, width: number) {
+  return str.length > width
+    ? str.substring(0, width - 3) + "..."
+    : str.padStart(width, " ");
+}
+
+export function alignLeft(str: string, width: number) {
+  return str.length > width
+    ? str.substring(0, width - 3) + "..."
+    : str.padEnd(width, " ");
+}
+
+export function printTableHeader(
+  prefix: string,
+  widths: { [key: string]: number }
+) {
+  let header =
+    prefix +
+    Object.keys(widths)
+      .map((k) => k.trim().padEnd(widths[k]))
+      .join(" │ ");
+  output2(header);
+  let divider =
+    prefix +
+    Object.keys(widths)
+      .map((k) => "─".repeat(widths[k]))
+      .join("─┼─");
+  output2(divider);
+}
+
+export async function do_queue_time(org: string, time: number) {
+  try {
+    let resp = await sshReq(`queue`, `--org`, org, `--time`, "" + time);
+    let queue: {
+      id: string;
+      q: string;
+      e: string;
+      r: string;
+      s: string;
+    }[] = JSON.parse(resp);
+    printTableHeader("", {
+      Id: 6,
+      River: 12,
+      Event: 12,
+      Status: 7,
+      "Queue time": 20,
+    });
+    queue.forEach((x) =>
+      output2(
+        `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${alignLeft(
+          x.s,
+          7
+        )} │ ${new Date(x.q).toLocaleString()}`
+      )
+    );
+  } catch (e) {
+    throw e;
+  }
+}
