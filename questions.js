@@ -23,6 +23,7 @@ const detect_project_type_1 = require("@merrymake/detect-project-type");
 const templates_1 = require("./templates");
 const simulator_1 = require("./simulator");
 const args_1 = require("./args");
+const words_1 = require("./words");
 function service_template_language(path, template, projectType) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.fetch_template)(path, template, projectType));
     return (0, utils_1.finish)();
@@ -540,11 +541,11 @@ function generateOrgName() {
         !Number.isNaN(+process.env["MERRYMAKE_NAME_LENGTH"]))
         return "org" + generateString(+process.env["MERRYMAKE_NAME_LENGTH"] - 3);
     else
-        return (ADJECTIVE[~~(ADJECTIVE.length * Math.random())] +
+        return (words_1.ADJECTIVE[~~(words_1.ADJECTIVE.length * Math.random())] +
             "-" +
-            NOUN[~~(NOUN.length * Math.random())] +
+            words_1.NOUN[~~(words_1.NOUN.length * Math.random())] +
             "-" +
-            NOUN[~~(NOUN.length * Math.random())]);
+            words_1.NOUN[~~(words_1.NOUN.length * Math.random())]);
 }
 function quickstart() {
     let cache = (0, utils_1.getCache)();

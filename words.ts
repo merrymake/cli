@@ -1,4 +1,4 @@
-const NOUN = [
+export const NOUN = [
   "advantage",
   "advertisement",
   "advice",
@@ -100,7 +100,7 @@ const NOUN = [
   "transport",
   "turnover",
 ];
-const ADJECTIVE = [
+export const ADJECTIVE = [
   "absent-minded",
   "abstruse",
   "absurd",

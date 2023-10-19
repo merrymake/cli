@@ -49,6 +49,7 @@ import { execSync } from "child_process";
 import { languages, templates } from "./templates";
 import { Run } from "./simulator";
 import { getArgs, initializeArgs } from "./args";
+import { ADJECTIVE, NOUN } from "./words";
 
 function service_template_language(
   path: Path,
