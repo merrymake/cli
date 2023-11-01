@@ -20,6 +20,7 @@ import {
 import { ExecOptions, spawn } from "child_process";
 import { COLOR3, NORMAL_COLOR } from "./prompt";
 import path from "path";
+import { getArgs } from "./args";
 
 async function clone(struct: any, name: string) {
   try {
@@ -419,6 +420,29 @@ export async function do_envvar(
   }
 }
 
+export async function do_event(
+  org: string,
+  key: string,
+  event: string,
+  create: boolean
+) {
+  try {
+    output2(
+      await sshReq(
+        `event`,
+        event,
+        `--org`,
+        org,
+        `--key`,
+        key,
+        ...(create ? [] : [`--delete`])
+      )
+    );
+  } catch (e) {
+    throw e;
+  }
+}
+
 export async function do_cron(
   org: string,
   name: string,
@@ -466,6 +490,7 @@ export function printTableHeader(
   prefix: string,
   widths: { [key: string]: number }
 ) {
+  if (getArgs().length > 0) return;
   let header =
     prefix +
     Object.keys(widths)

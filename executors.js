@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -21,6 +21,7 @@ const detect_project_type_1 = require("@merrymake/detect-project-type");
 const child_process_1 = require("child_process");
 const prompt_1 = require("./prompt");
 const path_1 = __importDefault(require("path"));
+const args_1 = require("./args");
 function clone(struct, name) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -378,6 +379,17 @@ function do_envvar(org, group, overwrite, key, value, access, visibility) {
     });
 }
 exports.do_envvar = do_envvar;
+function do_event(org, key, event, create) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`event`, event, `--org`, org, `--key`, key, ...(create ? [] : [`--delete`])));
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_event = do_event;
 function do_cron(org, name, overwrite, event, expr) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -409,6 +421,8 @@ function alignLeft(str, width) {
 }
 exports.alignLeft = alignLeft;
 function printTableHeader(prefix, widths) {
+    if ((0, args_1.getArgs)().length > 0)
+        return;
     let header = prefix +
         Object.keys(widths)
             .map((k) => k.trim().padEnd(widths[k]))

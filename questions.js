@@ -51,10 +51,14 @@ function fetch() {
 function service_template(pathToService, template) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let langs = yield Promise.all(templates_1.templates[template].languages.map((x) => (() => __awaiter(this, void 0, void 0, function* () {
+            let langs = yield Promise.all(templates_1.templates[template].languages.map((x, i) => (() => __awaiter(this, void 0, void 0, function* () {
                 return (Object.assign(Object.assign({}, templates_1.languages[x]), { weight: yield (0, utils_1.execPromise)(detect_project_type_1.VERSION_CMD[templates_1.languages[x].projectType])
-                        .then((x) => 10)
-                        .catch((e) => 1) }));
+                        .then((r) => {
+                        return templates_1.templates[template].languages.length + 1 - i;
+                    })
+                        .catch((e) => {
+                        return -i;
+                    }) }));
             }))()));
             langs.sort((a, b) => b.weight - a.weight);
             return yield (0, prompt_1.choice)(langs.map((x) => ({
@@ -403,8 +407,8 @@ function keys(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let resp = yield (0, utils_1.sshReq)(`list-keys`, `--org`, org);
-            let orgs = JSON.parse(resp);
-            let options = orgs.map((x) => {
+            let keys = JSON.parse(resp);
+            let options = keys.map((x) => {
                 let d = new Date(x.expiry);
                 let ds = d.getTime() < Date.now()
                     ? `${prompt_1.COLOR1}${d.toLocaleString()}${prompt_1.NORMAL_COLOR}`
@@ -423,6 +427,73 @@ function keys(org) {
                 action: () => keys_key(org, null, ""),
             });
             (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12, "Expiry time": 20 });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function event_key_event(org, key, event, create) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_event)(org, key, event, create));
+    return (0, utils_1.finish)();
+}
+function event_key_new(org, key) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let eventType = yield (0, prompt_1.shortText)("Event type", "Event type to allow through key", "hello");
+            return event_key_event(org, key, eventType, true);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function event_key(org, key) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-events`, `--org`, org, `--key`, key);
+            let events = JSON.parse(resp);
+            let options = events.map((x) => {
+                return {
+                    long: x.event,
+                    text: `disallow ${x.event}`,
+                    action: () => event_key_event(org, key, x.event, false),
+                };
+            });
+            options.push({
+                long: `new`,
+                short: `n`,
+                text: `allow a new event type`,
+                action: () => event_key_new(org, key),
+            });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function event(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-keys`, `--org`, org, `--active`);
+            let keys = JSON.parse(resp);
+            let options = keys.map((x) => {
+                let n = x.name || "";
+                return {
+                    long: x.key,
+                    text: `${x.key} │ ${(0, executors_1.alignLeft)(n, 12)}`,
+                    action: () => event_key(org, x.key),
+                };
+            });
+            options.push({
+                long: `new`,
+                short: `n`,
+                text: `add a new apikey`,
+                action: () => keys_key(org, null, ""),
+            });
+            (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
@@ -672,6 +743,12 @@ function start() {
                     short: "k",
                     text: "add or edit api-keys for the organization",
                     action: () => keys(orgName),
+                });
+                options.push({
+                    long: "event",
+                    short: "v",
+                    text: "allow or disallow events through api-keys for the organization",
+                    action: () => event(orgName),
                 });
                 return yield (0, prompt_1.choice)(options).then((x) => x);
             }

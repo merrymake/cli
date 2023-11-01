@@ -43,6 +43,7 @@ import {
   printTableHeader,
   alignRight,
   alignLeft,
+  do_event,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -88,12 +89,16 @@ function fetch() {
 async function service_template(pathToService: Path, template: string) {
   try {
     let langs = await Promise.all(
-      templates[template].languages.map((x) =>
+      templates[template].languages.map((x, i) =>
         (async () => ({
           ...languages[x],
           weight: await execPromise(VERSION_CMD[languages[x].projectType])
-            .then((x) => 10)
-            .catch((e) => 1),
+            .then((r) => {
+              return templates[template].languages.length + 1 - i;
+            })
+            .catch((e) => {
+              return -i;
+            }),
         }))()
       )
     );
@@ -569,8 +574,8 @@ async function envvar_key(
 async function keys(org: string) {
   try {
     let resp = await sshReq(`list-keys`, `--org`, org);
-    let orgs: { name: string; key: string; expiry: Date }[] = JSON.parse(resp);
-    let options: Option[] = orgs.map((x) => {
+    let keys: { name: string; key: string; expiry: Date }[] = JSON.parse(resp);
+    let options: Option[] = keys.map((x) => {
       let d = new Date(x.expiry);
       let ds =
         d.getTime() < Date.now()
@@ -590,6 +595,77 @@ async function keys(org: string) {
       action: () => keys_key(org, null, ""),
     });
     printTableHeader("      ", { Key: 36, Name: 12, "Expiry time": 20 });
+    return await choice(options).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
+function event_key_event(
+  org: string,
+  key: string,
+  event: string,
+  create: boolean
+) {
+  addToExecuteQueue(() => do_event(org, key, event, create));
+  return finish();
+}
+
+async function event_key_new(org: string, key: string) {
+  try {
+    let eventType = await shortText(
+      "Event type",
+      "Event type to allow through key",
+      "hello"
+    );
+    return event_key_event(org, key, eventType, true);
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function event_key(org: string, key: string) {
+  try {
+    let resp = await sshReq(`list-events`, `--org`, org, `--key`, key);
+    let events: { event: string }[] = JSON.parse(resp);
+    let options: Option[] = events.map((x) => {
+      return {
+        long: x.event,
+        text: `disallow ${x.event}`,
+        action: () => event_key_event(org, key, x.event, false),
+      };
+    });
+    options.push({
+      long: `new`,
+      short: `n`,
+      text: `allow a new event type`,
+      action: () => event_key_new(org, key),
+    });
+    return await choice(options).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function event(org: string) {
+  try {
+    let resp = await sshReq(`list-keys`, `--org`, org, `--active`);
+    let keys: { name: string; key: string }[] = JSON.parse(resp);
+    let options: Option[] = keys.map((x) => {
+      let n = x.name || "";
+      return {
+        long: x.key,
+        text: `${x.key} │ ${alignLeft(n, 12)}`,
+        action: () => event_key(org, x.key),
+      };
+    });
+    options.push({
+      long: `new`,
+      short: `n`,
+      text: `add a new apikey`,
+      action: () => keys_key(org, null, ""),
+    });
+    printTableHeader("      ", { Key: 36, Name: 12 });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
@@ -875,6 +951,12 @@ export async function start() {
         short: "k",
         text: "add or edit api-keys for the organization",
         action: () => keys(orgName),
+      });
+      options.push({
+        long: "event",
+        short: "v",
+        text: "allow or disallow events through api-keys for the organization",
+        action: () => event(orgName),
       });
 
       return await choice(options).then((x) => x);
