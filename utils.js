@@ -222,8 +222,7 @@ function checkVersion() {
                 let version = JSON.parse(call);
                 if (versionIsOlder(conf.version, version.latest)) {
                     addExitMessage(`
-New version of merrymake-cli available, to update run the command:
-    ${prompt_1.COLOR3}npm update -g @merrymake/cli${prompt_1.NORMAL_COLOR}`);
+New version of merrymake-cli available, ${process.env["UPDATE_MESSAGE"]}`);
                 }
             }
             catch (e) { }

@@ -89,7 +89,8 @@ function makeSelection(option) {
 }
 function makeSelectionQuietly(option) {
     return makeSelectionInternal(option, () => {
-        command += " " + option.long;
+        command +=
+            " " + (option.long.includes(" ") ? `'${option.long}'` : option.long);
     });
 }
 let listener;
@@ -211,6 +212,7 @@ function shortText(prompt, description, defaultValue) {
     return new Promise((resolve) => {
         if ((0, args_1.getArgs)()[0] !== undefined) {
             let result = (0, args_1.getArgs)()[0] === "_" ? defaultValue : (0, args_1.getArgs)()[0];
+            command += " " + (result.includes(" ") ? `'${result}'` : result);
             (0, args_1.getArgs)().splice(0, 1);
             moveToBottom();
             cleanup();
@@ -246,7 +248,13 @@ function shortText(prompt, description, defaultValue) {
                 let combinedStr = beforeCursor + afterCursor;
                 let result = combinedStr.length === 0 ? defaultValue : combinedStr;
                 output("\n");
-                output((command += " " + (result.length === 0 ? "_" : result)));
+                output((command +=
+                    " " +
+                        (result.length === 0
+                            ? "_"
+                            : result.includes(" ")
+                                ? `'${result}'`
+                                : result)));
                 output("\n");
                 if (listener !== undefined)
                     node_process_1.stdin.removeListener("data", listener);
@@ -292,7 +300,7 @@ function shortText(prompt, description, defaultValue) {
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (/^[A-Za-z0-9@_, .-/:;#=&?]$/.test(k)) {
+            else if (/^[A-Za-z0-9@_, .-/:;#=&*?]+$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
                 node_process_1.stdout.clearLine(1);

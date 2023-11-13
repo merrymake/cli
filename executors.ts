@@ -12,7 +12,7 @@ import {
   sshReq,
   urlReq,
 } from "./utils";
-import { GIT_HOST, HTTP_HOST } from "./config";
+import { API_URL, GIT_HOST, HTTP_HOST } from "./config";
 import {
   detectProjectType,
   BUILD_SCRIPT_MAKERS,
@@ -229,10 +229,22 @@ export async function do_register(
   try {
     let key = await keyAction();
     console.log("Registering...");
-    fs.appendFileSync(
-      `${os.homedir()}/.ssh/known_hosts`,
-      "\napi.mist-cloud.io ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n"
-    );
+    let isKnownHost = false;
+    if (fs.existsSync(`${os.homedir()}/.ssh/known_hosts`)) {
+      let lines = (
+        "" + fs.readFileSync(`${os.homedir()}/.ssh/known_hosts`)
+      ).split("\n");
+      isKnownHost = lines.some((x) =>
+        x.includes(
+          `${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO`
+        )
+      );
+    }
+    if (!isKnownHost)
+      fs.appendFileSync(
+        `${os.homedir()}/.ssh/known_hosts`,
+        "\n${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n"
+      );
     let result = await urlReq(`${HTTP_HOST}/admin/user`, "POST", {
       email,
       key,
@@ -270,9 +282,9 @@ export async function generateNewKey() {
     );
     fs.appendFileSync(
       `${os.homedir()}/.ssh/config`,
-      `\nHost api.mist-cloud.io
+      `\nHost ${API_URL}
     User mist
-    HostName api.mist-cloud.io
+    HostName ${API_URL}
     PreferredAuthentications publickey
     IdentityFile ~/.ssh/merrymake\n`
     );
@@ -431,8 +443,6 @@ export async function do_event(
       await sshReq(
         `event`,
         event,
-        `--org`,
-        org,
         `--key`,
         key,
         ...(create ? [] : [`--delete`])

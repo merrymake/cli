@@ -177,7 +177,6 @@ export class Run {
     Object.keys(rivers).forEach((river) => {
       let services = rivers[river];
       let service = services[~~(Math.random() * services.length)];
-      console.log(service.cmd);
       let [cmd, ...rest] = service.cmd.split(" ");
       const args = [...rest, `'${service.action}'`, `'${envelope}'`];
       const options: ExecOptions = {

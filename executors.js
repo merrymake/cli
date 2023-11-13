@@ -208,7 +208,13 @@ function do_register(keyAction, email) {
         try {
             let key = yield keyAction();
             console.log("Registering...");
-            fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, "\napi.mist-cloud.io ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n");
+            let isKnownHost = false;
+            if (fs_1.default.existsSync(`${os_1.default.homedir()}/.ssh/known_hosts`)) {
+                let lines = ("" + fs_1.default.readFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`)).split("\n");
+                isKnownHost = lines.some((x) => x.includes(`${config_1.API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO`));
+            }
+            if (!isKnownHost)
+                fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, "\n${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n");
             let result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", {
                 email,
                 key,
@@ -249,9 +255,9 @@ function generateNewKey() {
             if (!fs_1.default.existsSync(os_1.default.homedir() + "/.ssh"))
                 fs_1.default.mkdirSync(os_1.default.homedir() + "/.ssh");
             yield (0, utils_1.execPromise)(`ssh-keygen -t rsa -b 4096 -f "${os_1.default.homedir()}/.ssh/merrymake" -N ""`);
-            fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/config`, `\nHost api.mist-cloud.io
+            fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/config`, `\nHost ${config_1.API_URL}
     User mist
-    HostName api.mist-cloud.io
+    HostName ${config_1.API_URL}
     PreferredAuthentications publickey
     IdentityFile ~/.ssh/merrymake\n`);
             return "" + fs_1.default.readFileSync(os_1.default.homedir() + "/.ssh/merrymake.pub");
@@ -382,7 +388,7 @@ exports.do_envvar = do_envvar;
 function do_event(org, key, event, create) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`event`, event, `--org`, org, `--key`, key, ...(create ? [] : [`--delete`])));
+            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`event`, event, `--key`, key, ...(create ? [] : [`--delete`])));
         }
         catch (e) {
             throw e;

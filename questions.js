@@ -189,6 +189,17 @@ function register_key(keyAction) {
         }
     });
 }
+function register_manual() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let key = yield (0, prompt_1.shortText)("Public key", "", "ssh-rsa ...").then((x) => x);
+            return register_key(() => Promise.resolve(key));
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
 function register() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -201,6 +212,12 @@ function register() {
                     text: `Use key ${f}`,
                     action: () => register_key(() => (0, executors_1.useExistingKey)(f)),
                 };
+            });
+            keys.push({
+                long: "add",
+                short: "a",
+                text: "Manually add key",
+                action: () => register_manual(),
             });
             keys.push({
                 long: "new",
@@ -356,7 +373,7 @@ function envvar_key_value_access(org, group, overwrite, key, value, access) {
         {
             long: "secret",
             short: "s",
-            text: "keep value secret",
+            text: "keep the value secret",
             action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, access, ""),
         },
         {
@@ -426,7 +443,8 @@ function keys(org) {
                 text: `add a new apikey`,
                 action: () => keys_key(org, null, ""),
             });
-            (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12, "Expiry time": 20 });
+            if (options.length > 1)
+                (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12, "Expiry time": 20 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
@@ -493,7 +511,8 @@ function event(org) {
                 text: `add a new apikey`,
                 action: () => keys_key(org, null, ""),
             });
-            (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12 });
+            if (options.length > 1)
+                (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
@@ -519,7 +538,7 @@ function envvar(org, group) {
             let orgs = JSON.parse(resp);
             let options = orgs.map((x) => ({
                 long: x.key,
-                text: `[${x.test ? "T" : " "}${x.prod ? "P" : " "}] ${x.key}: ${x.val}`,
+                text: `[${x.test ? "T" : " "}${x.prod ? "P" : " "}] ${x.key}: ${x.val ? x.val : "***"}`,
                 action: () => envvar_key(org, group, "--overwrite", x.key, x.val),
             }));
             options.push({
@@ -542,7 +561,7 @@ function cron_name_event_expression(org, name, overwrite, event, expression) {
 function cron_name_event(org, name, overwrite, event, currentExpression) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let expression = yield (0, prompt_1.shortText)("Cron expression", "Eg. every 5 minutes is '*/5 * * * *'", currentExpression);
+            let expression = yield (0, prompt_1.shortText)("Cron expression", "Eg. every 5 minutes is '*/5 * * * *'", "");
             return cron_name_event_expression(org, name, overwrite, event, expression);
         }
         catch (e) {
@@ -599,7 +618,8 @@ function cron(org) {
                 text: `setup a new cron job`,
                 action: () => cron_new(org),
             });
-            (0, executors_1.printTableHeader)("      ", { Name: 10, Event: 10, Expression: 20 });
+            if (options.length > 1)
+                (0, executors_1.printTableHeader)("      ", { Name: 10, Event: 10, Expression: 20 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
@@ -640,12 +660,20 @@ function sim() {
 function start() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let struct = (0, utils_2.fetchOrgRaw)();
-            if (struct.org !== null) {
-                let orgName = struct.org.name;
+            let rawStruct = (0, utils_2.fetchOrgRaw)();
+            if (rawStruct.org !== null) {
+                let orgName = rawStruct.org.name;
                 // If in org
                 let options = [];
                 let selectedGroup = null;
+                let struct = {
+                    org: rawStruct.org,
+                    serviceGroup: rawStruct.serviceGroup !== "event-catalogue"
+                        ? rawStruct.serviceGroup
+                        : null,
+                    inEventCatalogue: rawStruct.serviceGroup === "event-catalogue",
+                    pathToRoot: rawStruct.pathToRoot,
+                };
                 if (struct.serviceGroup !== null) {
                     selectedGroup = {
                         name: struct.serviceGroup,
@@ -673,7 +701,9 @@ function start() {
                     text: "display the message queues or events",
                     action: () => queue(orgName, 0),
                 });
-                if (fs_1.default.existsSync("mist.json") || fs_1.default.existsSync("merrymake.json")) {
+                if (fs_1.default.existsSync("mist.json") ||
+                    fs_1.default.existsSync("merrymake.json") ||
+                    struct.inEventCatalogue) {
                     // Inside a service
                     options.push({
                         long: "deploy",
@@ -686,12 +716,6 @@ function start() {
                         short: "r",
                         text: "redeploy service to the cloud",
                         action: () => redeploy(),
-                    });
-                    options.push({
-                        long: "build",
-                        short: "b",
-                        text: "build service locally",
-                        action: () => build(),
                     });
                 }
                 else {
@@ -712,6 +736,14 @@ function start() {
                             action: () => service(selectedGroup_hack.path, orgName, selectedGroup_hack.name),
                         });
                     }
+                }
+                if (fs_1.default.existsSync("mist.json") || fs_1.default.existsSync("merrymake.json")) {
+                    options.push({
+                        long: "build",
+                        short: "b",
+                        text: "build service locally",
+                        action: () => build(),
+                    });
                 }
                 if (selectedGroup !== null) {
                     // Inside a service group or service

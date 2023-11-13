@@ -99,7 +99,8 @@ function makeSelection(option: Option) {
 }
 function makeSelectionQuietly(option: Option) {
   return makeSelectionInternal(option, () => {
-    command += " " + option.long;
+    command +=
+      " " + (option.long.includes(" ") ? `'${option.long}'` : option.long);
   });
 }
 
@@ -239,6 +240,7 @@ export function shortText(
   return new Promise<string>((resolve) => {
     if (getArgs()[0] !== undefined) {
       let result = getArgs()[0] === "_" ? defaultValue : getArgs()[0];
+      command += " " + (result.includes(" ") ? `'${result}'` : result);
       getArgs().splice(0, 1);
       moveToBottom();
       cleanup();
@@ -275,7 +277,15 @@ export function shortText(
           let combinedStr = beforeCursor + afterCursor;
           let result = combinedStr.length === 0 ? defaultValue : combinedStr;
           output("\n");
-          output((command += " " + (result.length === 0 ? "_" : result)));
+          output(
+            (command +=
+              " " +
+              (result.length === 0
+                ? "_"
+                : result.includes(" ")
+                ? `'${result}'`
+                : result))
+          );
           output("\n");
           if (listener !== undefined) stdin.removeListener("data", listener);
           resolve(result);
@@ -313,7 +323,7 @@ export function shortText(
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
-        } else if (/^[A-Za-z0-9@_, .-/:;#=&?]$/.test(k)) {
+        } else if (/^[A-Za-z0-9@_, .-/:;#=&*?]+$/.test(k)) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += k;
           stdout.clearLine(1);

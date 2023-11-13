@@ -1,3 +1,5 @@
-export const HTTP_HOST = "https://api.mist-cloud.io";
-export const SSH_HOST = "api.mist-cloud.io";
-export const GIT_HOST = "ssh://mist@api.mist-cloud.io";
+export const API_URL = `api.mist-cloud.io`;
+
+export const HTTP_HOST = `https://${API_URL}`;
+export const SSH_HOST = `${API_URL}`;
+export const GIT_HOST = `ssh://mist@${API_URL}`;

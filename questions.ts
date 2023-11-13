@@ -260,6 +260,15 @@ async function register_key(keyAction: () => Promise<string>) {
   }
 }
 
+async function register_manual() {
+  try {
+    let key = await shortText("Public key", "", "ssh-rsa ...").then((x) => x);
+    return register_key(() => Promise.resolve(key));
+  } catch (e) {
+    throw e;
+  }
+}
+
 async function register() {
   try {
     let keys = getFiles(new Path(`${os.homedir()}/.ssh`), "")
@@ -272,6 +281,12 @@ async function register() {
           action: () => register_key(() => useExistingKey(f)),
         };
       });
+    keys.push({
+      long: "add",
+      short: "a",
+      text: "Manually add key",
+      action: () => register_manual(),
+    });
     keys.push({
       long: "new",
       short: "n",
@@ -491,7 +506,7 @@ function envvar_key_value_access(
     {
       long: "secret",
       short: "s",
-      text: "keep value secret",
+      text: "keep the value secret",
       action: () =>
         envvar_key_value_access_visible(
           org,
@@ -594,7 +609,8 @@ async function keys(org: string) {
       text: `add a new apikey`,
       action: () => keys_key(org, null, ""),
     });
-    printTableHeader("      ", { Key: 36, Name: 12, "Expiry time": 20 });
+    if (options.length > 1)
+      printTableHeader("      ", { Key: 36, Name: 12, "Expiry time": 20 });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
@@ -665,7 +681,7 @@ async function event(org: string) {
       text: `add a new apikey`,
       action: () => keys_key(org, null, ""),
     });
-    printTableHeader("      ", { Key: 36, Name: 12 });
+    if (options.length > 1) printTableHeader("      ", { Key: 36, Name: 12 });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
@@ -688,7 +704,9 @@ async function envvar(org: string, group: string) {
       JSON.parse(resp);
     let options: Option[] = orgs.map((x) => ({
       long: x.key,
-      text: `[${x.test ? "T" : " "}${x.prod ? "P" : " "}] ${x.key}: ${x.val}`,
+      text: `[${x.test ? "T" : " "}${x.prod ? "P" : " "}] ${x.key}: ${
+        x.val ? x.val : "***"
+      }`,
       action: () => envvar_key(org, group, "--overwrite", x.key, x.val),
     }));
     options.push({
@@ -725,7 +743,7 @@ async function cron_name_event(
     let expression = await shortText(
       "Cron expression",
       "Eg. every 5 minutes is '*/5 * * * *'",
-      currentExpression
+      ""
     );
     return cron_name_event_expression(org, name, overwrite, event, expression);
   } catch (e) {
@@ -795,7 +813,8 @@ async function cron(org: string) {
       text: `setup a new cron job`,
       action: () => cron_new(org),
     });
-    printTableHeader("      ", { Name: 10, Event: 10, Expression: 20 });
+    if (options.length > 1)
+      printTableHeader("      ", { Name: 10, Event: 10, Expression: 20 });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
@@ -841,12 +860,21 @@ function sim() {
 
 export async function start() {
   try {
-    let struct = fetchOrgRaw();
-    if (struct.org !== null) {
-      let orgName = struct.org.name;
+    let rawStruct = fetchOrgRaw();
+    if (rawStruct.org !== null) {
+      let orgName = rawStruct.org.name;
       // If in org
       let options: Option[] = [];
       let selectedGroup: { name: string; path: Path } | null = null;
+      let struct = {
+        org: rawStruct.org,
+        serviceGroup:
+          rawStruct.serviceGroup !== "event-catalogue"
+            ? rawStruct.serviceGroup
+            : null,
+        inEventCatalogue: rawStruct.serviceGroup === "event-catalogue",
+        pathToRoot: rawStruct.pathToRoot,
+      };
       if (struct.serviceGroup !== null) {
         selectedGroup = {
           name: struct.serviceGroup,
@@ -874,7 +902,11 @@ export async function start() {
         text: "display the message queues or events",
         action: () => queue(orgName, 0),
       });
-      if (fs.existsSync("mist.json") || fs.existsSync("merrymake.json")) {
+      if (
+        fs.existsSync("mist.json") ||
+        fs.existsSync("merrymake.json") ||
+        struct.inEventCatalogue
+      ) {
         // Inside a service
         options.push({
           long: "deploy",
@@ -887,12 +919,6 @@ export async function start() {
           short: "r",
           text: "redeploy service to the cloud",
           action: () => redeploy(),
-        });
-        options.push({
-          long: "build",
-          short: "b",
-          text: "build service locally",
-          action: () => build(),
         });
       } else {
         // Not inside a service
@@ -917,6 +943,14 @@ export async function start() {
               ),
           });
         }
+      }
+      if (fs.existsSync("mist.json") || fs.existsSync("merrymake.json")) {
+        options.push({
+          long: "build",
+          short: "b",
+          text: "build service locally",
+          action: () => build(),
+        });
       }
 
       if (selectedGroup !== null) {
