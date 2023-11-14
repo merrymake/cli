@@ -579,7 +579,7 @@ async function envvar_key(
   currentValue: string
 ) {
   try {
-    let value = await shortText("Value", "The value...", currentValue);
+    let value = await shortText("Value", "The value...", "");
     return envvar_key_value(org, group, overwrite, key, value);
   } catch (e) {
     throw e;

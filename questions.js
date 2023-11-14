@@ -412,7 +412,7 @@ function envvar_key_value(org, group, overwrite, key, value) {
 function envvar_key(org, group, overwrite, key, currentValue) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let value = yield (0, prompt_1.shortText)("Value", "The value...", currentValue);
+            let value = yield (0, prompt_1.shortText)("Value", "The value...", "");
             return envvar_key_value(org, group, overwrite, key, value);
         }
         catch (e) {
