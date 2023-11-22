@@ -1,0 +1,4 @@
+# 1.6.4
+
+- Introduced CHANGELOG 🥳
+- Fixed bug if git.initialBranch is master

@@ -31,7 +31,7 @@ async function clone(struct: any, name: string) {
     let orgFile: OrgFile = { name };
     fs.writeFileSync(`${name}/.merrymake/conf.json`, JSON.stringify(orgFile));
     await execPromise(
-      `git clone -q "${GIT_HOST}/${name}/event-catalogue" event-catalogue`,
+      `git clone --branch main -q "${GIT_HOST}/${name}/event-catalogue" event-catalogue`,
       name
     );
     fetch(".", name, struct);
@@ -175,6 +175,7 @@ export async function createService(pth: Path, group: string, name: string) {
       ) {
       } else throw e;
     }
+    await execPromise(`git symbolic-ref HEAD refs/heads/main`, name);
     addExitMessage(
       `Use '${YELLOW}cd ${pth
         .with(name)

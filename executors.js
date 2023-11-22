@@ -29,7 +29,7 @@ function clone(struct, name) {
             fs_1.default.mkdirSync(`${name}/.merrymake`, { recursive: true });
             let orgFile = { name };
             fs_1.default.writeFileSync(`${name}/.merrymake/conf.json`, JSON.stringify(orgFile));
-            yield (0, utils_1.execPromise)(`git clone -q "${config_1.GIT_HOST}/${name}/event-catalogue" event-catalogue`, name);
+            yield (0, utils_1.execPromise)(`git clone --branch main -q "${config_1.GIT_HOST}/${name}/event-catalogue" event-catalogue`, name);
             fetch(".", name, struct);
         }
         catch (e) {
@@ -168,6 +168,7 @@ function createService(pth, group, name) {
                 else
                     throw e;
             }
+            yield (0, utils_1.execPromise)(`git symbolic-ref HEAD refs/heads/main`, name);
             (0, utils_1.addExitMessage)(`Use '${prompt_1.YELLOW}cd ${pth
                 .with(name)
                 .toString()
