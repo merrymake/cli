@@ -9,7 +9,7 @@ import {
   RUN_COMMAND,
 } from "@merrymake/detect-project-type";
 import http from "http";
-import { COLOR3, NORMAL_COLOR } from "./prompt";
+import { YELLOW, NORMAL_COLOR } from "./prompt";
 
 export class Run {
   constructor(private port: number) {}
@@ -143,7 +143,7 @@ export class Run {
         );
         output2("");
         output2(
-          `Running local Rapids on ${COLOR3}http://localhost:${this.port}/rapids${NORMAL_COLOR}`
+          `Running local Rapids on ${YELLOW}http://localhost:${this.port}/rapids${NORMAL_COLOR}`
         );
         output2(`To exit, press ctrl+c`);
         output2("");

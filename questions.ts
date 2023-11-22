@@ -2,7 +2,7 @@ import path from "path";
 import os from "os";
 import fs from "fs";
 import {
-  COLOR1,
+  RED,
   NORMAL_COLOR,
   choice,
   shortText,
@@ -44,6 +44,7 @@ import {
   alignRight,
   alignLeft,
   do_event,
+  do_help,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -73,6 +74,11 @@ function deploy() {
 
 function redeploy() {
   addToExecuteQueue(() => do_redeploy());
+  return finish();
+}
+
+function help() {
+  addToExecuteQueue(() => do_help());
   return finish();
 }
 
@@ -271,28 +277,31 @@ async function register_manual() {
 
 async function register() {
   try {
-    let keys = getFiles(new Path(`${os.homedir()}/.ssh`), "")
-      .filter((x) => x.endsWith(".pub"))
-      .map<Option>((x) => {
-        let f = x.substring(0, x.length - ".pub".length);
-        return {
-          long: f,
-          text: `Use key ${f}`,
-          action: () => register_key(() => useExistingKey(f)),
-        };
-      });
+    let keyfiles = getFiles(new Path(`${os.homedir()}/.ssh`), "").filter((x) =>
+      x.endsWith(".pub")
+    );
+    let keys = keyfiles.map<Option>((x) => {
+      let f = x.substring(0, x.length - ".pub".length);
+      return {
+        long: f,
+        text: `Use key ${f}`,
+        action: () => register_key(() => useExistingKey(f)),
+      };
+    });
     keys.push({
       long: "add",
       short: "a",
       text: "Manually add key",
       action: () => register_manual(),
     });
-    keys.push({
-      long: "new",
-      short: "n",
-      text: "Setup new key specifically for Merrymake",
-      action: () => register_key(generateNewKey),
-    });
+    if (keyfiles.includes("merrymake")) {
+      keys.push({
+        long: "new",
+        short: "n",
+        text: "Setup new key specifically for Merrymake",
+        action: () => register_key(generateNewKey),
+      });
+    }
     return await choice(
       keys,
       { cmd: false, select: true },
@@ -594,7 +603,7 @@ async function keys(org: string) {
       let d = new Date(x.expiry);
       let ds =
         d.getTime() < Date.now()
-          ? `${COLOR1}${d.toLocaleString()}${NORMAL_COLOR}`
+          ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
           : d.toLocaleString();
       let n = x.name || "";
       return {
@@ -992,6 +1001,11 @@ export async function start() {
         text: "allow or disallow events through api-keys for the organization",
         action: () => event(orgName),
       });
+      options.push({
+        long: "help",
+        text: "help diagnose potential issues",
+        action: () => help(),
+      });
 
       return await choice(options).then((x) => x);
     } else {
@@ -1023,6 +1037,12 @@ export async function start() {
         text: "clone an existing organization",
         action: () => checkout(),
         weight: cache.hasOrgs ? 10 : 3,
+      });
+      options.push({
+        long: "help",
+        text: "help diagnose potential issues",
+        action: () => help(),
+        weight: 0,
       });
       options.sort((a, b) => b.weight - a.weight);
       return await choice(options).then((x) => x);

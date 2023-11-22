@@ -15,16 +15,17 @@ export const RIGHT = "\u001b[C";
 export const HIDE_CURSOR = "\u001B[?25l";
 export const SHOW_CURSOR = "\u001B[?25h";
 export const NORMAL_COLOR = "\u001B[0m";
-export const COLOR1 = "\u001B[0;31m";
-export const COLOR2 = "\u001B[0;34m";
-export const COLOR3 = "\u001B[0;93m";
+export const RED = "\u001B[0;31m";
+export const BLUE = "\u001B[0;34m";
+export const GREEN = "\u001B[0;32m";
+export const YELLOW = "\u001B[0;93m";
 export const INVISIBLE = [
   HIDE_CURSOR,
   SHOW_CURSOR,
   NORMAL_COLOR,
-  COLOR1,
-  COLOR2,
-  COLOR3,
+  RED,
+  BLUE,
+  YELLOW,
 ];
 
 let xOffset = 0;
@@ -152,7 +153,7 @@ export function choice(
       const before = o.text.substring(0, index);
       const after = o.text.substring(index + o.long.length);
       str.push(before);
-      str.push(COLOR3);
+      str.push(YELLOW);
       str.push(o.long);
       str.push(NORMAL_COLOR);
       str.push(after);
@@ -167,7 +168,7 @@ export function choice(
     output(str.join(""));
 
     let pos = def;
-    output(COLOR3);
+    output(YELLOW);
     moveCursor(0, -options.length + pos);
     output(`>`);
     moveCursor(-1, 0);

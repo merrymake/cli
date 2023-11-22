@@ -9,5 +9,5 @@ if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined
 }
 const prompt_1 = require("./prompt");
 process.env["UPDATE_MESSAGE"] = `to update run the command:
-${prompt_1.COLOR3}npm update -g @merrymake/cli${prompt_1.NORMAL_COLOR}`;
+${prompt_1.YELLOW}npm update -g @merrymake/cli${prompt_1.NORMAL_COLOR}`;
 require("./index");

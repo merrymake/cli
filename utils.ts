@@ -8,7 +8,7 @@ import { exec, spawn } from "child_process";
 import { readdirSync } from "node:fs";
 import * as conf from "./package.json";
 import {
-  COLOR3,
+  YELLOW,
   NORMAL_COLOR,
   exit,
   spinner_start,
@@ -34,6 +34,7 @@ export class Path {
 }
 
 export function getFiles(path: Path, prefix: string): string[] {
+  if (!fs.existsSync(path.toString())) return [];
   return readdirSync(path.toString(), { withFileTypes: true }).flatMap((x) =>
     x.isDirectory()
       ? getFiles(path.with(x.name), prefix + x.name + "/")

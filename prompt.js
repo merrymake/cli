@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start = exports.choice = exports.INVISIBLE = exports.COLOR3 = exports.COLOR2 = exports.COLOR1 = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
+exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start = exports.choice = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
 const node_process_1 = require("node:process");
 const args_1 = require("./args");
 const utils_1 = require("./utils");
@@ -17,16 +17,17 @@ exports.RIGHT = "\u001b[C";
 exports.HIDE_CURSOR = "\u001B[?25l";
 exports.SHOW_CURSOR = "\u001B[?25h";
 exports.NORMAL_COLOR = "\u001B[0m";
-exports.COLOR1 = "\u001B[0;31m";
-exports.COLOR2 = "\u001B[0;34m";
-exports.COLOR3 = "\u001B[0;93m";
+exports.RED = "\u001B[0;31m";
+exports.BLUE = "\u001B[0;34m";
+exports.GREEN = "\u001B[0;32m";
+exports.YELLOW = "\u001B[0;93m";
 exports.INVISIBLE = [
     exports.HIDE_CURSOR,
     exports.SHOW_CURSOR,
     exports.NORMAL_COLOR,
-    exports.COLOR1,
-    exports.COLOR2,
-    exports.COLOR3,
+    exports.RED,
+    exports.BLUE,
+    exports.YELLOW,
 ];
 let xOffset = 0;
 let yOffset = 0;
@@ -130,7 +131,7 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
             const before = o.text.substring(0, index);
             const after = o.text.substring(index + o.long.length);
             str.push(before);
-            str.push(exports.COLOR3);
+            str.push(exports.YELLOW);
             str.push(o.long);
             str.push(exports.NORMAL_COLOR);
             str.push(after);
@@ -143,7 +144,7 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
         output(exports.HIDE_CURSOR);
         output(str.join(""));
         let pos = def;
-        output(exports.COLOR3);
+        output(exports.YELLOW);
         moveCursor(0, -options.length + pos);
         output(`>`);
         moveCursor(-1, 0);

@@ -7,7 +7,7 @@ if (!stdin.isTTY || stdin.setRawMode === undefined) {
   );
   process.exit(1);
 }
-import { COLOR3, NORMAL_COLOR } from "./prompt";
+import { YELLOW, NORMAL_COLOR } from "./prompt";
 process.env["UPDATE_MESSAGE"] = `to update run the command:
-${COLOR3}npm update -g @merrymake/cli${NORMAL_COLOR}`;
+${YELLOW}npm update -g @merrymake/cli${NORMAL_COLOR}`;
 import "./index";

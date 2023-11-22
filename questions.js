@@ -40,6 +40,10 @@ function redeploy() {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_redeploy)());
     return (0, utils_1.finish)();
 }
+function help() {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_help)());
+    return (0, utils_1.finish)();
+}
 function build() {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_build)());
     return (0, utils_1.finish)();
@@ -203,9 +207,8 @@ function register_manual() {
 function register() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let keys = (0, utils_1.getFiles)(new utils_2.Path(`${os_1.default.homedir()}/.ssh`), "")
-                .filter((x) => x.endsWith(".pub"))
-                .map((x) => {
+            let keyfiles = (0, utils_1.getFiles)(new utils_2.Path(`${os_1.default.homedir()}/.ssh`), "").filter((x) => x.endsWith(".pub"));
+            let keys = keyfiles.map((x) => {
                 let f = x.substring(0, x.length - ".pub".length);
                 return {
                     long: f,
@@ -219,12 +222,14 @@ function register() {
                 text: "Manually add key",
                 action: () => register_manual(),
             });
-            keys.push({
-                long: "new",
-                short: "n",
-                text: "Setup new key specifically for Merrymake",
-                action: () => register_key(executors_1.generateNewKey),
-            });
+            if (keyfiles.includes("merrymake")) {
+                keys.push({
+                    long: "new",
+                    short: "n",
+                    text: "Setup new key specifically for Merrymake",
+                    action: () => register_key(executors_1.generateNewKey),
+                });
+            }
             return yield (0, prompt_1.choice)(keys, { cmd: false, select: true }, keys.length - 1).then((x) => x);
         }
         catch (e) {
@@ -428,7 +433,7 @@ function keys(org) {
             let options = keys.map((x) => {
                 let d = new Date(x.expiry);
                 let ds = d.getTime() < Date.now()
-                    ? `${prompt_1.COLOR1}${d.toLocaleString()}${prompt_1.NORMAL_COLOR}`
+                    ? `${prompt_1.RED}${d.toLocaleString()}${prompt_1.NORMAL_COLOR}`
                     : d.toLocaleString();
                 let n = x.name || "";
                 return {
@@ -782,6 +787,11 @@ function start() {
                     text: "allow or disallow events through api-keys for the organization",
                     action: () => event(orgName),
                 });
+                options.push({
+                    long: "help",
+                    text: "help diagnose potential issues",
+                    action: () => help(),
+                });
                 return yield (0, prompt_1.choice)(options).then((x) => x);
             }
             else {
@@ -813,6 +823,12 @@ function start() {
                     text: "clone an existing organization",
                     action: () => checkout(),
                     weight: cache.hasOrgs ? 10 : 3,
+                });
+                options.push({
+                    long: "help",
+                    text: "help diagnose potential issues",
+                    action: () => help(),
+                    weight: 0,
                 });
                 options.sort((a, b) => b.weight - a.weight);
                 return yield (0, prompt_1.choice)(options).then((x) => x);

@@ -11,6 +11,8 @@ import {
   addExitMessage,
   sshReq,
   urlReq,
+  getCache,
+  fetchOrgRaw,
 } from "./utils";
 import { API_URL, GIT_HOST, HTTP_HOST } from "./config";
 import {
@@ -18,7 +20,7 @@ import {
   BUILD_SCRIPT_MAKERS,
 } from "@merrymake/detect-project-type";
 import { ExecOptions, spawn } from "child_process";
-import { COLOR3, NORMAL_COLOR } from "./prompt";
+import { RED, BLUE, YELLOW, NORMAL_COLOR, GREEN } from "./prompt";
 import path from "path";
 import { getArgs } from "./args";
 
@@ -174,13 +176,13 @@ export async function createService(pth: Path, group: string, name: string) {
       } else throw e;
     }
     addExitMessage(
-      `Use '${COLOR3}cd ${pth
+      `Use '${YELLOW}cd ${pth
         .with(name)
         .toString()
         .replace(
           /\\/g,
           "\\\\"
-        )}${NORMAL_COLOR}' to go to the new service. \nThen use '${COLOR3}${
+        )}${NORMAL_COLOR}' to go to the new service. \nThen use '${YELLOW}${
         process.env["COMMAND"]
       } deploy${NORMAL_COLOR}' to deploy it.`
     );
@@ -385,7 +387,7 @@ export async function do_key(
         await sshReq(...cmd)
       );
       output2(`${key} expires on ${new Date(expiry).toLocaleString()}.`);
-      addExitMessage(`Key: ${COLOR3}${key}${NORMAL_COLOR}`);
+      addExitMessage(`Key: ${YELLOW}${key}${NORMAL_COLOR}`);
     } else {
       cmd.push(`--update`, key);
       let { count, expiry }: { count: number; expiry: string } = JSON.parse(
@@ -542,5 +544,40 @@ export async function do_queue_time(org: string, time: number) {
     );
   } catch (e) {
     throw e;
+  }
+}
+
+export async function do_help() {
+  let whoami = JSON.parse(await sshReq("whoami"));
+  if (whoami === undefined || whoami.length === 0) {
+    let cache = getCache();
+    if (!cache.registered) {
+      output2(
+        `${YELLOW}No key registered with ${process.env["COMMAND"]}.${NORMAL_COLOR}`
+      );
+    }
+    output2(`${RED}No verified email.${NORMAL_COLOR}`);
+  } else {
+    output2(`${GREEN}Logged in as: ${whoami.join(", ")}.${NORMAL_COLOR}`);
+  }
+  let rawStruct = fetchOrgRaw();
+  if (rawStruct.org === null) {
+    output2(`${YELLOW}Not inside organization.${NORMAL_COLOR}`);
+  } else {
+    output2(
+      `${GREEN}Inside organization: ${rawStruct.org.name}${NORMAL_COLOR}`
+    );
+  }
+  if (rawStruct.serviceGroup === null) {
+    output2(`${YELLOW}Not inside service group.${NORMAL_COLOR}`);
+  } else {
+    output2(
+      `${GREEN}Inside service group: ${rawStruct.serviceGroup}${NORMAL_COLOR}`
+    );
+  }
+  if (!fs.existsSync("mist.json") && !fs.existsSync("merrymake.json")) {
+    output2(`${YELLOW}Not inside service repo.${NORMAL_COLOR}`);
+  } else {
+    output2(`${GREEN}Inside service repo.${NORMAL_COLOR}`);
   }
 }

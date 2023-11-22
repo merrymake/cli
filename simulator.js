@@ -106,7 +106,7 @@ class Run {
                 (0, utils_1.output2)(`88       88  "88P  88    88       dP     88  88  88  "88"8 88  "8b "88P `);
                 (0, utils_1.output2)(`                                 dP                                     `);
                 (0, utils_1.output2)("");
-                (0, utils_1.output2)(`Running local Rapids on ${prompt_1.COLOR3}http://localhost:${this.port}/rapids${prompt_1.NORMAL_COLOR}`);
+                (0, utils_1.output2)(`Running local Rapids on ${prompt_1.YELLOW}http://localhost:${this.port}/rapids${prompt_1.NORMAL_COLOR}`);
                 (0, utils_1.output2)(`To exit, press ctrl+c`);
                 (0, utils_1.output2)("");
             });

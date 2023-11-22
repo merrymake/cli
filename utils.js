@@ -68,6 +68,8 @@ class Path {
 }
 exports.Path = Path;
 function getFiles(path, prefix) {
+    if (!fs_1.default.existsSync(path.toString()))
+        return [];
     return (0, node_fs_1.readdirSync)(path.toString(), { withFileTypes: true }).flatMap((x) => x.isDirectory()
         ? getFiles(path.with(x.name), prefix + x.name + "/")
         : [prefix + x.name]);

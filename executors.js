@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -168,10 +168,10 @@ function createService(pth, group, name) {
                 else
                     throw e;
             }
-            (0, utils_1.addExitMessage)(`Use '${prompt_1.COLOR3}cd ${pth
+            (0, utils_1.addExitMessage)(`Use '${prompt_1.YELLOW}cd ${pth
                 .with(name)
                 .toString()
-                .replace(/\\/g, "\\\\")}${prompt_1.NORMAL_COLOR}' to go to the new service. \nThen use '${prompt_1.COLOR3}${process.env["COMMAND"]} deploy${prompt_1.NORMAL_COLOR}' to deploy it.`);
+                .replace(/\\/g, "\\\\")}${prompt_1.NORMAL_COLOR}' to go to the new service. \nThen use '${prompt_1.YELLOW}${process.env["COMMAND"]} deploy${prompt_1.NORMAL_COLOR}' to deploy it.`);
             process.chdir(before);
         }
         catch (e) {
@@ -360,7 +360,7 @@ function do_key(org, key, name, duration) {
             if (key === null) {
                 let { key, expiry } = JSON.parse(yield (0, utils_1.sshReq)(...cmd));
                 (0, utils_1.output2)(`${key} expires on ${new Date(expiry).toLocaleString()}.`);
-                (0, utils_1.addExitMessage)(`Key: ${prompt_1.COLOR3}${key}${prompt_1.NORMAL_COLOR}`);
+                (0, utils_1.addExitMessage)(`Key: ${prompt_1.YELLOW}${key}${prompt_1.NORMAL_COLOR}`);
             }
             else {
                 cmd.push(`--update`, key);
@@ -461,3 +461,38 @@ function do_queue_time(org, time) {
     });
 }
 exports.do_queue_time = do_queue_time;
+function do_help() {
+    return __awaiter(this, void 0, void 0, function* () {
+        let whoami = JSON.parse(yield (0, utils_1.sshReq)("whoami"));
+        if (whoami === undefined || whoami.length === 0) {
+            let cache = (0, utils_1.getCache)();
+            if (!cache.registered) {
+                (0, utils_1.output2)(`${prompt_1.YELLOW}No key registered with ${process.env["COMMAND"]}.${prompt_1.NORMAL_COLOR}`);
+            }
+            (0, utils_1.output2)(`${prompt_1.RED}No verified email.${prompt_1.NORMAL_COLOR}`);
+        }
+        else {
+            (0, utils_1.output2)(`${prompt_1.GREEN}Logged in as: ${whoami.join(", ")}.${prompt_1.NORMAL_COLOR}`);
+        }
+        let rawStruct = (0, utils_1.fetchOrgRaw)();
+        if (rawStruct.org === null) {
+            (0, utils_1.output2)(`${prompt_1.YELLOW}Not inside organization.${prompt_1.NORMAL_COLOR}`);
+        }
+        else {
+            (0, utils_1.output2)(`${prompt_1.GREEN}Inside organization: ${rawStruct.org.name}${prompt_1.NORMAL_COLOR}`);
+        }
+        if (rawStruct.serviceGroup === null) {
+            (0, utils_1.output2)(`${prompt_1.YELLOW}Not inside service group.${prompt_1.NORMAL_COLOR}`);
+        }
+        else {
+            (0, utils_1.output2)(`${prompt_1.GREEN}Inside service group: ${rawStruct.serviceGroup}${prompt_1.NORMAL_COLOR}`);
+        }
+        if (!fs_1.default.existsSync("mist.json") && !fs_1.default.existsSync("merrymake.json")) {
+            (0, utils_1.output2)(`${prompt_1.YELLOW}Not inside service repo.${prompt_1.NORMAL_COLOR}`);
+        }
+        else {
+            (0, utils_1.output2)(`${prompt_1.GREEN}Inside service repo.${prompt_1.NORMAL_COLOR}`);
+        }
+    });
+}
+exports.do_help = do_help;
