@@ -14,7 +14,7 @@ import {
   getCache,
   fetchOrgRaw,
 } from "./utils";
-import { API_URL, GIT_HOST, HTTP_HOST } from "./config";
+import { API_URL, GIT_HOST, HTTP_HOST, SSH_USER } from "./config";
 import {
   detectProjectType,
   BUILD_SCRIPT_MAKERS,
@@ -237,11 +237,13 @@ export function addKnownHost() {
       )
     );
   }
-  if (!isKnownHost)
+  if (!isKnownHost) {
+    console.log("Adding fingerprint...");
     fs.appendFileSync(
       `${os.homedir()}/.ssh/known_hosts`,
       `\n${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n`
     );
+  }
 }
 
 export async function do_register(
@@ -270,17 +272,51 @@ export async function do_register(
   }
 }
 
+function saveSSHConfig(path: string) {
+  console.log(`Saving preference...`);
+  let lines: string[] = [];
+  let foundHost = false;
+  if (fs.existsSync(`${os.homedir()}/.ssh/config`)) {
+    lines = fs
+      .readFileSync(`${os.homedir()}/.ssh/config`)
+      .toString()
+      .split("\n");
+    let inHost = false;
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+      if ((line.startsWith("\t") || line.startsWith(" ")) && inHost) {
+        if (line.includes("User "))
+          lines[i] =
+            line.substring(0, line.indexOf("User ")) + `User ${SSH_USER}`;
+        else if (line.includes("IdentityFile "))
+          lines[i] =
+            line.substring(0, line.indexOf("IdentityFile ")) +
+            `IdentityFile ~/.ssh/${path}`;
+      } else if (line.startsWith("\t") || line.startsWith(" ")) {
+      } else if (line.startsWith(`Host ${API_URL}`)) {
+        inHost = true;
+        foundHost = true;
+      } else {
+        inHost = false;
+      }
+    }
+  }
+  if (!foundHost) {
+    lines.push(
+      `Host ${API_URL}`,
+      `\tUser ${SSH_USER}`,
+      `\tHostName ${API_URL}`,
+      `\tPreferredAuthentications publickey`,
+      `\tIdentityFile ~/.ssh/${path}\n`
+    );
+  }
+  fs.writeFileSync(`${os.homedir()}/.ssh/config`, lines.join("\n"));
+}
+
 export async function useExistingKey(path: string) {
   try {
-    fs.appendFileSync(
-      `${os.homedir()}/.ssh/config`,
-      `\nHost ${API_URL}
-\tUser mist
-\tHostName ${API_URL}
-\tPreferredAuthentications publickey
-\tIdentityFile ~/.ssh/${path}\n`
-    );
-    console.log(`Reading ${path}.pub`);
+    saveSSHConfig(path);
+    console.log(`Reading ${path}.pub...`);
     return "" + fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`);
   } catch (e) {
     throw e;
@@ -289,20 +325,13 @@ export async function useExistingKey(path: string) {
 
 export async function generateNewKey() {
   try {
-    console.log(`Generating new ssh key`);
+    console.log(`Generating new ssh key...`);
     if (!fs.existsSync(os.homedir() + "/.ssh"))
       fs.mkdirSync(os.homedir() + "/.ssh");
     await execPromise(
       `ssh-keygen -t rsa -b 4096 -f "${os.homedir()}/.ssh/merrymake" -N ""`
     );
-    fs.appendFileSync(
-      `${os.homedir()}/.ssh/config`,
-      `\nHost ${API_URL}
-\tUser mist
-\tHostName ${API_URL}
-\tPreferredAuthentications publickey
-\tIdentityFile ~/.ssh/merrymake\n`
-    );
+    saveSSHConfig("merrymake");
     return "" + fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub");
   } catch (e) {
     throw e;

@@ -1,3 +1,8 @@
+# 1.6.6
+
+- Fix .ssh/config when calling `register` multiple times
+- Fix bug with null as default for text
+
 # 1.6.5
 
 - Add internet connection test to `help`

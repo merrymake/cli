@@ -209,8 +209,9 @@ function spinner_stop() {
     }
 }
 exports.spinner_stop = spinner_stop;
-function shortText(prompt, description, defaultValue) {
+function shortText(prompt, description, defaultValueArg) {
     return new Promise((resolve) => {
+        let defaultValue = defaultValueArg === null ? "" : defaultValueArg;
         if ((0, args_1.getArgs)()[0] !== undefined) {
             let result = (0, args_1.getArgs)()[0] === "_" ? defaultValue : (0, args_1.getArgs)()[0];
             command += " " + (result.includes(" ") ? `'${result}'` : result);

@@ -236,9 +236,10 @@ export function spinner_stop() {
 export function shortText(
   prompt: string,
   description: string,
-  defaultValue: string
+  defaultValueArg: string | null
 ) {
   return new Promise<string>((resolve) => {
+    let defaultValue = defaultValueArg === null ? "" : defaultValueArg;
     if (getArgs()[0] !== undefined) {
       let result = getArgs()[0] === "_" ? defaultValue : getArgs()[0];
       command += " " + (result.includes(" ") ? `'${result}'` : result);
