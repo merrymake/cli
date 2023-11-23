@@ -225,6 +225,25 @@ export function do_duplicate(
   return do_pull(pth, `${GIT_HOST}/${org}/${group}/${service}`);
 }
 
+export function addKnownHost() {
+  let isKnownHost = false;
+  if (fs.existsSync(`${os.homedir()}/.ssh/known_hosts`)) {
+    let lines = (
+      "" + fs.readFileSync(`${os.homedir()}/.ssh/known_hosts`)
+    ).split("\n");
+    isKnownHost = lines.some((x) =>
+      x.includes(
+        `${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO`
+      )
+    );
+  }
+  if (!isKnownHost)
+    fs.appendFileSync(
+      `${os.homedir()}/.ssh/known_hosts`,
+      `\n${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n`
+    );
+}
+
 export async function do_register(
   keyAction: () => Promise<string>,
   email: string
@@ -232,22 +251,7 @@ export async function do_register(
   try {
     let key = await keyAction();
     console.log("Registering...");
-    let isKnownHost = false;
-    if (fs.existsSync(`${os.homedir()}/.ssh/known_hosts`)) {
-      let lines = (
-        "" + fs.readFileSync(`${os.homedir()}/.ssh/known_hosts`)
-      ).split("\n");
-      isKnownHost = lines.some((x) =>
-        x.includes(
-          `${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO`
-        )
-      );
-    }
-    if (!isKnownHost)
-      fs.appendFileSync(
-        `${os.homedir()}/.ssh/known_hosts`,
-        "\n${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n"
-      );
+    addKnownHost();
     let result = await urlReq(`${HTTP_HOST}/admin/user`, "POST", {
       email,
       key,
@@ -268,6 +272,14 @@ export async function do_register(
 
 export async function useExistingKey(path: string) {
   try {
+    fs.appendFileSync(
+      `${os.homedir()}/.ssh/config`,
+      `\nHost ${API_URL}
+\tUser mist
+\tHostName ${API_URL}
+\tPreferredAuthentications publickey
+\tIdentityFile ~/.ssh/${path}\n`
+    );
     console.log(`Reading ${path}.pub`);
     return "" + fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`);
   } catch (e) {
@@ -286,10 +298,10 @@ export async function generateNewKey() {
     fs.appendFileSync(
       `${os.homedir()}/.ssh/config`,
       `\nHost ${API_URL}
-    User mist
-    HostName ${API_URL}
-    PreferredAuthentications publickey
-    IdentityFile ~/.ssh/merrymake\n`
+\tUser mist
+\tHostName ${API_URL}
+\tPreferredAuthentications publickey
+\tIdentityFile ~/.ssh/merrymake\n`
     );
     return "" + fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub");
   } catch (e) {
@@ -549,6 +561,12 @@ export async function do_queue_time(org: string, time: number) {
 }
 
 export async function do_help() {
+  try {
+    await urlReq("https://google.com");
+  } catch (e) {
+    output2(`${RED}No internet connection.${NORMAL_COLOR}`);
+    return;
+  }
   let whoami = JSON.parse(await sshReq("whoami"));
   if (whoami === undefined || whoami.length === 0) {
     let cache = getCache();

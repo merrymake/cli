@@ -1,3 +1,9 @@
+# 1.6.5
+
+- Add internet connection test to `help`
+- Change over to api.merrymake.io
+- Check known_host on permission error
+
 # 1.6.4
 
 - Introduced CHANGELOG 🥳

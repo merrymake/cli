@@ -6,3 +6,4 @@ zip windows.zip Merrymake-CLI/mm.exe Merrymake-CLI/install.ps1
 rm Merrymake-CLI/mm.exe
 popd
 npm publish --otp=$1 && git add . && git commit -m "Publish" && git push origin HEAD
+start https://github.com/merrymake/cli/releases/new

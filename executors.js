@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -204,18 +204,22 @@ function do_duplicate(pth, org, group, service) {
     return do_pull(pth, `${config_1.GIT_HOST}/${org}/${group}/${service}`);
 }
 exports.do_duplicate = do_duplicate;
+function addKnownHost() {
+    let isKnownHost = false;
+    if (fs_1.default.existsSync(`${os_1.default.homedir()}/.ssh/known_hosts`)) {
+        let lines = ("" + fs_1.default.readFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`)).split("\n");
+        isKnownHost = lines.some((x) => x.includes(`${config_1.API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO`));
+    }
+    if (!isKnownHost)
+        fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, `\n${config_1.API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n`);
+}
+exports.addKnownHost = addKnownHost;
 function do_register(keyAction, email) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let key = yield keyAction();
             console.log("Registering...");
-            let isKnownHost = false;
-            if (fs_1.default.existsSync(`${os_1.default.homedir()}/.ssh/known_hosts`)) {
-                let lines = ("" + fs_1.default.readFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`)).split("\n");
-                isKnownHost = lines.some((x) => x.includes(`${config_1.API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO`));
-            }
-            if (!isKnownHost)
-                fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, "\n${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n");
+            addKnownHost();
             let result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", {
                 email,
                 key,
@@ -240,6 +244,11 @@ exports.do_register = do_register;
 function useExistingKey(path) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/config`, `\nHost ${config_1.API_URL}
+\tUser mist
+\tHostName ${config_1.API_URL}
+\tPreferredAuthentications publickey
+\tIdentityFile ~/.ssh/${path}\n`);
             console.log(`Reading ${path}.pub`);
             return "" + fs_1.default.readFileSync(os_1.default.homedir() + `/.ssh/${path}.pub`);
         }
@@ -257,10 +266,10 @@ function generateNewKey() {
                 fs_1.default.mkdirSync(os_1.default.homedir() + "/.ssh");
             yield (0, utils_1.execPromise)(`ssh-keygen -t rsa -b 4096 -f "${os_1.default.homedir()}/.ssh/merrymake" -N ""`);
             fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/config`, `\nHost ${config_1.API_URL}
-    User mist
-    HostName ${config_1.API_URL}
-    PreferredAuthentications publickey
-    IdentityFile ~/.ssh/merrymake\n`);
+\tUser mist
+\tHostName ${config_1.API_URL}
+\tPreferredAuthentications publickey
+\tIdentityFile ~/.ssh/merrymake\n`);
             return "" + fs_1.default.readFileSync(os_1.default.homedir() + "/.ssh/merrymake.pub");
         }
         catch (e) {
@@ -464,6 +473,13 @@ function do_queue_time(org, time) {
 exports.do_queue_time = do_queue_time;
 function do_help() {
     return __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield (0, utils_1.urlReq)("https://google.com");
+        }
+        catch (e) {
+            (0, utils_1.output2)(`${prompt_1.RED}No internet connection.${prompt_1.NORMAL_COLOR}`);
+            return;
+        }
         let whoami = JSON.parse(yield (0, utils_1.sshReq)("whoami"));
         if (whoami === undefined || whoami.length === 0) {
             let cache = (0, utils_1.getCache)();

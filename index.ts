@@ -4,6 +4,7 @@ import { CTRL_C, exit } from "./prompt";
 import { abort, addToExecuteQueue, checkVersion, setDryrun } from "./utils";
 import { start } from "./questions";
 import { initializeArgs } from "./args";
+import { addKnownHost } from "./executors";
 
 if (!stdin.isTTY || stdin.setRawMode === undefined) {
   console.log(
@@ -60,6 +61,13 @@ stdin.on("data", (key) => {
   let token: never = await start();
 })().catch((e) => {
   exit();
+  if (e.toString().includes("Permission denied")) {
+    addKnownHost();
+    console.log(
+      "\x1b[31mAn error occurred, please try again. If the problem persists reach out on http://discord.merrymake.eu \x1b[0m",
+      e
+    );
+  }
   console.log("\x1b[31mERROR %s\x1b[0m", e);
   process.exit(0);
 });
