@@ -61,7 +61,7 @@ stdin.on("data", (key) => {
   let token: never = await start();
 })().catch((e) => {
   exit();
-  if (e.toString().includes("Permission denied")) {
+  if (("" + e).includes("Permission denied")) {
     addKnownHost();
     console.log(
       "\x1b[31mAn error occurred, please try again. If the problem persists reach out on http://discord.merrymake.eu \x1b[0m",

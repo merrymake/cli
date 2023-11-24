@@ -58,7 +58,7 @@ node_process_1.stdin.on("data", (key) => {
     let token = yield (0, questions_1.start)();
 }))().catch((e) => {
     (0, prompt_1.exit)();
-    if (e.toString().includes("Permission denied")) {
+    if (("" + e).includes("Permission denied")) {
         (0, executors_1.addKnownHost)();
         console.log("\x1b[31mAn error occurred, please try again. If the problem persists reach out on http://discord.merrymake.eu \x1b[0m", e);
     }
