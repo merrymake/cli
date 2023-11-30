@@ -313,7 +313,10 @@ export function shortText(
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
-        } else if (k === DELETE && afterCursor.length > 0) {
+        } else if (
+          (k === DELETE || k.charCodeAt(0) === 127) &&
+          afterCursor.length > 0
+        ) {
           moveCursor(-beforeCursor.length, 0);
           afterCursor = afterCursor.substring(1);
           stdout.clearLine(1);
@@ -325,7 +328,7 @@ export function shortText(
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
-        } else if (/^[A-Za-z0-9@_, .-/:;#=&*?]+$/.test(k)) {
+        } else if (/^[A-Za-z0-9@_, .-/:;#=&*?+]+$/.test(k)) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += k;
           stdout.clearLine(1);

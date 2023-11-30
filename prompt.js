@@ -288,7 +288,8 @@ function shortText(prompt, description, defaultValueArg) {
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (k === exports.DELETE && afterCursor.length > 0) {
+            else if ((k === exports.DELETE || k.charCodeAt(0) === 127) &&
+                afterCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 afterCursor = afterCursor.substring(1);
                 node_process_1.stdout.clearLine(1);
@@ -302,7 +303,7 @@ function shortText(prompt, description, defaultValueArg) {
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (/^[A-Za-z0-9@_, .-/:;#=&*?]+$/.test(k)) {
+            else if (/^[A-Za-z0-9@_, .-/:;#=&*?+]+$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
                 node_process_1.stdout.clearLine(1);
