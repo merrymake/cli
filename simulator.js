@@ -20,6 +20,12 @@ const child_process_1 = require("child_process");
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const http_1 = __importDefault(require("http"));
 const prompt_1 = require("./prompt");
+const express_session_1 = __importDefault(require("express-session"));
+const MILLISECONDS = 1;
+const SECONDS = 1000 * MILLISECONDS;
+const MINUTES = 60 * SECONDS;
+const HOURS = 60 * MINUTES;
+const DEFAULT_TIMEOUT = 5 * MINUTES;
 class Run {
     constructor(port) {
         this.port = port;
@@ -30,6 +36,12 @@ class Run {
             let teams = (0, utils_1.directoryNames)(new utils_1.Path(pathToRoot), ["event-catalogue"]).map((x) => x.name);
             const app = (0, express_1.default)();
             const server = http_1.default.createServer(app);
+            app.use((0, express_session_1.default)({
+                secret: "something that is kept or meant to be kept unknown or unseen by others",
+                resave: false,
+                saveUninitialized: true,
+                cookie: { maxAge: 12 * HOURS },
+            }));
             app.use((req, res, next) => {
                 if (req.is("multipart/form-data") ||
                     req.is("application/x-www-form-urlencoded")) {
@@ -40,12 +52,13 @@ class Run {
                 }
             });
             let hooks;
-            app.post("/trace/:traceId/:event", (req, res) => __awaiter(this, void 0, void 0, function* () {
+            app.post("/trace/:sessionId/:traceId/:event", (req, res) => __awaiter(this, void 0, void 0, function* () {
                 try {
                     let traceId = req.params.traceId;
+                    let sessionId = req.params.sessionId;
                     let event = req.params.event;
                     let payload = req.body;
-                    this.runService(pathToRoot, this.port, event, payload, traceId, hooks, req.headers["content-type"]);
+                    this.runService(pathToRoot, this.port, event, payload, traceId, sessionId, hooks, req.headers["content-type"]);
                     res.send("Done");
                 }
                 catch (e) {
@@ -60,9 +73,11 @@ class Run {
                     let event = req.params.event;
                     hooks = new PublicHooks(pathToRoot);
                     let payload = Buffer.from(JSON.stringify(req.query));
-                    processFolders(pathToRoot, teams, hooks);
-                    let traceId = "s" + Math.random();
-                    let response = yield this.runWithReply(pathToRoot, this.port, res, event, payload, traceId, hooks, req.headers["content-type"]);
+                    processFolders(pathToRoot, null, teams, hooks);
+                    loadLocalEnvvars(pathToRoot);
+                    let traceId = "t" + Math.random();
+                    let sessionId = req.session.id;
+                    let response = yield this.runWithReply(pathToRoot, this.port, res, event, payload, traceId, sessionId, hooks, req.headers["content-type"]);
                 }
                 catch (e) {
                     if (e.data !== undefined)
@@ -80,9 +95,11 @@ class Run {
                             ? Buffer.from(JSON.stringify(req.body))
                             : Buffer.from(req.body)
                         : req.body;
-                    processFolders(pathToRoot, teams, hooks);
-                    let traceId = "s" + Math.random();
-                    let response = yield this.runWithReply(pathToRoot, this.port, res, event, payload, traceId, hooks, req.headers["content-type"]);
+                    processFolders(pathToRoot, null, teams, hooks);
+                    loadLocalEnvvars(pathToRoot);
+                    let traceId = "t" + Math.random();
+                    let sessionId = req.session.id;
+                    let response = yield this.runWithReply(pathToRoot, this.port, res, event, payload, traceId, sessionId, hooks, req.headers["content-type"]);
                 }
                 catch (e) {
                     if (e.data !== undefined)
@@ -112,7 +129,7 @@ class Run {
             });
         });
     }
-    runService(pathToRoot, port, event, payload, traceId, hooks, contentType) {
+    runService(pathToRoot, port, event, payload, traceId, sessionId, hooks, contentType) {
         var _a;
         if (event === "$reply") {
             let rs = pendingReplies[traceId];
@@ -128,6 +145,7 @@ class Run {
         let envelope = JSON.stringify({
             messageId,
             traceId,
+            sessionId,
         });
         Object.keys(rivers).forEach((river) => {
             let services = rivers[river];
@@ -136,7 +154,7 @@ class Run {
             const args = [...rest, `'${service.action}'`, `'${envelope}'`];
             const options = {
                 cwd: service.dir,
-                env: Object.assign(Object.assign({}, process.env), { RAPIDS: `http://localhost:${port}/trace/${traceId}` }),
+                env: Object.assign(Object.assign(Object.assign({}, process.env), (envvars[service.group] || {})), { RAPIDS: `http://localhost:${port}/trace/${sessionId}/${traceId}` }),
                 shell: "sh",
             };
             if (process.env["DEBUG"])
@@ -155,13 +173,13 @@ class Run {
             });
         });
     }
-    runWithReply(pathToRoot, port, resp, event, payload, traceId, hooks, contentType) {
+    runWithReply(pathToRoot, port, resp, event, payload, traceId, sessionId, hooks, contentType) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 let rivers = hooks.riversFor(event);
                 if (rivers === undefined)
                     return reply(resp, HTTP.CLIENT_ERROR.NO_HOOKS, undefined);
-                this.runService(pathToRoot, port, event, payload, traceId, hooks, contentType);
+                this.runService(pathToRoot, port, event, payload, traceId, sessionId, hooks, contentType);
                 pendingReplies[traceId] = { resp, replies: [] };
                 yield sleep(rivers.waitFor || MAX_WAIT);
                 let pending = pendingReplies[traceId];
@@ -180,6 +198,7 @@ exports.Run = Run;
 const MAX_WAIT = 30000;
 const Reset = "\x1b[0m";
 const FgRed = "\x1b[31m";
+let envvars = {};
 let pendingReplies = {};
 class PublicHooks {
     constructor(pathToRoot) {
@@ -200,11 +219,7 @@ class PublicHooks {
         return this.hooks[event];
     }
 }
-const MILLISECONDS = 1;
-const SECONDS = 1000 * MILLISECONDS;
-const MINUTES = 60 * SECONDS;
-const DEFAULT_TIMEOUT = 5 * MINUTES;
-function processFolder(folder, hooks) {
+function processFolder(group, folder, hooks) {
     if (fs_1.default.existsSync(`${folder}/mist.json`)) {
         let projectType;
         let cmd;
@@ -232,6 +247,7 @@ function processFolder(folder, hooks) {
             hooks.register(event, river, {
                 action,
                 dir: folder.replace(/\/\//g, "/"),
+                group,
                 cmd,
             });
         });
@@ -263,19 +279,38 @@ function processFolder(folder, hooks) {
             hooks.register(event, river, {
                 action,
                 dir: folder.replace(/\/\//g, "/"),
+                group,
                 cmd,
             });
         });
     }
     else if (!folder.endsWith(".DS_Store") &&
         fs_1.default.lstatSync(folder).isDirectory()) {
-        processFolders(folder, fs_1.default.readdirSync(folder), hooks);
+        processFolders(folder, group, fs_1.default.readdirSync(folder), hooks);
     }
 }
-function processFolders(prefix, folders, hooks) {
+function processFolders(prefix, group, folders, hooks) {
     folders
-        .filter((x) => !x.startsWith("(deleted) "))
-        .forEach((folder) => processFolder(prefix + folder + "/", hooks));
+        .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
+        .forEach((folder) => processFolder(group || folder, prefix + folder + "/", hooks));
+}
+function loadLocalEnvvars(pathToRoot) {
+    fs_1.default.readdirSync(pathToRoot)
+        .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
+        .forEach((group) => {
+        if (fs_1.default.existsSync(pathToRoot + "/" + group + "/env.kv")) {
+            envvars[group] = {};
+            fs_1.default.readFileSync(pathToRoot + "/" + group + "/env.kv")
+                .toString()
+                .split(/\r?\n/)
+                .forEach((x) => {
+                if (!x.includes("="))
+                    return;
+                let b = x.split("=");
+                envvars[group][b[0]] = b[1];
+            });
+        }
+    });
 }
 let spacerTimer;
 function timedOutput(str) {

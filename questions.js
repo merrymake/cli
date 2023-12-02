@@ -418,7 +418,10 @@ function envvar_key(org, group, overwrite, key, currentValue) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let value = yield (0, prompt_1.shortText)("Value", "The value...", "");
-            return envvar_key_value(org, group, overwrite, key, value);
+            if (value !== "")
+                return envvar_key_value(org, group, overwrite, key, value);
+            else
+                return envvar_key_value_access_visible(org, group, overwrite, key, value, ["--prod", "--test"], "--public");
         }
         catch (e) {
             throw e;

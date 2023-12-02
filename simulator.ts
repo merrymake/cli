@@ -10,6 +10,13 @@ import {
 } from "@merrymake/detect-project-type";
 import http from "http";
 import { YELLOW, NORMAL_COLOR } from "./prompt";
+import session from "express-session";
+
+const MILLISECONDS = 1;
+const SECONDS = 1000 * MILLISECONDS;
+const MINUTES = 60 * SECONDS;
+const HOURS = 60 * MINUTES;
+const DEFAULT_TIMEOUT = 5 * MINUTES;
 
 export class Run {
   constructor(private port: number) {}
@@ -24,6 +31,16 @@ export class Run {
       const app = express();
       const server = http.createServer(app);
 
+      app.use(
+        session({
+          secret:
+            "something that is kept or meant to be kept unknown or unseen by others",
+          resave: false,
+          saveUninitialized: true,
+          cookie: { maxAge: 12 * HOURS },
+        })
+      );
+
       app.use((req, res, next) => {
         if (
           req.is("multipart/form-data") ||
@@ -37,9 +54,10 @@ export class Run {
 
       let hooks: PublicHooks;
 
-      app.post("/trace/:traceId/:event", async (req, res) => {
+      app.post("/trace/:sessionId/:traceId/:event", async (req, res) => {
         try {
           let traceId = req.params.traceId;
+          let sessionId = req.params.sessionId;
           let event = req.params.event;
           let payload: Buffer = req.body;
           this.runService(
@@ -48,6 +66,7 @@ export class Run {
             event,
             payload,
             traceId,
+            sessionId,
             hooks,
             req.headers["content-type"]
           );
@@ -63,8 +82,10 @@ export class Run {
           let event = req.params.event;
           hooks = new PublicHooks(pathToRoot);
           let payload: Buffer = Buffer.from(JSON.stringify(req.query));
-          processFolders(pathToRoot, teams, hooks);
-          let traceId = "s" + Math.random();
+          processFolders(pathToRoot, null, teams, hooks);
+          loadLocalEnvvars(pathToRoot);
+          let traceId = "t" + Math.random();
+          let sessionId = req.session.id;
           let response = await this.runWithReply(
             pathToRoot,
             this.port,
@@ -72,6 +93,7 @@ export class Run {
             event,
             payload,
             traceId,
+            sessionId,
             hooks,
             req.headers["content-type"]
           );
@@ -90,8 +112,10 @@ export class Run {
               ? Buffer.from(JSON.stringify(req.body))
               : Buffer.from(req.body)
             : req.body;
-          processFolders(pathToRoot, teams, hooks);
-          let traceId = "s" + Math.random();
+          processFolders(pathToRoot, null, teams, hooks);
+          loadLocalEnvvars(pathToRoot);
+          let traceId = "t" + Math.random();
+          let sessionId = req.session.id;
           let response = await this.runWithReply(
             pathToRoot,
             this.port,
@@ -99,6 +123,7 @@ export class Run {
             event,
             payload,
             traceId,
+            sessionId,
             hooks,
             req.headers["content-type"]
           );
@@ -157,6 +182,7 @@ export class Run {
     event: string,
     payload: Buffer,
     traceId: string,
+    sessionId: string,
     hooks: PublicHooks,
     contentType: string | undefined
   ) {
@@ -173,6 +199,7 @@ export class Run {
     let envelope = JSON.stringify({
       messageId,
       traceId,
+      sessionId,
     });
     Object.keys(rivers).forEach((river) => {
       let services = rivers[river];
@@ -183,7 +210,8 @@ export class Run {
         cwd: service.dir,
         env: {
           ...process.env,
-          RAPIDS: `http://localhost:${port}/trace/${traceId}`,
+          ...(envvars[service.group] || {}),
+          RAPIDS: `http://localhost:${port}/trace/${sessionId}/${traceId}`,
         },
         shell: "sh",
       };
@@ -214,6 +242,7 @@ export class Run {
     event: string,
     payload: Buffer,
     traceId: string,
+    sessionId: string,
     hooks: PublicHooks,
     contentType: string | undefined
   ) {
@@ -227,6 +256,7 @@ export class Run {
         event,
         payload,
         traceId,
+        sessionId,
         hooks,
         contentType
       );
@@ -248,7 +278,10 @@ const MAX_WAIT = 30000;
 const Reset = "\x1b[0m";
 const FgRed = "\x1b[31m";
 
+let envvars: { [group: string]: { [key: string]: string } } = {};
+
 interface Hook {
+  group: string;
   dir: string;
   cmd: string;
   action: string;
@@ -294,12 +327,7 @@ class PublicHooks {
   }
 }
 
-const MILLISECONDS = 1;
-const SECONDS = 1000 * MILLISECONDS;
-const MINUTES = 60 * SECONDS;
-const DEFAULT_TIMEOUT = 5 * MINUTES;
-
-function processFolder(folder: string, hooks: PublicHooks) {
+function processFolder(group: string, folder: string, hooks: PublicHooks) {
   if (fs.existsSync(`${folder}/mist.json`)) {
     let projectType: ProjectType;
     let cmd: string;
@@ -327,6 +355,7 @@ function processFolder(folder: string, hooks: PublicHooks) {
       hooks.register(event, river, {
         action,
         dir: folder.replace(/\/\//g, "/"),
+        group,
         cmd,
       });
     });
@@ -357,6 +386,7 @@ function processFolder(folder: string, hooks: PublicHooks) {
       hooks.register(event, river, {
         action,
         dir: folder.replace(/\/\//g, "/"),
+        group,
         cmd,
       });
     });
@@ -364,14 +394,39 @@ function processFolder(folder: string, hooks: PublicHooks) {
     !folder.endsWith(".DS_Store") &&
     fs.lstatSync(folder).isDirectory()
   ) {
-    processFolders(folder, fs.readdirSync(folder), hooks);
+    processFolders(folder, group, fs.readdirSync(folder), hooks);
   }
 }
 
-function processFolders(prefix: string, folders: string[], hooks: PublicHooks) {
+function processFolders(
+  prefix: string,
+  group: string | null,
+  folders: string[],
+  hooks: PublicHooks
+) {
   folders
-    .filter((x) => !x.startsWith("(deleted) "))
-    .forEach((folder) => processFolder(prefix + folder + "/", hooks));
+    .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
+    .forEach((folder) =>
+      processFolder(group || folder, prefix + folder + "/", hooks)
+    );
+}
+
+function loadLocalEnvvars(pathToRoot: string) {
+  fs.readdirSync(pathToRoot)
+    .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
+    .forEach((group) => {
+      if (fs.existsSync(pathToRoot + "/" + group + "/env.kv")) {
+        envvars[group] = {};
+        fs.readFileSync(pathToRoot + "/" + group + "/env.kv")
+          .toString()
+          .split(/\r?\n/)
+          .forEach((x) => {
+            if (!x.includes("=")) return;
+            let b = x.split("=");
+            envvars[group][b[0]] = b[1];
+          });
+      }
+    });
 }
 
 let spacerTimer: undefined | NodeJS.Timeout;

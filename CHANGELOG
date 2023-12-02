@@ -1,3 +1,9 @@
+# 1.6.9
+
+- Add support for local envvars defined in [group]/env.kv in the format "KEY=value\n"
+- Experiment with sessionId
+- Don't ask about accessibility and environment when deleting envvars
+
 # 1.6.6
 
 - Fix .ssh/config when calling `register` multiple times
