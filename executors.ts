@@ -34,6 +34,14 @@ async function clone(struct: any, name: string) {
       `git clone --branch main -q "${GIT_HOST}/${name}/event-catalogue" event-catalogue`,
       name
     );
+    let dir = `${name}/public`;
+    fs.mkdirSync(dir, { recursive: true });
+    await execPromise(`git init --initial-branch=main`, dir);
+    await execPromise(
+      `git remote add origin "${GIT_HOST}/${name}/public"`,
+      dir
+    );
+    // await execPromise(`git fetch`, dir);
     fetch(".", name, struct);
   } catch (e) {
     throw e;

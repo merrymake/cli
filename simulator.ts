@@ -1,5 +1,5 @@
 import { output2, fetchOrg, directoryNames, Path } from "./utils";
-import express from "express";
+import express, { Request, RequestHandler } from "express";
 import { Response } from "express";
 import fs from "fs";
 import { spawn, ExecOptions } from "child_process";
@@ -10,7 +10,7 @@ import {
 } from "@merrymake/detect-project-type";
 import http from "http";
 import { YELLOW, NORMAL_COLOR } from "./prompt";
-import session from "express-session";
+import cookieParser from "cookie-parser";
 
 const MILLISECONDS = 1;
 const SECONDS = 1000 * MILLISECONDS;
@@ -19,27 +19,17 @@ const HOURS = 60 * MINUTES;
 const DEFAULT_TIMEOUT = 5 * MINUTES;
 
 export class Run {
-  constructor(private port: number) {}
+  private hooks: PublicHooks | undefined;
+  private pathToRoot: string;
+  constructor(private port: number) {
+    const { pathToRoot } = fetchOrg();
+    this.pathToRoot = pathToRoot;
+  }
   execute() {
     return new Promise<void>((resolve) => {
-      const { pathToRoot } = fetchOrg();
-
-      let teams = directoryNames(new Path(pathToRoot), ["event-catalogue"]).map(
-        (x) => x.name
-      );
-
       const app = express();
       const server = http.createServer(app);
-
-      app.use(
-        session({
-          secret:
-            "something that is kept or meant to be kept unknown or unseen by others",
-          resave: false,
-          saveUninitialized: true,
-          cookie: { maxAge: 12 * HOURS },
-        })
-      );
+      const withSession: RequestHandler<{ event: string }> = cookieParser();
 
       app.use((req, res, next) => {
         if (
@@ -52,8 +42,6 @@ export class Run {
         }
       });
 
-      let hooks: PublicHooks;
-
       app.post("/trace/:sessionId/:traceId/:event", async (req, res) => {
         try {
           let traceId = req.params.traceId;
@@ -61,13 +49,13 @@ export class Run {
           let event = req.params.event;
           let payload: Buffer = req.body;
           this.runService(
-            pathToRoot,
+            this.pathToRoot,
             this.port,
             event,
             payload,
             traceId,
             sessionId,
-            hooks,
+            this.hooks!,
             req.headers["content-type"]
           );
           res.send("Done");
@@ -77,56 +65,24 @@ export class Run {
         }
       });
 
-      app.get("/rapids/:event", async (req, res) => {
+      app.get("/rapids/:event", withSession, async (req, res) => {
         try {
-          let event = req.params.event;
-          hooks = new PublicHooks(pathToRoot);
           let payload: Buffer = Buffer.from(JSON.stringify(req.query));
-          processFolders(pathToRoot, null, teams, hooks);
-          loadLocalEnvvars(pathToRoot);
-          let traceId = "t" + Math.random();
-          let sessionId = req.session.id;
-          let response = await this.runWithReply(
-            pathToRoot,
-            this.port,
-            res,
-            event,
-            payload,
-            traceId,
-            sessionId,
-            hooks,
-            req.headers["content-type"]
-          );
+          await this.processEvent(req, res, payload);
         } catch (e: any) {
           if (e.data !== undefined) reply(res, e, undefined);
           else throw e;
         }
       });
 
-      app.all("/rapids/:event", async (req, res) => {
+      app.all("/rapids/:event", withSession, async (req, res) => {
         try {
-          let event = req.params.event;
-          hooks = new PublicHooks(pathToRoot);
           let payload: Buffer = !Buffer.isBuffer(req.body)
             ? typeof req.body === "object"
               ? Buffer.from(JSON.stringify(req.body))
               : Buffer.from(req.body)
             : req.body;
-          processFolders(pathToRoot, null, teams, hooks);
-          loadLocalEnvvars(pathToRoot);
-          let traceId = "t" + Math.random();
-          let sessionId = req.session.id;
-          let response = await this.runWithReply(
-            pathToRoot,
-            this.port,
-            res,
-            event,
-            payload,
-            traceId,
-            sessionId,
-            hooks,
-            req.headers["content-type"]
-          );
+          await this.processEvent(req, res, payload);
         } catch (e: any) {
           if (e.data !== undefined) reply(res, e, undefined);
           else throw e;
@@ -176,6 +132,62 @@ export class Run {
     });
   }
 
+  async processEvent(
+    req: Request<{ event: string }, any, any, unknown, Record<string, any>>,
+    res: Response,
+    payload: Buffer
+  ) {
+    try {
+      let sessionId = req.cookies.sessionId;
+      if (!sessionId) {
+        sessionId = "s" + Math.random();
+        res.cookie("sessionId", sessionId);
+      }
+      res.set("Access-Control-Allow-Origin", "*");
+      let event = req.params.event;
+      this.hooks = new PublicHooks(this.pathToRoot);
+      let conf = this.hooks.getApiConfig(event);
+      let traceId = "t" + Math.random();
+      pendingReplies[traceId] = {
+        resp: res,
+        channels: new Set(),
+      };
+      if (conf !== undefined && conf.streaming === true) {
+        req.on("close", () => {
+          let rep = pendingReplies[traceId];
+          rep.channels.forEach((c) => {
+            channels[c].delete(rep.resp);
+            if (channels[c].size === 0) {
+              delete channels[c];
+            }
+          });
+        });
+        res.set("Content-Type", "text/event-stream");
+        res.set("Cache-Control", "no-cache");
+        res.set("Connection", "keep-alive");
+        res.flushHeaders();
+      }
+      let teams = directoryNames(new Path(this.pathToRoot), [
+        "event-catalogue",
+      ]).map((x) => x.name);
+      processFolders(this.pathToRoot, null, teams, this.hooks);
+      loadLocalEnvvars(this.pathToRoot);
+      let response = await this.runWithReply(
+        this.pathToRoot,
+        this.port,
+        res,
+        event,
+        payload,
+        traceId,
+        sessionId,
+        this.hooks,
+        req.headers["content-type"]
+      );
+    } catch (e) {
+      throw e;
+    }
+  }
+
   runService(
     pathToRoot: string,
     port: number,
@@ -192,6 +204,24 @@ export class Run {
         delete pendingReplies[traceId];
         reply(rs.resp, HTTP.SUCCESS.SINGLE_REPLY(payload), contentType);
       }
+    } else if (event === "$join") {
+      let to = payload.toString();
+      let rs = pendingReplies[traceId];
+      if (rs !== undefined) {
+        if (channels[to] === undefined) channels[to] = new Set();
+        channels[to].add(rs.resp);
+        rs.channels.add(to);
+      }
+    } else if (event === "$broadcast") {
+      let p: { event: string; to: string; payload: string } = JSON.parse(
+        payload.toString()
+      );
+      let cs = channels[p.to] || [];
+      cs.forEach((c) => {
+        c.write(`event: ${p.event}\n`);
+        p.payload.split("\n").forEach((x) => c.write(`data: ${x}\n`));
+        c.write(`\n`);
+      });
     }
     let rivers = hooks.riversFor(event)?.hooks;
     if (rivers === undefined) return;
@@ -232,6 +262,16 @@ export class Run {
             Reset
         );
       });
+      // ls.on("exit", () => {
+      //   let streaming = pendingReplies[traceId].streaming;
+      //   if (streaming !== undefined) {
+      //     streaming.running--;
+      //     if (streaming.running === 0) {
+      //       pendingReplies[traceId].resp.end();
+      //       delete pendingReplies[traceId];
+      //     }
+      //   }
+      // });
     });
   }
 
@@ -250,6 +290,7 @@ export class Run {
       let rivers = hooks.riversFor(event);
       if (rivers === undefined)
         return reply(resp, HTTP.CLIENT_ERROR.NO_HOOKS, undefined);
+      let conf = hooks.getApiConfig(event);
       this.runService(
         pathToRoot,
         port,
@@ -260,13 +301,13 @@ export class Run {
         hooks,
         contentType
       );
-
-      pendingReplies[traceId] = { resp, replies: [] };
-      await sleep(rivers.waitFor || MAX_WAIT);
-      let pending = pendingReplies[traceId];
-      if (pending !== undefined) {
-        delete pendingReplies[traceId];
-        reply(resp, HTTP.SUCCESS.QUEUE_JOB, undefined);
+      if (conf !== undefined && conf.streaming !== true) {
+        await sleep(conf.waitFor || MAX_WAIT);
+        let pending = pendingReplies[traceId];
+        if (pending !== undefined) {
+          delete pendingReplies[traceId];
+          reply(resp, HTTP.SUCCESS.QUEUE_JOB, undefined);
+        }
       }
     } catch (e) {
       throw e;
@@ -287,21 +328,20 @@ interface Hook {
   action: string;
 }
 let pendingReplies: {
-  [traceId: string]: { resp: Response; count?: number; replies: string[] };
+  [traceId: string]: { resp: Response; channels: Set<string> };
 } = {};
+let channels: { [channel: string]: Set<Response> } = {};
 
 class PublicHooks {
   private publicEvents: {
     [event: string]: {
-      waitFor: number | undefined;
-      fileCount: number | undefined;
-      fileSize: number | undefined;
-      mimeTypes: string[] | undefined;
+      waitFor?: number;
+      streaming?: boolean;
     };
   };
   private hooks: {
     [event: string]: {
-      waitFor: number | undefined;
+      waitFor?: number;
       hooks: { [river: string]: Hook[] };
     };
   } = {};
@@ -309,6 +349,10 @@ class PublicHooks {
     this.publicEvents = JSON.parse(
       "" + fs.readFileSync(`${pathToRoot}/event-catalogue/api.json`)
     );
+  }
+
+  getApiConfig(event: string) {
+    return this.publicEvents[event];
   }
 
   register(event: string, river: string, hook: Hook) {

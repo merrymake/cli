@@ -1,3 +1,8 @@
+# 1.7.0
+
+- Add $broadcast and $join
+- Rework sessionId
+
 # 1.6.9
 
 - Add support for local envvars defined in [group]/env.kv in the format "KEY=value\n"

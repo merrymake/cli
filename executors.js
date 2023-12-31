@@ -30,6 +30,11 @@ function clone(struct, name) {
             let orgFile = { name };
             fs_1.default.writeFileSync(`${name}/.merrymake/conf.json`, JSON.stringify(orgFile));
             yield (0, utils_1.execPromise)(`git clone --branch main -q "${config_1.GIT_HOST}/${name}/event-catalogue" event-catalogue`, name);
+            let dir = `${name}/public`;
+            fs_1.default.mkdirSync(dir, { recursive: true });
+            yield (0, utils_1.execPromise)(`git init --initial-branch=main`, dir);
+            yield (0, utils_1.execPromise)(`git remote add origin "${config_1.GIT_HOST}/${name}/public"`, dir);
+            // await execPromise(`git fetch`, dir);
             fetch(".", name, struct);
         }
         catch (e) {
