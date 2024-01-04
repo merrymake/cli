@@ -106,7 +106,9 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
         if (options.length === 1) {
             if ((0, args_1.getArgs)().length > 0)
                 (0, args_1.getArgs)().splice(0, 1);
-            resolve(makeSelection(options[0]));
+            resolve(invertedQuiet.cmd
+                ? makeSelection(options[0])
+                : makeSelectionQuietly(options[0]));
             return;
         }
         options.push({

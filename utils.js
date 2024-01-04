@@ -194,7 +194,6 @@ function versionIsOlder(old, new_) {
     return false;
 }
 function execPromise(cmd, cwd) {
-    // output("Executing", cmd);
     return new Promise((resolve, reject) => {
         (0, child_process_1.exec)(cmd, { cwd }, (error, stdout, stderr) => {
             let err = (error === null || error === void 0 ? void 0 : error.message) || stderr;
@@ -282,16 +281,15 @@ function partition(str, radix) {
     return [str.substring(0, index), str.substring(index + radix.length)];
 }
 exports.partition = partition;
-function urlReq(url, method = "GET", body) {
+function urlReq(url, method = "GET", data, contentType = "application/json") {
     return new Promise((resolve, reject) => {
         let [protocol, fullPath] = url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
         let [base, path] = partition(fullPath, "/");
         let [host, port] = partition(base, ":");
-        let data = JSON.stringify(body);
         let headers;
-        if (body !== undefined)
+        if (data !== undefined)
             headers = {
-                "Content-Type": "application/json",
+                "Content-Type": contentType,
                 "Content-Length": data.length,
             };
         let sender = protocol === "http" ? http_1.default : https_1.default;

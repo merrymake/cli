@@ -248,6 +248,10 @@ function queue_event(org, id, river) {
 function checkout() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            if ((0, args_1.getArgs)().length > 0 && (0, args_1.getArgs)()[0] !== "_") {
+                let org = (0, args_1.getArgs)().splice(0, 1)[0];
+                return yield checkout_org(org);
+            }
             let resp = yield (0, utils_1.sshReq)(`list-organizations`);
             let orgs = JSON.parse(resp);
             return yield (0, prompt_1.choice)(orgs.map((x) => ({
@@ -460,6 +464,78 @@ function keys(org) {
         }
     });
 }
+function post_event_key_payload(eventType, key, contentType, payload) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_post)(eventType, key, contentType, payload));
+    return (0, utils_1.finish)();
+}
+function post_event_key_payloadType(eventType, key, contentType) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let payload = yield (0, prompt_1.shortText)("Payload", "The data to be attached to the request", "");
+            return post_event_key_payload(eventType, key, contentType, payload);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function post_event_key(eventType, key) {
+    return (0, prompt_1.choice)([
+        {
+            long: "empty",
+            short: "e",
+            text: "empty message, ie. no payload",
+            action: () => post_event_key_payload(eventType, key, `plain/text`, ``),
+        },
+        {
+            long: "text",
+            short: "t",
+            text: "attach plain text payload",
+            action: () => post_event_key_payloadType(eventType, key, `plain/text`),
+        },
+        {
+            long: "json",
+            short: "j",
+            text: "attach json payload",
+            action: () => post_event_key_payloadType(eventType, key, `application/json`),
+        },
+    ]);
+}
+function post_event(org, eventType) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            if ((0, args_1.getArgs)().length > 0 && (0, args_1.getArgs)()[0] !== "_") {
+                let key = (0, args_1.getArgs)().splice(0, 1)[0];
+                return yield post_event_key(eventType, key);
+            }
+            let resp = yield (0, utils_1.sshReq)(`list-keys`, `--org`, org, `--active`);
+            let keys = JSON.parse(resp);
+            let options = keys.map((x) => {
+                let n = x.name ? ` (${x.name})` : "";
+                return {
+                    long: x.key,
+                    text: `${x.key}${n}`,
+                    action: () => post_event_key(eventType, x.key),
+                };
+            });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function post(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let eventType = yield (0, prompt_1.shortText)("Event type", "The type of event to post", "hello");
+            return post_event(org, eventType);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
 function event_key_event(org, key, event, create) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_event)(org, key, event, create));
     return (0, utils_1.finish)();
@@ -665,6 +741,7 @@ function sim() {
     (0, utils_1.addToExecuteQueue)(() => new simulator_1.Run(3000).execute());
     return (0, utils_1.finish)();
 }
+const SPECIAL_FOLDERS = ["event-catalogue", "public"];
 function start() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -676,7 +753,8 @@ function start() {
                 let selectedGroup = null;
                 let struct = {
                     org: rawStruct.org,
-                    serviceGroup: rawStruct.serviceGroup !== "event-catalogue"
+                    serviceGroup: rawStruct.serviceGroup !== null &&
+                        !SPECIAL_FOLDERS.includes(rawStruct.serviceGroup)
                         ? rawStruct.serviceGroup
                         : null,
                     inEventCatalogue: rawStruct.serviceGroup === "event-catalogue",
@@ -689,7 +767,10 @@ function start() {
                     };
                 }
                 else {
-                    let serviceGroups = (0, utils_1.directoryNames)(new utils_2.Path(), ["event-catalogue"]);
+                    let serviceGroups = (0, utils_1.directoryNames)(new utils_2.Path(), [
+                        "event-catalogue",
+                        "public",
+                    ]);
                     if (serviceGroups.length === 1) {
                         selectedGroup = {
                             name: serviceGroups[0].name,
@@ -783,6 +864,12 @@ function start() {
                     short: "k",
                     text: "add or edit api-keys for the organization",
                     action: () => keys(orgName),
+                });
+                options.push({
+                    long: "post",
+                    short: "p",
+                    text: "post message to Rapids using an api-key",
+                    action: () => post(orgName),
                 });
                 options.push({
                     long: "event",

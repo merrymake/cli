@@ -45,6 +45,7 @@ import {
   alignLeft,
   do_event,
   do_help,
+  do_post,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -324,6 +325,10 @@ function queue_event(org: string, id: string, river: string) {
 
 async function checkout() {
   try {
+    if (getArgs().length > 0 && getArgs()[0] !== "_") {
+      let org = getArgs().splice(0, 1)[0];
+      return await checkout_org(org);
+    }
     let resp = await sshReq(`list-organizations`);
     let orgs: string[] = JSON.parse(resp);
     return await choice(
@@ -637,6 +642,92 @@ async function keys(org: string) {
   }
 }
 
+function post_event_key_payload(
+  eventType: string,
+  key: string,
+  contentType: string,
+  payload: string
+) {
+  addToExecuteQueue(() => do_post(eventType, key, contentType, payload));
+  return finish();
+}
+
+async function post_event_key_payloadType(
+  eventType: string,
+  key: string,
+  contentType: string
+) {
+  try {
+    let payload = await shortText(
+      "Payload",
+      "The data to be attached to the request",
+      ""
+    );
+    return post_event_key_payload(eventType, key, contentType, payload);
+  } catch (e) {
+    throw e;
+  }
+}
+
+function post_event_key(eventType: string, key: string) {
+  return choice([
+    {
+      long: "empty",
+      short: "e",
+      text: "empty message, ie. no payload",
+      action: () => post_event_key_payload(eventType, key, `plain/text`, ``),
+    },
+    {
+      long: "text",
+      short: "t",
+      text: "attach plain text payload",
+      action: () => post_event_key_payloadType(eventType, key, `plain/text`),
+    },
+    {
+      long: "json",
+      short: "j",
+      text: "attach json payload",
+      action: () =>
+        post_event_key_payloadType(eventType, key, `application/json`),
+    },
+  ]);
+}
+
+async function post_event(org: string, eventType: string) {
+  try {
+    if (getArgs().length > 0 && getArgs()[0] !== "_") {
+      let key = getArgs().splice(0, 1)[0];
+      return await post_event_key(eventType, key);
+    }
+    let resp = await sshReq(`list-keys`, `--org`, org, `--active`);
+    let keys: { name: string; key: string }[] = JSON.parse(resp);
+    let options: Option[] = keys.map((x) => {
+      let n = x.name ? ` (${x.name})` : "";
+      return {
+        long: x.key,
+        text: `${x.key}${n}`,
+        action: () => post_event_key(eventType, x.key),
+      };
+    });
+    return await choice(options).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function post(org: string) {
+  try {
+    let eventType = await shortText(
+      "Event type",
+      "The type of event to post",
+      "hello"
+    );
+    return post_event(org, eventType);
+  } catch (e) {
+    throw e;
+  }
+}
+
 function event_key_event(
   org: string,
   key: string,
@@ -878,6 +969,7 @@ function sim() {
   return finish();
 }
 
+const SPECIAL_FOLDERS = ["event-catalogue", "public"];
 export async function start() {
   try {
     let rawStruct = fetchOrgRaw();
@@ -889,7 +981,8 @@ export async function start() {
       let struct = {
         org: rawStruct.org,
         serviceGroup:
-          rawStruct.serviceGroup !== "event-catalogue"
+          rawStruct.serviceGroup !== null &&
+          !SPECIAL_FOLDERS.includes(rawStruct.serviceGroup)
             ? rawStruct.serviceGroup
             : null,
         inEventCatalogue: rawStruct.serviceGroup === "event-catalogue",
@@ -901,7 +994,10 @@ export async function start() {
           path: new Path(struct.pathToRoot).withoutLastUp(),
         };
       } else {
-        let serviceGroups = directoryNames(new Path(), ["event-catalogue"]);
+        let serviceGroups = directoryNames(new Path(), [
+          "event-catalogue",
+          "public",
+        ]);
         if (serviceGroups.length === 1) {
           selectedGroup = {
             name: serviceGroups[0].name,
@@ -1005,6 +1101,12 @@ export async function start() {
         short: "k",
         text: "add or edit api-keys for the organization",
         action: () => keys(orgName),
+      });
+      options.push({
+        long: "post",
+        short: "p",
+        text: "post message to Rapids using an api-key",
+        action: () => post(orgName),
       });
       options.push({
         long: "event",

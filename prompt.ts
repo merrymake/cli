@@ -129,7 +129,11 @@ export function choice(
     let str: string[] = [];
     if (options.length === 1) {
       if (getArgs().length > 0) getArgs().splice(0, 1);
-      resolve(makeSelection(options[0]));
+      resolve(
+        invertedQuiet.cmd
+          ? makeSelection(options[0])
+          : makeSelectionQuietly(options[0])
+      );
       return;
     }
     options.push({

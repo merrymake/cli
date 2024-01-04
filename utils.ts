@@ -161,7 +161,6 @@ function versionIsOlder(old: string, new_: string) {
 }
 
 export function execPromise(cmd: string, cwd?: string) {
-  // output("Executing", cmd);
   return new Promise<string>((resolve, reject) => {
     exec(cmd, { cwd }, (error, stdout, stderr) => {
       let err = error?.message || stderr;
@@ -247,7 +246,8 @@ export function partition(str: string, radix: string) {
 export function urlReq(
   url: string,
   method: "POST" | "GET" = "GET",
-  body?: any
+  data?: string,
+  contentType = "application/json"
 ) {
   return new Promise<{ body: string; code: number | undefined }>(
     (resolve, reject) => {
@@ -255,11 +255,10 @@ export function urlReq(
         url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
       let [base, path] = partition(fullPath, "/");
       let [host, port] = partition(base, ":");
-      let data = JSON.stringify(body);
       let headers;
-      if (body !== undefined)
+      if (data !== undefined)
         headers = {
-          "Content-Type": "application/json",
+          "Content-Type": contentType,
           "Content-Length": data.length,
         };
       let sender = protocol === "http" ? http : https;

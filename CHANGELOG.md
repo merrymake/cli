@@ -1,3 +1,22 @@
+# NEXT: 
+## Breaking changes
+- 
+## Added features
+- 
+## Fixes and improvements
+- 
+
+# 1.8.0
+
+## Added features
+- Add `post` command
+## Fixes and improvements
+- Don't print command when selecting default
+- `public` excluded from service groups
+- Fix bug where fetch would not initialize the git repos
+- Make `clone` command slightly faster
+- Add `.md` to `CHANGELOG` for better syntax highlighting
+
 # 1.7.0
 
 - Add $broadcast and $join

@@ -14,7 +14,7 @@ import {
   getCache,
   fetchOrgRaw,
 } from "./utils";
-import { API_URL, GIT_HOST, HTTP_HOST, SSH_USER } from "./config";
+import { API_URL, GIT_HOST, HTTP_HOST, RAPIDS_HOST, SSH_USER } from "./config";
 import {
   detectProjectType,
   BUILD_SCRIPT_MAKERS,
@@ -42,7 +42,7 @@ async function clone(struct: any, name: string) {
       dir
     );
     // await execPromise(`git fetch`, dir);
-    fetch(".", name, struct);
+    fetch(`./${name}`, name, struct);
   } catch (e) {
     throw e;
   }
@@ -50,15 +50,17 @@ async function clone(struct: any, name: string) {
 
 async function fetch(prefix: string, org: string, struct: any) {
   try {
-    Object.keys(struct).forEach((team) => {
-      fs.mkdirSync(`${prefix}/${org}/${team}`, { recursive: true });
-      createFolderStructure(
-        struct[team],
-        `${prefix}/${org}/${team}`,
+    let keys = Object.keys(struct);
+    for (let i = 0; i < keys.length; i++) {
+      let group = keys[i];
+      fs.mkdirSync(`${prefix}/${group}`, { recursive: true });
+      await createFolderStructure(
+        struct[group],
+        `${prefix}/${group}`,
         org,
-        team
+        group
       );
-    });
+    }
   } catch (e) {
     throw e;
   }
@@ -74,53 +76,64 @@ export async function do_fetch() {
     }
     output2(`Fetching...`);
     let structure = JSON.parse(reply);
-    await fetch(path.join(org.pathToRoot, ".."), org.org.name, structure);
+    await fetch(org.pathToRoot, org.org.name, structure);
   } catch (e) {
     throw e;
   }
 }
 
-function createFolderStructure(
+async function createFolderStructure(
   struct: any,
   prefix: string,
   org: string,
   team: string
 ) {
-  Object.keys(struct).forEach(async (k) => {
-    if (struct[k] instanceof Object)
-      createFolderStructure(struct[k], prefix + "/" + k, org, team);
-    else {
-      // output(`git clone "${HOST}/${org}/${team}/${k}" "${prefix}/${k}"`);
-      let repo = `"${GIT_HOST}/${org}/${team}/${k}"`;
-      let dir = `${prefix}/${k}`;
-      try {
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-          await execPromise(`git init --initial-branch=main`, dir);
-          await execPromise(`git remote add origin ${repo}`, dir);
-          await fs.writeFile(
-            dir + "/fetch.bat",
-            `@echo off
+  try {
+    let keys = Object.keys(struct);
+    for (let i = 0; i < keys.length; i++) {
+      let k = keys[i];
+      if (struct[k] instanceof Object)
+        await createFolderStructure(struct[k], prefix + "/" + k, org, team);
+      else {
+        // output(`git clone "${HOST}/${org}/${team}/${k}" "${prefix}/${k}"`);
+        let repo = `"${GIT_HOST}/${org}/${team}/${k}"`;
+        let dir = `${prefix}/${k}`;
+        try {
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+          }
+          if (!fs.existsSync(dir + "/.git")) {
+            output2("Here1 " + dir);
+            await execPromise(`git init --initial-branch=main`, dir);
+            output2("Here2 " + dir);
+            await execPromise(`git remote add origin ${repo}`, dir);
+            output2("Here3 " + dir);
+            fs.writeFileSync(
+              dir + "/fetch.bat",
+              `@echo off
 git fetch
 git reset --hard origin/main
 del fetch.sh
-(goto) 2>nul & del fetch.bat`,
-            () => {}
-          );
-          await fs.writeFile(
-            dir + "/fetch.sh",
-            `#!/bin/sh
+(goto) 2>nul & del fetch.bat`
+            );
+            fs.writeFileSync(
+              dir + "/fetch.sh",
+              `#!/bin/sh
 git fetch
 git reset --hard origin/main
-rm fetch.bat fetch.sh`,
-            () => {}
-          );
+rm fetch.bat fetch.sh`
+            );
+          } else {
+            await execPromise(`git remote set-url origin ${repo}`, dir);
+          }
+        } catch (e) {
+          console.log(e);
         }
-      } catch (e) {
-        console.log(e);
       }
     }
-  });
+  } catch (e) {
+    throw e;
+  }
 }
 
 export async function do_clone(name: string) {
@@ -262,10 +275,14 @@ export async function do_register(
     let key = await keyAction();
     console.log("Registering...");
     addKnownHost();
-    let result = await urlReq(`${HTTP_HOST}/admin/user`, "POST", {
-      email,
-      key,
-    });
+    let result = await urlReq(
+      `${HTTP_HOST}/admin/user`,
+      "POST",
+      JSON.stringify({
+        email,
+        key,
+      })
+    );
     if (/^\d+$/.test(result.body)) {
       saveCache({ registered: true, hasOrgs: +result.body > 0 });
       output2("Registered user.");
@@ -635,5 +652,24 @@ export async function do_help() {
     output2(`${YELLOW}Not inside service repo.${NORMAL_COLOR}`);
   } else {
     output2(`${GREEN}Inside service repo.${NORMAL_COLOR}`);
+  }
+}
+
+export async function do_post(
+  eventType: string,
+  key: string,
+  contentType: string,
+  payload: string
+) {
+  try {
+    let resp = await urlReq(
+      `${RAPIDS_HOST}/${key}/${eventType}`,
+      "POST",
+      payload,
+      contentType
+    );
+    output2(resp.body);
+  } catch (e) {
+    throw e;
   }
 }

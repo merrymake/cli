@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -20,7 +20,6 @@ const config_1 = require("./config");
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const child_process_1 = require("child_process");
 const prompt_1 = require("./prompt");
-const path_1 = __importDefault(require("path"));
 const args_1 = require("./args");
 function clone(struct, name) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -35,7 +34,7 @@ function clone(struct, name) {
             yield (0, utils_1.execPromise)(`git init --initial-branch=main`, dir);
             yield (0, utils_1.execPromise)(`git remote add origin "${config_1.GIT_HOST}/${name}/public"`, dir);
             // await execPromise(`git fetch`, dir);
-            fetch(".", name, struct);
+            fetch(`./${name}`, name, struct);
         }
         catch (e) {
             throw e;
@@ -45,10 +44,12 @@ function clone(struct, name) {
 function fetch(prefix, org, struct) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            Object.keys(struct).forEach((team) => {
-                fs_1.default.mkdirSync(`${prefix}/${org}/${team}`, { recursive: true });
-                createFolderStructure(struct[team], `${prefix}/${org}/${team}`, org, team);
-            });
+            let keys = Object.keys(struct);
+            for (let i = 0; i < keys.length; i++) {
+                let group = keys[i];
+                fs_1.default.mkdirSync(`${prefix}/${group}`, { recursive: true });
+                yield createFolderStructure(struct[group], `${prefix}/${group}`, org, group);
+            }
         }
         catch (e) {
             throw e;
@@ -66,7 +67,7 @@ function do_fetch() {
             }
             (0, utils_1.output2)(`Fetching...`);
             let structure = JSON.parse(reply);
-            yield fetch(path_1.default.join(org.pathToRoot, ".."), org.org.name, structure);
+            yield fetch(org.pathToRoot, org.org.name, structure);
         }
         catch (e) {
             throw e;
@@ -75,34 +76,51 @@ function do_fetch() {
 }
 exports.do_fetch = do_fetch;
 function createFolderStructure(struct, prefix, org, team) {
-    Object.keys(struct).forEach((k) => __awaiter(this, void 0, void 0, function* () {
-        if (struct[k] instanceof Object)
-            createFolderStructure(struct[k], prefix + "/" + k, org, team);
-        else {
-            // output(`git clone "${HOST}/${org}/${team}/${k}" "${prefix}/${k}"`);
-            let repo = `"${config_1.GIT_HOST}/${org}/${team}/${k}"`;
-            let dir = `${prefix}/${k}`;
-            try {
-                if (!fs_1.default.existsSync(dir)) {
-                    fs_1.default.mkdirSync(dir, { recursive: true });
-                    yield (0, utils_1.execPromise)(`git init --initial-branch=main`, dir);
-                    yield (0, utils_1.execPromise)(`git remote add origin ${repo}`, dir);
-                    yield fs_1.default.writeFile(dir + "/fetch.bat", `@echo off
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let keys = Object.keys(struct);
+            for (let i = 0; i < keys.length; i++) {
+                let k = keys[i];
+                if (struct[k] instanceof Object)
+                    yield createFolderStructure(struct[k], prefix + "/" + k, org, team);
+                else {
+                    // output(`git clone "${HOST}/${org}/${team}/${k}" "${prefix}/${k}"`);
+                    let repo = `"${config_1.GIT_HOST}/${org}/${team}/${k}"`;
+                    let dir = `${prefix}/${k}`;
+                    try {
+                        if (!fs_1.default.existsSync(dir)) {
+                            fs_1.default.mkdirSync(dir, { recursive: true });
+                        }
+                        if (!fs_1.default.existsSync(dir + "/.git")) {
+                            (0, utils_1.output2)("Here1 " + dir);
+                            yield (0, utils_1.execPromise)(`git init --initial-branch=main`, dir);
+                            (0, utils_1.output2)("Here2 " + dir);
+                            yield (0, utils_1.execPromise)(`git remote add origin ${repo}`, dir);
+                            (0, utils_1.output2)("Here3 " + dir);
+                            fs_1.default.writeFileSync(dir + "/fetch.bat", `@echo off
 git fetch
 git reset --hard origin/main
 del fetch.sh
-(goto) 2>nul & del fetch.bat`, () => { });
-                    yield fs_1.default.writeFile(dir + "/fetch.sh", `#!/bin/sh
+(goto) 2>nul & del fetch.bat`);
+                            fs_1.default.writeFileSync(dir + "/fetch.sh", `#!/bin/sh
 git fetch
 git reset --hard origin/main
-rm fetch.bat fetch.sh`, () => { });
+rm fetch.bat fetch.sh`);
+                        }
+                        else {
+                            yield (0, utils_1.execPromise)(`git remote set-url origin ${repo}`, dir);
+                        }
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
                 }
             }
-            catch (e) {
-                console.log(e);
-            }
         }
-    }));
+        catch (e) {
+            throw e;
+        }
+    });
 }
 function do_clone(name) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -227,10 +245,10 @@ function do_register(keyAction, email) {
             let key = yield keyAction();
             console.log("Registering...");
             addKnownHost();
-            let result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", {
+            let result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", JSON.stringify({
                 email,
                 key,
-            });
+            }));
             if (/^\d+$/.test(result.body)) {
                 (0, utils_1.saveCache)({ registered: true, hasOrgs: +result.body > 0 });
                 (0, utils_1.output2)("Registered user.");
@@ -549,3 +567,15 @@ function do_help() {
     });
 }
 exports.do_help = do_help;
+function do_post(eventType, key, contentType, payload) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.urlReq)(`${config_1.RAPIDS_HOST}/${key}/${eventType}`, "POST", payload, contentType);
+            (0, utils_1.output2)(resp.body);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_post = do_post;
