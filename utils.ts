@@ -13,6 +13,7 @@ import {
   exit,
   spinner_start,
   spinner_stop,
+  output,
 } from "./prompt";
 
 export class Path {
@@ -57,7 +58,7 @@ export function addExitMessage(str: string) {
   printOnExit.push(str);
 }
 function printExitMessages() {
-  printOnExit.forEach((x) => console.log(x));
+  printOnExit.forEach((x) => output(x + "\n"));
 }
 export function abort(): never {
   exit();

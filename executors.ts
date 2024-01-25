@@ -23,6 +23,7 @@ import { ExecOptions, spawn } from "child_process";
 import { RED, BLUE, YELLOW, NORMAL_COLOR, GREEN } from "./prompt";
 import path from "path";
 import { getArgs } from "./args";
+import { stdout } from "process";
 
 async function clone(struct: any, name: string) {
   try {
@@ -198,13 +199,13 @@ export async function createService(pth: Path, group: string, name: string) {
     }
     await execPromise(`git symbolic-ref HEAD refs/heads/main`, name);
     addExitMessage(
-      `Use '${YELLOW}cd ${pth
+      `Use '${GREEN}cd ${pth
         .with(name)
         .toString()
         .replace(
           /\\/g,
           "\\\\"
-        )}${NORMAL_COLOR}' to go to the new service. \nThen use '${YELLOW}${
+        )}${NORMAL_COLOR}' to go to the new service. \nThen use '${GREEN}${
         process.env["COMMAND"]
       } deploy${NORMAL_COLOR}' to deploy it.`
     );
@@ -267,14 +268,16 @@ export function addKnownHost() {
   }
 }
 
-export async function do_register(
-  keyAction: () => Promise<string>,
-  email: string
-) {
+export type KeyAction = () => Promise<{ key: string; keyFile: string }>;
+export async function do_register(keyAction: KeyAction, email: string) {
   try {
-    let key = await keyAction();
+    let { key, keyFile } = await keyAction();
     console.log("Registering...");
     addKnownHost();
+    if (email === "") {
+      addExitMessage(`Notice: Anonymous accounts are automatically deleted permanently after ~2 weeks, without warning. To add an email and avoid automatic deletion, run the command:
+  ${YELLOW}${process.env["COMMAND"]} register ${keyFile}${NORMAL_COLOR}`);
+    }
     let result = await urlReq(
       `${HTTP_HOST}/admin/user`,
       "POST",
@@ -298,8 +301,8 @@ export async function do_register(
 }
 
 function saveSSHConfig(path: string) {
-  console.log(`Saving preference...`);
   let lines: string[] = [];
+  let changed = false;
   let foundHost = false;
   if (fs.existsSync(`${os.homedir()}/.ssh/config`)) {
     lines = fs
@@ -310,13 +313,16 @@ function saveSSHConfig(path: string) {
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i];
       if ((line.startsWith("\t") || line.startsWith(" ")) && inHost) {
-        if (line.includes("User "))
+        if (line.includes("User ")) {
           lines[i] =
             line.substring(0, line.indexOf("User ")) + `User ${SSH_USER}`;
-        else if (line.includes("IdentityFile "))
+          changed = true;
+        } else if (line.includes("IdentityFile ")) {
           lines[i] =
             line.substring(0, line.indexOf("IdentityFile ")) +
             `IdentityFile ~/.ssh/${path}`;
+          changed = true;
+        }
       } else if (line.startsWith("\t") || line.startsWith(" ")) {
       } else if (line.startsWith(`Host ${API_URL}`)) {
         inHost = true;
@@ -327,22 +333,29 @@ function saveSSHConfig(path: string) {
     }
   }
   if (!foundHost) {
-    lines.push(
+    lines.unshift(
       `Host ${API_URL}`,
       `\tUser ${SSH_USER}`,
       `\tHostName ${API_URL}`,
       `\tPreferredAuthentications publickey`,
       `\tIdentityFile ~/.ssh/${path}\n`
     );
+    changed = true;
   }
-  fs.writeFileSync(`${os.homedir()}/.ssh/config`, lines.join("\n"));
+  if (changed) {
+    console.log(`Saving preference...`);
+    fs.writeFileSync(`${os.homedir()}/.ssh/config`, lines.join("\n"));
+  }
 }
 
 export async function useExistingKey(path: string) {
   try {
     saveSSHConfig(path);
     console.log(`Reading ${path}.pub...`);
-    return "" + fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`);
+    return {
+      key: "" + fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`),
+      keyFile: path,
+    };
   } catch (e) {
     throw e;
   }
@@ -357,7 +370,10 @@ export async function generateNewKey() {
       `ssh-keygen -t rsa -b 4096 -f "${os.homedir()}/.ssh/merrymake" -N ""`
     );
     saveSSHConfig("merrymake");
-    return "" + fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub");
+    return {
+      key: "" + fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub"),
+      keyFile: "merrymake",
+    };
   } catch (e) {
     throw e;
   }
@@ -454,7 +470,7 @@ export async function do_key(
         await sshReq(...cmd)
       );
       output2(`${key} expires on ${new Date(expiry).toLocaleString()}.`);
-      addExitMessage(`Key: ${YELLOW}${key}${NORMAL_COLOR}`);
+      addExitMessage(`Key: ${GREEN}${key}${NORMAL_COLOR}`);
     } else {
       cmd.push(`--update`, key);
       let { count, expiry }: { count: number; expiry: string } = JSON.parse(
@@ -570,16 +586,26 @@ export function printTableHeader(
   widths: { [key: string]: number }
 ) {
   if (getArgs().length > 0) return;
+  let totalWidth = stdout.getWindowSize()[0] - prefix.length;
+  let vals = Object.values(widths);
+  let rest =
+    totalWidth -
+    vals.reduce((acc, x) => acc + Math.max(x, 0)) -
+    3 * (vals.length - 1);
   let header =
     prefix +
     Object.keys(widths)
-      .map((k) => k.trim().padEnd(widths[k]))
+      .map((k) =>
+        k.trim().padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
+      )
       .join(" │ ");
   output2(header);
   let divider =
     prefix +
     Object.keys(widths)
-      .map((k) => "─".repeat(widths[k]))
+      .map((k) =>
+        "─".repeat(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
+      )
       .join("─┼─");
   output2(divider);
 }

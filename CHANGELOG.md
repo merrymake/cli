@@ -1,10 +1,17 @@
-# NEXT: 
+# NEXT:
 ## Breaking changes
-- 
+-
 ## Added features
-- 
+-
 ## Fixes and improvements
-- 
+-
+
+# 1.8.1
+## Fixes and improvements
+- Insert ssh host config in the top of the file, to avoid being shadowed by *
+- Ability to call CLI from shell script (without TTY)
+- Rename `Name` to `Description` in `key` command, and make it dynamic width
+- Add warning when creating anonymous account
 
 # 1.8.0
 

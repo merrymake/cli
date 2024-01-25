@@ -24,6 +24,7 @@ const templates_1 = require("./templates");
 const simulator_1 = require("./simulator");
 const args_1 = require("./args");
 const words_1 = require("./words");
+const process_1 = require("process");
 function service_template_language(path, template, projectType) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.fetch_template)(path, template, projectType));
     return (0, utils_1.finish)();
@@ -197,7 +198,10 @@ function register_manual() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let key = yield (0, prompt_1.shortText)("Public key", "", "ssh-rsa ...").then((x) => x);
-            return register_key(() => Promise.resolve(key));
+            return register_key(() => Promise.resolve({
+                key,
+                keyFile: `add "${key}"`,
+            }));
         }
         catch (e) {
             throw e;
@@ -373,6 +377,46 @@ function keys_key(org, key, currentName) {
         }
     });
 }
+function keys(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-keys`, `--org`, org);
+            let keys = JSON.parse(resp);
+            let options = keys.map((x) => {
+                let d = new Date(x.expiry);
+                let ds = d.getTime() < Date.now()
+                    ? `${prompt_1.RED}${d.toLocaleString()}${prompt_1.NORMAL_COLOR}`
+                    : d.toLocaleString();
+                let n = x.name || "";
+                return {
+                    long: x.key,
+                    text: `${x.key} │ ${(0, executors_1.alignLeft)(n, Math.max(process_1.stdout.getWindowSize()[0] -
+                        36 -
+                        20 -
+                        "─┼──┼─".length -
+                        "      ".length, 12))} │ ${ds}`,
+                    action: () => keys_key(org, x.key, x.name),
+                };
+            });
+            options.push({
+                long: `new`,
+                short: `n`,
+                text: `add a new apikey`,
+                action: () => keys_key(org, null, ""),
+            });
+            if (options.length > 1)
+                (0, executors_1.printTableHeader)("      ", {
+                    Key: 36,
+                    Description: -12,
+                    "Expiry time": 20,
+                });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
 function envvar_key_value_access_visible(org, group, overwrite, key, value, access, visibility) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_envvar)(org, group, overwrite, key, value, access, visibility));
     return (0, utils_1.finish)();
@@ -426,38 +470,6 @@ function envvar_key(org, group, overwrite, key, currentValue) {
                 return envvar_key_value(org, group, overwrite, key, value);
             else
                 return envvar_key_value_access_visible(org, group, overwrite, key, value, ["--prod", "--test"], "--public");
-        }
-        catch (e) {
-            throw e;
-        }
-    });
-}
-function keys(org) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            let resp = yield (0, utils_1.sshReq)(`list-keys`, `--org`, org);
-            let keys = JSON.parse(resp);
-            let options = keys.map((x) => {
-                let d = new Date(x.expiry);
-                let ds = d.getTime() < Date.now()
-                    ? `${prompt_1.RED}${d.toLocaleString()}${prompt_1.NORMAL_COLOR}`
-                    : d.toLocaleString();
-                let n = x.name || "";
-                return {
-                    long: x.key,
-                    text: `${x.key} │ ${(0, executors_1.alignLeft)(n, 12)} │ ${ds}`,
-                    action: () => keys_key(org, x.key, x.name),
-                };
-            });
-            options.push({
-                long: `new`,
-                short: `n`,
-                text: `add a new apikey`,
-                action: () => keys_key(org, null, ""),
-            });
-            if (options.length > 1)
-                (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12, "Expiry time": 20 });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
             throw e;

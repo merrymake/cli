@@ -15,10 +15,12 @@ const utils_1 = require("./utils");
 const questions_1 = require("./questions");
 const args_1 = require("./args");
 const executors_1 = require("./executors");
-if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
-    console.log("This console does not support TTY, please use 'winpty mm' or the 'mmk'-command instead.");
-    process.exit(1);
-}
+// if (!stdin.isTTY || stdin.setRawMode === undefined) {
+//   console.log(
+//     "This console does not support TTY, please use 'winpty mm' or the 'mmk'-command instead."
+//   );
+//   process.exit(1);
+// }
 // TODO make type for command
 // if (
 //   process.argv[0]
@@ -37,20 +39,22 @@ if (process.argv[0] === "dryrun") {
         .split("")
         .map((x) => `-${x}`)
     : [x]));
-// without this, we would only get streams once enter is pressed
-node_process_1.stdin.setRawMode(true);
-// resume stdin in the parent process (node app won't quit all by itself
-// unless an error or process.exit() happens)
-node_process_1.stdin.resume();
-// i don't want binary, do you?
-node_process_1.stdin.setEncoding("utf8");
-// You can always exit with crtl-c
-node_process_1.stdin.on("data", (key) => {
-    let k = key.toString();
-    if (k === prompt_1.CTRL_C) {
-        (0, utils_1.abort)();
-    }
-});
+if (node_process_1.stdin.isTTY) {
+    // without this, we would only get streams once enter is pressed
+    node_process_1.stdin.setRawMode(true);
+    // resume stdin in the parent process (node app won't quit all by itself
+    // unless an error or process.exit() happens)
+    node_process_1.stdin.resume();
+    // i don't want binary, do you?
+    node_process_1.stdin.setEncoding("utf8");
+    // You can always exit with crtl-c
+    node_process_1.stdin.on("data", (key) => {
+        let k = key.toString();
+        if (k === prompt_1.CTRL_C) {
+            (0, utils_1.abort)();
+        }
+    });
+}
 // TODO Change join to invite
 // TODO roles
 (() => __awaiter(void 0, void 0, void 0, function* () {

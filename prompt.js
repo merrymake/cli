@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start = exports.choice = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
+exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start = exports.choice = exports.output = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
 const node_process_1 = require("node:process");
 const args_1 = require("./args");
 const utils_1 = require("./utils");
@@ -33,8 +33,10 @@ let xOffset = 0;
 let yOffset = 0;
 let maxYOffset = 0;
 function output(str) {
-    node_process_1.stdout.write(str);
     let cleanStr = str.replace(new RegExp(exports.INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join("|"), "gi"), "");
+    node_process_1.stdout.write(node_process_1.stdout.isTTY ? str : cleanStr);
+    if (!node_process_1.stdout.isTTY)
+        return;
     const lines = cleanStr.split("\n");
     const newXOffset = xOffset + lines[0].length;
     // TODO handle (split on) \r
@@ -54,7 +56,10 @@ function output(str) {
     // stdout.write(pos);
     // stdout.moveCursor(xOffset - pos.length, yOffset);
 }
+exports.output = output;
 function moveCursor(x, y) {
+    if (!node_process_1.stdout.isTTY)
+        return;
     xOffset += x;
     yOffset += y;
     if (maxYOffset < yOffset)
@@ -145,6 +150,10 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
         }
         output(exports.HIDE_CURSOR);
         output(str.join(""));
+        if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
+            console.log("This console does not support TTY, please use the 'mmk'-command instead.");
+            process.exit(1);
+        }
         let pos = def;
         output(exports.YELLOW);
         moveCursor(0, -options.length + pos);
@@ -197,6 +206,8 @@ let interval;
 let spinnerIndex = 0;
 const SPINNER = ["│", "/", "─", "\\"];
 function spinner_start() {
+    if (!node_process_1.stdout.isTTY)
+        return;
     interval = setInterval(spin, 200);
 }
 exports.spinner_start = spinner_start;
@@ -235,6 +246,10 @@ function shortText(prompt, description, defaultValueArg) {
         let [prevX, prevY] = getCursorPosition();
         output("\n");
         moveCursorTo(prevX, prevY);
+        if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
+            console.log("This console does not support TTY, please use the 'mmk'-command instead.");
+            process.exit(1);
+        }
         let beforeCursor = "";
         let afterCursor = "";
         // on any data into stdin

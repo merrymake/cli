@@ -46,6 +46,7 @@ import {
   do_event,
   do_help,
   do_post,
+  KeyAction,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -53,6 +54,7 @@ import { languages, templates } from "./templates";
 import { Run } from "./simulator";
 import { getArgs, initializeArgs } from "./args";
 import { ADJECTIVE, NOUN } from "./words";
+import { stdout } from "process";
 
 function service_template_language(
   path: Path,
@@ -63,7 +65,7 @@ function service_template_language(
   return finish();
 }
 
-function register_key_email(keyAction: () => Promise<string>, email: string) {
+function register_key_email(keyAction: KeyAction, email: string) {
   addToExecuteQueue(() => do_register(keyAction, email));
   return finish();
 }
@@ -254,7 +256,7 @@ async function org() {
   }
 }
 
-async function register_key(keyAction: () => Promise<string>) {
+async function register_key(keyAction: KeyAction) {
   try {
     let email = await shortText(
       "Email",
@@ -270,7 +272,12 @@ async function register_key(keyAction: () => Promise<string>) {
 async function register_manual() {
   try {
     let key = await shortText("Public key", "", "ssh-rsa ...").then((x) => x);
-    return register_key(() => Promise.resolve(key));
+    return register_key(() =>
+      Promise.resolve({
+        key,
+        keyFile: `add "${key}"`,
+      })
+    );
   } catch (e) {
     throw e;
   }
@@ -493,6 +500,51 @@ async function keys_key(org: string, key: string | null, currentName: string) {
   }
 }
 
+async function keys(org: string) {
+  try {
+    let resp = await sshReq(`list-keys`, `--org`, org);
+    let keys: { name: string; key: string; expiry: Date }[] = JSON.parse(resp);
+    let options: Option[] = keys.map((x) => {
+      let d = new Date(x.expiry);
+      let ds =
+        d.getTime() < Date.now()
+          ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
+          : d.toLocaleString();
+      let n = x.name || "";
+      return {
+        long: x.key,
+        text: `${x.key} │ ${alignLeft(
+          n,
+          Math.max(
+            stdout.getWindowSize()[0] -
+              36 -
+              20 -
+              "─┼──┼─".length -
+              "      ".length,
+            12
+          )
+        )} │ ${ds}`,
+        action: () => keys_key(org, x.key, x.name),
+      };
+    });
+    options.push({
+      long: `new`,
+      short: `n`,
+      text: `add a new apikey`,
+      action: () => keys_key(org, null, ""),
+    });
+    if (options.length > 1)
+      printTableHeader("      ", {
+        Key: 36,
+        Description: -12,
+        "Expiry time": 20,
+      });
+    return await choice(options).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
 function envvar_key_value_access_visible(
   org: string,
   group: string,
@@ -606,37 +658,6 @@ async function envvar_key(
         ["--prod", "--test"],
         "--public"
       );
-  } catch (e) {
-    throw e;
-  }
-}
-
-async function keys(org: string) {
-  try {
-    let resp = await sshReq(`list-keys`, `--org`, org);
-    let keys: { name: string; key: string; expiry: Date }[] = JSON.parse(resp);
-    let options: Option[] = keys.map((x) => {
-      let d = new Date(x.expiry);
-      let ds =
-        d.getTime() < Date.now()
-          ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
-          : d.toLocaleString();
-      let n = x.name || "";
-      return {
-        long: x.key,
-        text: `${x.key} │ ${alignLeft(n, 12)} │ ${ds}`,
-        action: () => keys_key(org, x.key, x.name),
-      };
-    });
-    options.push({
-      long: `new`,
-      short: `n`,
-      text: `add a new apikey`,
-      action: () => keys_key(org, null, ""),
-    });
-    if (options.length > 1)
-      printTableHeader("      ", { Key: 36, Name: 12, "Expiry time": 20 });
-    return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
   }

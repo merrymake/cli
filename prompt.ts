@@ -31,8 +31,7 @@ export const INVISIBLE = [
 let xOffset = 0;
 let yOffset = 0;
 let maxYOffset = 0;
-function output(str: string) {
-  stdout.write(str);
+export function output(str: string) {
   let cleanStr = str.replace(
     new RegExp(
       INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join(
@@ -42,6 +41,8 @@ function output(str: string) {
     ),
     ""
   );
+  stdout.write(stdout.isTTY ? str : cleanStr);
+  if (!stdout.isTTY) return;
   const lines = cleanStr.split("\n");
   const newXOffset = xOffset + lines[0].length;
   // TODO handle (split on) \r
@@ -61,6 +62,7 @@ function output(str: string) {
 }
 
 function moveCursor(x: number, y: number) {
+  if (!stdout.isTTY) return;
   xOffset += x;
   yOffset += y;
   if (maxYOffset < yOffset) maxYOffset = yOffset;
@@ -171,6 +173,13 @@ export function choice(
     output(HIDE_CURSOR);
     output(str.join(""));
 
+    if (!stdin.isTTY || stdin.setRawMode === undefined) {
+      console.log(
+        "This console does not support TTY, please use the 'mmk'-command instead."
+      );
+      process.exit(1);
+    }
+
     let pos = def;
     output(YELLOW);
     moveCursor(0, -options.length + pos);
@@ -224,6 +233,7 @@ let interval: NodeJS.Timer | undefined;
 let spinnerIndex = 0;
 const SPINNER = ["│", "/", "─", "\\"];
 export function spinner_start() {
+  if (!stdout.isTTY) return;
   interval = setInterval(spin, 200);
 }
 function spin() {
@@ -263,6 +273,13 @@ export function shortText(
     let [prevX, prevY] = getCursorPosition();
     output("\n");
     moveCursorTo(prevX, prevY);
+
+    if (!stdin.isTTY || stdin.setRawMode === undefined) {
+      console.log(
+        "This console does not support TTY, please use the 'mmk'-command instead."
+      );
+      process.exit(1);
+    }
 
     let beforeCursor = "";
     let afterCursor = "";

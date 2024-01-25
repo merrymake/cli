@@ -92,7 +92,7 @@ function addExitMessage(str) {
 }
 exports.addExitMessage = addExitMessage;
 function printExitMessages() {
-    printOnExit.forEach((x) => console.log(x));
+    printOnExit.forEach((x) => (0, prompt_1.output)(x + "\n"));
 }
 function abort() {
     (0, prompt_1.exit)();
