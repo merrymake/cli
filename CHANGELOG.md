@@ -6,6 +6,12 @@
 ## Fixes and improvements
 -
 
+# 1.9.0
+## Added features
+- Don't ask for visibility when deleting an environment variable
+## Fixes and improvements
+- Fix simulator directory detection on Mac
+
 # 1.8.1
 ## Fixes and improvements
 - Insert ssh host config in the top of the file, to avoid being shadowed by *

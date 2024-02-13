@@ -568,6 +568,16 @@ function envvar_key_value_access(
   value: string,
   access: string[]
 ) {
+  if (value === "")
+    return envvar_key_value_access_visible(
+      org,
+      group,
+      overwrite,
+      key,
+      value,
+      access,
+      "--public"
+    );
   return choice([
     {
       long: "secret",
@@ -957,9 +967,12 @@ function generateOrgName() {
   if (
     process.env["MERRYMAKE_NAME_LENGTH"] !== undefined &&
     !Number.isNaN(+process.env["MERRYMAKE_NAME_LENGTH"])
-  )
-    return "org" + generateString(+process.env["MERRYMAKE_NAME_LENGTH"] - 3);
-  else
+  ) {
+    const base = `org-${new Date().toLocaleDateString().replace(/\//g, "-")}-`;
+    return (
+      base + generateString(+process.env["MERRYMAKE_NAME_LENGTH"] - base.length)
+    );
+  } else
     return (
       ADJECTIVE[~~(ADJECTIVE.length * Math.random())] +
       "-" +

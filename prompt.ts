@@ -25,6 +25,7 @@ export const INVISIBLE = [
   NORMAL_COLOR,
   RED,
   BLUE,
+  GREEN,
   YELLOW,
 ];
 

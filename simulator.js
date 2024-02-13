@@ -236,8 +236,8 @@ class Run {
                     return reply(resp, HTTP.CLIENT_ERROR.NO_HOOKS, undefined);
                 let conf = hooks.getApiConfig(event);
                 this.runService(pathToRoot, port, event, payload, traceId, sessionId, hooks, contentType);
-                if (conf !== undefined && conf.streaming !== true) {
-                    yield sleep(conf.waitFor || MAX_WAIT);
+                if (conf === undefined || conf.streaming !== true) {
+                    yield sleep((conf === null || conf === void 0 ? void 0 : conf.waitFor) || MAX_WAIT);
                     let pending = pendingReplies[traceId];
                     if (pending !== undefined) {
                         delete pendingReplies[traceId];
@@ -252,7 +252,7 @@ class Run {
     }
 }
 exports.Run = Run;
-const MAX_WAIT = 30000;
+const MAX_WAIT = 5000;
 const Reset = "\x1b[0m";
 const FgRed = "\x1b[31m";
 let envvars = {};
@@ -278,6 +278,14 @@ class PublicHooks {
     }
     riversFor(event) {
         return this.hooks[event];
+    }
+}
+function isDirectory(folder) {
+    try {
+        return fs_1.default.lstatSync(folder).isDirectory();
+    }
+    catch (e) {
+        return false;
     }
 }
 function processFolder(group, folder, hooks) {
@@ -345,8 +353,7 @@ function processFolder(group, folder, hooks) {
             });
         });
     }
-    else if (!folder.endsWith(".DS_Store") &&
-        fs_1.default.lstatSync(folder).isDirectory()) {
+    else if (isDirectory(folder)) {
         processFolders(folder, group, fs_1.default.readdirSync(folder), hooks);
     }
 }

@@ -27,6 +27,7 @@ exports.INVISIBLE = [
     exports.NORMAL_COLOR,
     exports.RED,
     exports.BLUE,
+    exports.GREEN,
     exports.YELLOW,
 ];
 let xOffset = 0;

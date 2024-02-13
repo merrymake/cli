@@ -422,6 +422,8 @@ function envvar_key_value_access_visible(org, group, overwrite, key, value, acce
     return (0, utils_1.finish)();
 }
 function envvar_key_value_access(org, group, overwrite, key, value, access) {
+    if (value === "")
+        return envvar_key_value_access_visible(org, group, overwrite, key, value, access, "--public");
     return (0, prompt_1.choice)([
         {
             long: "secret",
@@ -725,8 +727,10 @@ function cron(org) {
 }
 function generateOrgName() {
     if (process.env["MERRYMAKE_NAME_LENGTH"] !== undefined &&
-        !Number.isNaN(+process.env["MERRYMAKE_NAME_LENGTH"]))
-        return "org" + generateString(+process.env["MERRYMAKE_NAME_LENGTH"] - 3);
+        !Number.isNaN(+process.env["MERRYMAKE_NAME_LENGTH"])) {
+        const base = `org-${new Date().toLocaleDateString().replace(/\//g, "-")}-`;
+        return (base + generateString(+process.env["MERRYMAKE_NAME_LENGTH"] - base.length));
+    }
     else
         return (words_1.ADJECTIVE[~~(words_1.ADJECTIVE.length * Math.random())] +
             "-" +

@@ -301,8 +301,8 @@ export class Run {
         hooks,
         contentType
       );
-      if (conf !== undefined && conf.streaming !== true) {
-        await sleep(conf.waitFor || MAX_WAIT);
+      if (conf === undefined || conf.streaming !== true) {
+        await sleep(conf?.waitFor || MAX_WAIT);
         let pending = pendingReplies[traceId];
         if (pending !== undefined) {
           delete pendingReplies[traceId];
@@ -315,7 +315,7 @@ export class Run {
   }
 }
 
-const MAX_WAIT = 30000;
+const MAX_WAIT = 5000;
 const Reset = "\x1b[0m";
 const FgRed = "\x1b[31m";
 
@@ -368,6 +368,14 @@ class PublicHooks {
 
   riversFor(event: string) {
     return this.hooks[event];
+  }
+}
+
+function isDirectory(folder: string) {
+  try {
+    return fs.lstatSync(folder).isDirectory();
+  } catch (e) {
+    return false;
   }
 }
 
@@ -434,10 +442,7 @@ function processFolder(group: string, folder: string, hooks: PublicHooks) {
         cmd,
       });
     });
-  } else if (
-    !folder.endsWith(".DS_Store") &&
-    fs.lstatSync(folder).isDirectory()
-  ) {
+  } else if (isDirectory(folder)) {
     processFolders(folder, group, fs.readdirSync(folder), hooks);
   }
 }
