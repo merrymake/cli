@@ -119,7 +119,7 @@ function duplicate(pathToService, org, group) {
 function service(pathToGroup, org, group) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let name = yield (0, prompt_1.shortText)("Repository name", "This is where the code lives.", "Merrymake").then((x) => x);
+            let name = yield (0, prompt_1.shortText)("Repository name", "This is where the code lives.", "service-1").then((x) => x);
             (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createService)(pathToGroup, group, name));
             let options = [];
             let services = (0, utils_1.directoryNames)(pathToGroup, []);
@@ -153,7 +153,7 @@ function service(pathToGroup, org, group) {
 function group(path, org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let name = yield (0, prompt_1.shortText)("Service group name", "Used to share envvars.", "services").then((x) => x);
+            let name = yield (0, prompt_1.shortText)("Service group name", "Used to share envvars.", "service-group-1").then((x) => x);
             (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createServiceGroup)(path, name));
             return service(path.with(name), org, name);
         }
@@ -747,10 +747,10 @@ function quickstart() {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createOrganization)(orgName));
     let pathToOrg = pth.with(orgName);
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_key)(orgName, null, "from quickcreate", "14days"));
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createServiceGroup)(pathToOrg, "services"));
-    let pathToGroup = pathToOrg.with("services");
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createService)(pathToGroup, "services", "Merrymake"));
-    let pathToService = pathToGroup.with("Merrymake");
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createServiceGroup)(pathToOrg, "service-group-1"));
+    let pathToGroup = pathToOrg.with("service-group-1");
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createService)(pathToGroup, "service-group-1", "service-1"));
+    let pathToService = pathToGroup.with("service-1");
     return service_template(pathToService, "basic");
 }
 function sim() {
@@ -774,6 +774,7 @@ function start() {
                         ? rawStruct.serviceGroup
                         : null,
                     inEventCatalogue: rawStruct.serviceGroup === "event-catalogue",
+                    inPublic: rawStruct.serviceGroup === "public",
                     pathToRoot: rawStruct.pathToRoot,
                 };
                 if (struct.serviceGroup !== null) {
@@ -808,7 +809,8 @@ function start() {
                 });
                 if (fs_1.default.existsSync("mist.json") ||
                     fs_1.default.existsSync("merrymake.json") ||
-                    struct.inEventCatalogue) {
+                    struct.inEventCatalogue ||
+                    struct.inPublic) {
                     // Inside a service
                     options.push({
                         long: "deploy",
@@ -894,6 +896,12 @@ function start() {
                     action: () => event(orgName),
                 });
                 options.push({
+                    long: "register",
+                    short: "r",
+                    text: "add an sshkey or email to account",
+                    action: () => register(),
+                });
+                options.push({
                     long: "help",
                     text: "help diagnose potential issues",
                     action: () => help(),
@@ -906,7 +914,7 @@ function start() {
                 options.push({
                     long: "register",
                     short: "r",
-                    text: "register new device or user",
+                    text: "register new device or email",
                     action: () => register(),
                     weight: !cache.registered ? 10 : 1,
                 });

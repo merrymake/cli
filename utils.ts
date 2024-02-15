@@ -102,36 +102,44 @@ export function saveCache(cache: CacheFile) {
 }
 
 export function fetchOrgRaw() {
-  if (fs.existsSync(".mist/conf.json")) {
-    let org: OrgFile = JSON.parse("" + fs.readFileSync(`.mist/conf.json`));
-    return { org, serviceGroup: null, pathToRoot: "./" };
+  if (fs.existsSync(path.join(".mist", "conf.json"))) {
+    let org: OrgFile = JSON.parse(
+      "" + fs.readFileSync(path.join(".mist", "conf.json"))
+    );
+    return { org, serviceGroup: null, pathToRoot: "." + path.sep };
   }
-  if (fs.existsSync(".merrymake/conf.json")) {
-    let org: OrgFile = JSON.parse("" + fs.readFileSync(`.merrymake/conf.json`));
-    return { org, serviceGroup: null, pathToRoot: "./" };
+  if (fs.existsSync(path.join(".merrymake", "conf.json"))) {
+    let org: OrgFile = JSON.parse(
+      "" + fs.readFileSync(path.join(".merrymake", "conf.json"))
+    );
+    return { org, serviceGroup: null, pathToRoot: "." + path.sep };
   }
 
   let cwd = process.cwd().split(/\/|\\/);
   let out = "";
-  let folder = "/";
+  let folder = path.sep;
   let serviceGroup: string | null = null;
   for (let i = cwd.length - 1; i >= 0; i--) {
-    if (fs.existsSync(out + "../.mist/conf.json")) {
+    if (fs.existsSync(out + path.join("..", ".mist", "conf.json"))) {
       serviceGroup = cwd[i];
       let org = <OrgFile>(
-        JSON.parse("" + fs.readFileSync(`${out}../.mist/conf.json`))
+        JSON.parse(
+          "" + fs.readFileSync(path.join(`${out}..`, `.mist`, `conf.json`))
+        )
       );
-      return { org, serviceGroup, pathToRoot: out + "../" };
+      return { org, serviceGroup, pathToRoot: out + ".." + path.sep };
     }
-    if (fs.existsSync(out + "../.merrymake/conf.json")) {
+    if (fs.existsSync(out + path.join("..", ".merrymake", "conf.json"))) {
       serviceGroup = cwd[i];
       let org = <OrgFile>(
-        JSON.parse("" + fs.readFileSync(`${out}../.merrymake/conf.json`))
+        JSON.parse(
+          "" + fs.readFileSync(path.join(`${out}..`, `.merrymake`, `conf.json`))
+        )
       );
-      return { org, serviceGroup, pathToRoot: out + "../" };
+      return { org, serviceGroup, pathToRoot: out + ".." + path.sep };
     }
-    folder = "/" + cwd[i] + folder;
-    out += "../";
+    folder = path.sep + cwd[i] + folder;
+    out += ".." + path.sep;
   }
   return { org: null, serviceGroup: null, pathToRoot: null };
 }

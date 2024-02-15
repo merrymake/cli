@@ -1,6 +1,7 @@
 import { stdin, stdout } from "node:process";
 import { getArgs } from "./args";
 import { abort } from "./utils";
+import { CONTEXTS } from "./contexts";
 
 export const CTRL_C = "\u0003";
 // const CR = "\u000D";
@@ -167,7 +168,9 @@ export function choice(
       str.push("\n");
     }
     if (getArgs().length > 0) {
-      output(`Invalid argument in the current context: ${getArgs()[0]}\n`);
+      let arg = getArgs()[0];
+      if (CONTEXTS[arg] !== undefined) output(CONTEXTS[arg](arg) + "\n");
+      else output(`Invalid argument in the current context: ${arg}\n`);
       getArgs().splice(0, getArgs().length);
     }
 

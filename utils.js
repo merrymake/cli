@@ -134,31 +134,31 @@ function saveCache(cache) {
 }
 exports.saveCache = saveCache;
 function fetchOrgRaw() {
-    if (fs_1.default.existsSync(".mist/conf.json")) {
-        let org = JSON.parse("" + fs_1.default.readFileSync(`.mist/conf.json`));
-        return { org, serviceGroup: null, pathToRoot: "./" };
+    if (fs_1.default.existsSync(path_1.default.join(".mist", "conf.json"))) {
+        let org = JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(".mist", "conf.json")));
+        return { org, serviceGroup: null, pathToRoot: "." + path_1.default.sep };
     }
-    if (fs_1.default.existsSync(".merrymake/conf.json")) {
-        let org = JSON.parse("" + fs_1.default.readFileSync(`.merrymake/conf.json`));
-        return { org, serviceGroup: null, pathToRoot: "./" };
+    if (fs_1.default.existsSync(path_1.default.join(".merrymake", "conf.json"))) {
+        let org = JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(".merrymake", "conf.json")));
+        return { org, serviceGroup: null, pathToRoot: "." + path_1.default.sep };
     }
     let cwd = process.cwd().split(/\/|\\/);
     let out = "";
-    let folder = "/";
+    let folder = path_1.default.sep;
     let serviceGroup = null;
     for (let i = cwd.length - 1; i >= 0; i--) {
-        if (fs_1.default.existsSync(out + "../.mist/conf.json")) {
+        if (fs_1.default.existsSync(out + path_1.default.join("..", ".mist", "conf.json"))) {
             serviceGroup = cwd[i];
-            let org = (JSON.parse("" + fs_1.default.readFileSync(`${out}../.mist/conf.json`)));
-            return { org, serviceGroup, pathToRoot: out + "../" };
+            let org = (JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(`${out}..`, `.mist`, `conf.json`))));
+            return { org, serviceGroup, pathToRoot: out + ".." + path_1.default.sep };
         }
-        if (fs_1.default.existsSync(out + "../.merrymake/conf.json")) {
+        if (fs_1.default.existsSync(out + path_1.default.join("..", ".merrymake", "conf.json"))) {
             serviceGroup = cwd[i];
-            let org = (JSON.parse("" + fs_1.default.readFileSync(`${out}../.merrymake/conf.json`)));
-            return { org, serviceGroup, pathToRoot: out + "../" };
+            let org = (JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(`${out}..`, `.merrymake`, `conf.json`))));
+            return { org, serviceGroup, pathToRoot: out + ".." + path_1.default.sep };
         }
-        folder = "/" + cwd[i] + folder;
-        out += "../";
+        folder = path_1.default.sep + cwd[i] + folder;
+        out += ".." + path_1.default.sep;
     }
     return { org: null, serviceGroup: null, pathToRoot: null };
 }

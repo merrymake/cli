@@ -6,6 +6,13 @@
 ## Fixes and improvements
 -
 
+# 1.9.1
+## Fixes and improvements
+- Allow `deploy` and `redeploy` inside `public`
+- Allow `register` inside `organization`
+- Print the expected context of common commands
+- Change default naming for service-groups ('services' => 'service-group-1') and services ('Merrymake' => 'service-1'), because it makes the structure more clear and suggests that you can have multiple of each
+
 # 1.9.0
 ## Added features
 - Don't ask for visibility when deleting an environment variable

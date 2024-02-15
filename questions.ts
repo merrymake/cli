@@ -183,7 +183,7 @@ async function service(pathToGroup: Path, org: string, group: string) {
     let name = await shortText(
       "Repository name",
       "This is where the code lives.",
-      "Merrymake"
+      "service-1"
     ).then((x) => x);
     addToExecuteQueue(() => createService(pathToGroup, group, name));
     let options: Option[] = [];
@@ -221,7 +221,7 @@ async function group(path: Path, org: string) {
     let name = await shortText(
       "Service group name",
       "Used to share envvars.",
-      "services"
+      "service-group-1"
     ).then((x) => x);
     addToExecuteQueue(() => createServiceGroup(path, name));
     return service(path.with(name), org, name);
@@ -991,10 +991,12 @@ function quickstart() {
   addToExecuteQueue(() => createOrganization(orgName));
   let pathToOrg = pth.with(orgName);
   addToExecuteQueue(() => do_key(orgName, null, "from quickcreate", "14days"));
-  addToExecuteQueue(() => createServiceGroup(pathToOrg, "services"));
-  let pathToGroup = pathToOrg.with("services");
-  addToExecuteQueue(() => createService(pathToGroup, "services", "Merrymake"));
-  let pathToService = pathToGroup.with("Merrymake");
+  addToExecuteQueue(() => createServiceGroup(pathToOrg, "service-group-1"));
+  let pathToGroup = pathToOrg.with("service-group-1");
+  addToExecuteQueue(() =>
+    createService(pathToGroup, "service-group-1", "service-1")
+  );
+  let pathToService = pathToGroup.with("service-1");
   return service_template(pathToService, "basic");
 }
 
@@ -1020,6 +1022,7 @@ export async function start() {
             ? rawStruct.serviceGroup
             : null,
         inEventCatalogue: rawStruct.serviceGroup === "event-catalogue",
+        inPublic: rawStruct.serviceGroup === "public",
         pathToRoot: rawStruct.pathToRoot,
       };
       if (struct.serviceGroup !== null) {
@@ -1055,7 +1058,8 @@ export async function start() {
       if (
         fs.existsSync("mist.json") ||
         fs.existsSync("merrymake.json") ||
-        struct.inEventCatalogue
+        struct.inEventCatalogue ||
+        struct.inPublic
       ) {
         // Inside a service
         options.push({
@@ -1149,6 +1153,12 @@ export async function start() {
         action: () => event(orgName),
       });
       options.push({
+        long: "register",
+        short: "r",
+        text: "add an sshkey or email to account",
+        action: () => register(),
+      });
+      options.push({
         long: "help",
         text: "help diagnose potential issues",
         action: () => help(),
@@ -1161,7 +1171,7 @@ export async function start() {
       options.push({
         long: "register",
         short: "r",
-        text: "register new device or user",
+        text: "register new device or email",
         action: () => register(),
         weight: !cache.registered ? 10 : 1,
       });

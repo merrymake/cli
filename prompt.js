@@ -4,6 +4,7 @@ exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start 
 const node_process_1 = require("node:process");
 const args_1 = require("./args");
 const utils_1 = require("./utils");
+const contexts_1 = require("./contexts");
 exports.CTRL_C = "\u0003";
 // const CR = "\u000D";
 exports.BACKSPACE = "\b";
@@ -146,7 +147,11 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
             str.push("\n");
         }
         if ((0, args_1.getArgs)().length > 0) {
-            output(`Invalid argument in the current context: ${(0, args_1.getArgs)()[0]}\n`);
+            let arg = (0, args_1.getArgs)()[0];
+            if (contexts_1.CONTEXTS[arg] !== undefined)
+                output(contexts_1.CONTEXTS[arg](arg) + "\n");
+            else
+                output(`Invalid argument in the current context: ${arg}\n`);
             (0, args_1.getArgs)().splice(0, (0, args_1.getArgs)().length);
         }
         output(exports.HIDE_CURSOR);
