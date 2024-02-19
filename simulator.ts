@@ -170,7 +170,7 @@ export class Run {
       let teams = directoryNames(new Path(this.pathToRoot), [
         "event-catalogue",
       ]).map((x) => x.name);
-      processFolders(this.pathToRoot, null, teams, this.hooks);
+      processFolders(this.pathToRoot, this.pathToRoot, null, teams, this.hooks);
       loadLocalEnvvars(this.pathToRoot);
       let response = await this.runWithReply(
         this.pathToRoot,
@@ -379,46 +379,29 @@ function isDirectory(folder: string) {
   }
 }
 
-function processFolder(group: string, folder: string, hooks: PublicHooks) {
-  if (fs.existsSync(`${folder}/mist.json`)) {
+function processFolder(
+  pathToRoot: string,
+  group: string,
+  folder: string,
+  hooks: PublicHooks
+) {
+  if (fs.existsSync(`${folder}/merrymake.json`)) {
     let projectType: ProjectType;
     let cmd: string;
+    let dir = folder.replace(/\/\//g, "/");
     try {
       projectType = detectProjectType(folder);
       cmd = RUN_COMMAND[projectType](folder);
     } catch (e) {
-      console.log(e);
-      return;
-    }
-    let config: {
-      hooks: { [key: string]: string | { action: string; timeout?: number } };
-    } = JSON.parse("" + fs.readFileSync(`${folder}/mist.json`));
-    Object.keys(config.hooks).forEach((k) => {
-      let [river, event] = k.split("/");
-      let hook = config.hooks[k];
-      let action: string, timeout_milliseconds: number;
-      if (typeof hook === "object") {
-        action = hook.action;
-        timeout_milliseconds = hook.timeout || DEFAULT_TIMEOUT;
-      } else {
-        action = hook;
-        timeout_milliseconds = DEFAULT_TIMEOUT;
-      }
-      hooks.register(event, river, {
-        action,
-        dir: folder.replace(/\/\//g, "/"),
-        group,
-        cmd,
-      });
-    });
-  } else if (fs.existsSync(`${folder}/merrymake.json`)) {
-    let projectType: ProjectType;
-    let cmd: string;
-    try {
-      projectType = detectProjectType(folder);
-      cmd = RUN_COMMAND[projectType](folder);
-    } catch (e) {
-      console.log(e);
+      timedOutput(
+        FgRed +
+          `${dir.substring(
+            pathToRoot.length
+          )}: Please build or rebuild the service with '${
+            process.env["COMMAND"]
+          } build'` +
+          Reset
+      );
       return;
     }
     let config: {
@@ -437,26 +420,27 @@ function processFolder(group: string, folder: string, hooks: PublicHooks) {
       }
       hooks.register(event, river, {
         action,
-        dir: folder.replace(/\/\//g, "/"),
+        dir,
         group,
         cmd,
       });
     });
   } else if (isDirectory(folder)) {
-    processFolders(folder, group, fs.readdirSync(folder), hooks);
+    processFolders(pathToRoot, folder, group, fs.readdirSync(folder), hooks);
   }
 }
 
 function processFolders(
+  pathToRoot: string,
   prefix: string,
   group: string | null,
   folders: string[],
   hooks: PublicHooks
 ) {
   folders
-    .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
+    .filter((x) => !x.startsWith("(deleted) "))
     .forEach((folder) =>
-      processFolder(group || folder, prefix + folder + "/", hooks)
+      processFolder(pathToRoot, group || folder, prefix + folder + "/", hooks)
     );
 }
 

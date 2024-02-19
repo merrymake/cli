@@ -6,6 +6,13 @@
 ## Fixes and improvements
 -
 
+# 1.10.0
+## Added features
+- Add `role` command for assigning roles to users, and configuring auto approving users with specific email domains
+- Add `join` command for requesting to join an existing organization
+## Fixes and improvements
+- Better error message when simulator encounters an un-built service
+
 # 1.9.1
 ## Fixes and improvements
 - Allow `deploy` and `redeploy` inside `public`

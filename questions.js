@@ -53,6 +53,22 @@ function fetch() {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_fetch)());
     return (0, utils_1.finish)();
 }
+function join_org(name) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_join)(name));
+    return (0, utils_1.finish)();
+}
+function roles_user_attach_role(org, user, role) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_attach_role)(org, user, role));
+    return (0, utils_1.finish)();
+}
+function roles_auto_domain_role(org, domain, role) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_auto_approve)(org, domain, role));
+    return (0, utils_1.finish)();
+}
+function roles_auto_remove(org, domain) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_remove_auto_approve)(org, domain));
+    return (0, utils_1.finish)();
+}
 function service_template(pathToService, template) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -417,6 +433,140 @@ function keys(org) {
         }
     });
 }
+function roles_user_attach(org, user) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-roles`, `--org`, org);
+            let roles = JSON.parse(resp);
+            let options = roles.map((role) => {
+                return {
+                    long: role,
+                    text: `assign ${role}`,
+                    action: () => roles_user_attach_role(org, user, role),
+                };
+            });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function roles_user(org, user) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let options = [];
+            options.push({
+                long: `assign`,
+                short: `a`,
+                text: `assign an additional role to user`,
+                action: () => roles_user_attach(org, user),
+            });
+            options.push({
+                long: `remove`,
+                short: `r`,
+                text: `remove all roles and access`,
+                action: () => roles_user_attach_role(org, user, "Pending"),
+            });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function roles_auto_new_domain(org, domain) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-roles`, `--org`, org);
+            let roles = JSON.parse(resp);
+            let options = roles.map((role) => {
+                return {
+                    long: role,
+                    text: `auto assign ${role}`,
+                    action: () => roles_auto_domain_role(org, domain, role),
+                };
+            });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function roles_auto_new(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let domain = yield (0, prompt_1.shortText)("Domain", "Email domain to auto approve.", `@${org}.com`).then((x) => x);
+            return roles_auto_new_domain(org, domain);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function roles_auto(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-preapproved`, `--org`, org);
+            let domains = JSON.parse(resp);
+            let doms = {};
+            domains.forEach((x) => {
+                if (doms[x.domain] === undefined)
+                    doms[x.domain] = [];
+                doms[x.domain].push(x.role);
+            });
+            let options = Object.keys(doms).map((domain) => {
+                return {
+                    long: domain,
+                    text: `remove ${domain} (${doms[domain].join(", ")})`,
+                    action: () => roles_auto_remove(org, domain),
+                };
+            });
+            options.push({
+                long: `new`,
+                short: `n`,
+                text: `setup a new domain rule`,
+                action: () => roles_auto_new(org),
+            });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function roles(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-users`, `--org`, org);
+            let users = JSON.parse(resp);
+            let options = Object.keys(users).map((user) => {
+                return {
+                    long: user,
+                    text: `${user}: ${users[user].join(", ")}`,
+                    action: () => roles_user(org, user),
+                };
+            });
+            // options.push({
+            //   long: `new`,
+            //   short: `n`,
+            //   text: `create a new role`,
+            //   action: () => roles_new(org),
+            // });
+            options.push({
+                long: `auto`,
+                short: `a`,
+                text: `configure domain auto approval`,
+                action: () => roles_auto(org),
+            });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
 function envvar_key_value_access_visible(org, group, overwrite, key, value, access, visibility) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_envvar)(org, group, overwrite, key, value, access, visibility));
     return (0, utils_1.finish)();
@@ -646,6 +796,17 @@ function envvar(org, group) {
                 action: () => envvar_new(org, group),
             });
             return yield (0, prompt_1.choice)(options).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function join() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let name = yield (0, prompt_1.shortText)("Organization to join", "Name of the organization you wish to request access to.", null).then((x) => x);
+            return join_org(name);
         }
         catch (e) {
             throw e;
@@ -896,9 +1057,15 @@ function start() {
                     action: () => event(orgName),
                 });
                 options.push({
+                    long: "role",
+                    short: "o",
+                    text: "add or assign roles to users in the organization",
+                    action: () => roles(orgName),
+                });
+                options.push({
                     long: "register",
                     short: "r",
-                    text: "add an sshkey or email to account",
+                    text: "register an additional sshkey or email to account",
                     action: () => register(),
                 });
                 options.push({
@@ -937,6 +1104,13 @@ function start() {
                     text: "clone an existing organization",
                     action: () => checkout(),
                     weight: cache.hasOrgs ? 10 : 3,
+                });
+                options.push({
+                    long: "join",
+                    short: "j",
+                    text: "request to join an existing organization",
+                    action: () => join(),
+                    weight: 4,
                 });
                 options.push({
                     long: "help",

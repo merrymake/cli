@@ -699,3 +699,38 @@ export async function do_post(
     throw e;
   }
 }
+
+export async function do_join(org: string) {
+  try {
+    output2(await sshReq(`org`, `--join`, org));
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function do_attach_role(org: string, user: string, role: string) {
+  try {
+    output2(await sshReq(`role`, `--user`, user, `--org`, org, role));
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function do_auto_approve(
+  org: string,
+  domain: string,
+  role: string
+) {
+  try {
+    output2(await sshReq(`preapprove`, `--add`, role, `--org`, org, domain));
+  } catch (e) {
+    throw e;
+  }
+}
+export async function do_remove_auto_approve(org: string, domain: string) {
+  try {
+    output2(await sshReq(`preapprove`, `--org`, org, domain));
+  } catch (e) {
+    throw e;
+  }
+}

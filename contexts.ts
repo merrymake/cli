@@ -80,6 +80,7 @@ const NOT_ORGANIZATION_CONTEXT = (cmd: string) => {
 export const CONTEXTS: { [cmd: string]: (cmd: string) => string } = {
   sim: ORGANIZATION_CONTEXT,
   queue: ORGANIZATION_CONTEXT,
+  role: ORGANIZATION_CONTEXT,
   deploy: SERVICE_CONTEXT,
   redeploy: SERVICE_CONTEXT,
   fetch: NOT_SERVICE_CONTEXT,
@@ -94,4 +95,5 @@ export const CONTEXTS: { [cmd: string]: (cmd: string) => string } = {
   quickstart: NOT_ORGANIZATION_CONTEXT,
   org: NOT_ORGANIZATION_CONTEXT,
   clone: NOT_ORGANIZATION_CONTEXT,
+  join: NOT_ORGANIZATION_CONTEXT,
 };

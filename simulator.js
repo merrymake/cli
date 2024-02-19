@@ -146,7 +146,7 @@ class Run {
                 let teams = (0, utils_1.directoryNames)(new utils_1.Path(this.pathToRoot), [
                     "event-catalogue",
                 ]).map((x) => x.name);
-                processFolders(this.pathToRoot, null, teams, this.hooks);
+                processFolders(this.pathToRoot, this.pathToRoot, null, teams, this.hooks);
                 loadLocalEnvvars(this.pathToRoot);
                 let response = yield this.runWithReply(this.pathToRoot, this.port, res, event, payload, traceId, sessionId, this.hooks, req.headers["content-type"]);
             }
@@ -288,48 +288,19 @@ function isDirectory(folder) {
         return false;
     }
 }
-function processFolder(group, folder, hooks) {
-    if (fs_1.default.existsSync(`${folder}/mist.json`)) {
+function processFolder(pathToRoot, group, folder, hooks) {
+    if (fs_1.default.existsSync(`${folder}/merrymake.json`)) {
         let projectType;
         let cmd;
+        let dir = folder.replace(/\/\//g, "/");
         try {
             projectType = (0, detect_project_type_1.detectProjectType)(folder);
             cmd = detect_project_type_1.RUN_COMMAND[projectType](folder);
         }
         catch (e) {
-            console.log(e);
-            return;
-        }
-        let config = JSON.parse("" + fs_1.default.readFileSync(`${folder}/mist.json`));
-        Object.keys(config.hooks).forEach((k) => {
-            let [river, event] = k.split("/");
-            let hook = config.hooks[k];
-            let action, timeout_milliseconds;
-            if (typeof hook === "object") {
-                action = hook.action;
-                timeout_milliseconds = hook.timeout || DEFAULT_TIMEOUT;
-            }
-            else {
-                action = hook;
-                timeout_milliseconds = DEFAULT_TIMEOUT;
-            }
-            hooks.register(event, river, {
-                action,
-                dir: folder.replace(/\/\//g, "/"),
-                group,
-                cmd,
-            });
-        });
-    }
-    else if (fs_1.default.existsSync(`${folder}/merrymake.json`)) {
-        let projectType;
-        let cmd;
-        try {
-            projectType = (0, detect_project_type_1.detectProjectType)(folder);
-            cmd = detect_project_type_1.RUN_COMMAND[projectType](folder);
-        }
-        catch (e) {
-            console.log(e);
+            timedOutput(FgRed +
+                `${dir.substring(pathToRoot.length)}: Please build or rebuild the service with '${process.env["COMMAND"]} build'` +
+                Reset);
             return;
         }
         let config = JSON.parse("" + fs_1.default.readFileSync(`${folder}/merrymake.json`));
@@ -347,20 +318,20 @@ function processFolder(group, folder, hooks) {
             }
             hooks.register(event, river, {
                 action,
-                dir: folder.replace(/\/\//g, "/"),
+                dir,
                 group,
                 cmd,
             });
         });
     }
     else if (isDirectory(folder)) {
-        processFolders(folder, group, fs_1.default.readdirSync(folder), hooks);
+        processFolders(pathToRoot, folder, group, fs_1.default.readdirSync(folder), hooks);
     }
 }
-function processFolders(prefix, group, folders, hooks) {
+function processFolders(pathToRoot, prefix, group, folders, hooks) {
     folders
-        .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
-        .forEach((folder) => processFolder(group || folder, prefix + folder + "/", hooks));
+        .filter((x) => !x.startsWith("(deleted) "))
+        .forEach((folder) => processFolder(pathToRoot, group || folder, prefix + folder + "/", hooks));
 }
 function loadLocalEnvvars(pathToRoot) {
     fs_1.default.readdirSync(pathToRoot)
