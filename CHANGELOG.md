@@ -6,6 +6,10 @@
 ## Fixes and improvements
 -
 
+# 1.11.1
+## Fixes and improvements
+- Fix `stats` command with count < 1000
+
 # 1.11.0
 ## Added features
 - Add `stats` command for viewing usage breakdown for the last two months
