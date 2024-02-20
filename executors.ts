@@ -727,9 +727,120 @@ export async function do_auto_approve(
     throw e;
   }
 }
+
 export async function do_remove_auto_approve(org: string, domain: string) {
   try {
     output2(await sshReq(`preapprove`, `--org`, org, domain));
+  } catch (e) {
+    throw e;
+  }
+}
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+export async function do_spending(org: string) {
+  try {
+    let rows: {
+      mth: number;
+      grp: string;
+      srv: string;
+      hook: string;
+      cnt: number;
+      time_ms: number;
+      cost_eur: string;
+    }[] = JSON.parse(await sshReq(`spending`, `--org`, org));
+    let mth = 0;
+    let grp = "";
+    let srv = "";
+    rows.forEach((x) => {
+      if (x.mth === null) return;
+      if (mth !== x.mth) {
+        if (mth !== 0) output2("");
+        mth = x.mth;
+        output2(`Month: ${MONTHS[x.mth - 1]}`);
+        printTableHeader("", {
+          Group: 11,
+          Service: 11,
+          Hook: 20,
+          Count: 7,
+          Time: 7,
+          "Est. Cost": 9,
+        });
+      }
+      let group = x.grp === null ? "= Total" : x.grp === grp ? "" : x.grp;
+      grp = x.grp;
+      let service =
+        x.grp === null
+          ? ""
+          : x.srv === null
+          ? "= Total"
+          : x.srv === srv
+          ? ""
+          : x.srv;
+      srv = x.srv;
+      let count = x.cnt;
+      let count_unit = " ";
+      if (count > 1000) {
+        count /= 1000;
+        count_unit = "k";
+      }
+      if (count > 1000) {
+        count /= 1000;
+        count_unit = "M";
+      }
+      if (count > 1000) {
+        count /= 1000;
+        count_unit = "B";
+      }
+      let time = x.time_ms;
+      let time_unit = "ms";
+      if (time > 1000) {
+        time /= 1000;
+        time_unit = "s";
+      }
+      if (time > 60) {
+        time /= 60;
+        time_unit = "m";
+      }
+      if (time > 60) {
+        time /= 60;
+        time_unit = "h";
+      }
+      if (time > 24) {
+        time /= 24;
+        time_unit = "d";
+      }
+      if (time > 30) {
+        time /= 30;
+        time_unit = "M";
+      }
+      let hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
+      output2(
+        `${alignLeft(group, 11)} │ ${alignLeft(service, 11)} │ ${alignLeft(
+          hook,
+          20
+        )} │ ${alignRight(
+          "" + count.toFixed(1) + " " + count_unit,
+          7
+        )} │ ${alignRight(
+          "" + time.toFixed(1) + " " + time_unit,
+          7
+        )} │ € ${alignRight(x.cost_eur, 7)}`
+      );
+    });
   } catch (e) {
     throw e;
   }

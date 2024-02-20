@@ -6,6 +6,12 @@
 ## Fixes and improvements
 -
 
+# 1.11.0
+## Added features
+- Add `stats` command for viewing usage breakdown for the last two months
+## Fixes and improvements
+- Make columns wider in `cron` command
+
 # 1.10.0
 ## Added features
 - Add `role` command for assigning roles to users, and configuring auto approving users with specific email domains

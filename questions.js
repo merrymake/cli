@@ -69,6 +69,10 @@ function roles_auto_remove(org, domain) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_remove_auto_approve)(org, domain));
     return (0, utils_1.finish)();
 }
+function spending(org) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_spending)(org));
+    return (0, utils_1.finish)();
+}
 function service_template(pathToService, template) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -868,7 +872,7 @@ function cron(org) {
             let orgs = JSON.parse(resp);
             let options = orgs.map((x) => ({
                 long: x.name,
-                text: `${(0, executors_1.alignRight)(x.name, 10)} │ ${(0, executors_1.alignRight)(x.event, 10)} │ ${x.expression}`,
+                text: `${(0, executors_1.alignRight)(x.name, 30)} │ ${(0, executors_1.alignLeft)(x.event, 18)} │ ${x.expression}`,
                 action: () => cron_name(org, x.name, x.event, x.expression),
             }));
             options.push({
@@ -878,7 +882,7 @@ function cron(org) {
                 action: () => cron_new(org),
             });
             if (options.length > 1)
-                (0, executors_1.printTableHeader)("      ", { Name: 10, Event: 10, Expression: 20 });
+                (0, executors_1.printTableHeader)("      ", { Name: 30, Event: 18, Expression: 20 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
@@ -1061,6 +1065,11 @@ function start() {
                     short: "o",
                     text: "add or assign roles to users in the organization",
                     action: () => roles(orgName),
+                });
+                options.push({
+                    long: "stats",
+                    text: "view usage breakdown for the last two months",
+                    action: () => spending(orgName),
                 });
                 options.push({
                     long: "register",

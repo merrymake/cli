@@ -78,6 +78,7 @@ const NOT_ORGANIZATION_CONTEXT = (cmd: string) => {
 };
 
 export const CONTEXTS: { [cmd: string]: (cmd: string) => string } = {
+  stats: ORGANIZATION_CONTEXT,
   sim: ORGANIZATION_CONTEXT,
   queue: ORGANIZATION_CONTEXT,
   role: ORGANIZATION_CONTEXT,

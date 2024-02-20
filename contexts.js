@@ -76,6 +76,7 @@ const NOT_ORGANIZATION_CONTEXT = (cmd) => {
     return hint;
 };
 exports.CONTEXTS = {
+    stats: ORGANIZATION_CONTEXT,
     sim: ORGANIZATION_CONTEXT,
     queue: ORGANIZATION_CONTEXT,
     role: ORGANIZATION_CONTEXT,

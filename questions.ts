@@ -51,6 +51,7 @@ import {
   do_attach_role,
   do_auto_approve,
   do_remove_auto_approve,
+  do_spending,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -116,6 +117,11 @@ function roles_auto_domain_role(org: string, domain: string, role: string) {
 
 function roles_auto_remove(org: string, domain: string) {
   addToExecuteQueue(() => do_remove_auto_approve(org, domain));
+  return finish();
+}
+
+function spending(org: string) {
+  addToExecuteQueue(() => do_spending(org));
   return finish();
 }
 
@@ -1106,7 +1112,7 @@ async function cron(org: string) {
       JSON.parse(resp);
     let options: Option[] = orgs.map((x) => ({
       long: x.name,
-      text: `${alignRight(x.name, 10)} │ ${alignRight(x.event, 10)} │ ${
+      text: `${alignRight(x.name, 30)} │ ${alignLeft(x.event, 18)} │ ${
         x.expression
       }`,
       action: () => cron_name(org, x.name, x.event, x.expression),
@@ -1118,7 +1124,7 @@ async function cron(org: string) {
       action: () => cron_new(org),
     });
     if (options.length > 1)
-      printTableHeader("      ", { Name: 10, Event: 10, Expression: 20 });
+      printTableHeader("      ", { Name: 30, Event: 18, Expression: 20 });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
@@ -1319,6 +1325,11 @@ export async function start() {
         short: "o",
         text: "add or assign roles to users in the organization",
         action: () => roles(orgName),
+      });
+      options.push({
+        long: "stats",
+        text: "view usage breakdown for the last two months",
+        action: () => spending(orgName),
       });
       options.push({
         long: "register",

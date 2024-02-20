@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -647,3 +647,97 @@ function do_remove_auto_approve(org, domain) {
     });
 }
 exports.do_remove_auto_approve = do_remove_auto_approve;
+const MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+function do_spending(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let rows = JSON.parse(yield (0, utils_1.sshReq)(`spending`, `--org`, org));
+            let mth = 0;
+            let grp = "";
+            let srv = "";
+            rows.forEach((x) => {
+                if (x.mth === null)
+                    return;
+                if (mth !== x.mth) {
+                    if (mth !== 0)
+                        (0, utils_1.output2)("");
+                    mth = x.mth;
+                    (0, utils_1.output2)(`Month: ${MONTHS[x.mth - 1]}`);
+                    printTableHeader("", {
+                        Group: 11,
+                        Service: 11,
+                        Hook: 20,
+                        Count: 7,
+                        Time: 7,
+                        "Est. Cost": 9,
+                    });
+                }
+                let group = x.grp === null ? "= Total" : x.grp === grp ? "" : x.grp;
+                grp = x.grp;
+                let service = x.grp === null
+                    ? ""
+                    : x.srv === null
+                        ? "= Total"
+                        : x.srv === srv
+                            ? ""
+                            : x.srv;
+                srv = x.srv;
+                let count = x.cnt;
+                let count_unit = " ";
+                if (count > 1000) {
+                    count /= 1000;
+                    count_unit = "k";
+                }
+                if (count > 1000) {
+                    count /= 1000;
+                    count_unit = "M";
+                }
+                if (count > 1000) {
+                    count /= 1000;
+                    count_unit = "B";
+                }
+                let time = x.time_ms;
+                let time_unit = "ms";
+                if (time > 1000) {
+                    time /= 1000;
+                    time_unit = "s";
+                }
+                if (time > 60) {
+                    time /= 60;
+                    time_unit = "m";
+                }
+                if (time > 60) {
+                    time /= 60;
+                    time_unit = "h";
+                }
+                if (time > 24) {
+                    time /= 24;
+                    time_unit = "d";
+                }
+                if (time > 30) {
+                    time /= 30;
+                    time_unit = "M";
+                }
+                let hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
+                (0, utils_1.output2)(`${alignLeft(group, 11)} │ ${alignLeft(service, 11)} │ ${alignLeft(hook, 20)} │ ${alignRight("" + count.toFixed(1) + " " + count_unit, 7)} │ ${alignRight("" + time.toFixed(1) + " " + time_unit, 7)} │ € ${alignRight(x.cost_eur, 7)}`);
+            });
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_spending = do_spending;
