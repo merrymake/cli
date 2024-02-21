@@ -6,6 +6,13 @@
 ## Fixes and improvements
 -
 
+# 2.0.0
+## Breaking changes
+- Make `event` use a multiselect, because it is much easier, safer, and faster to use, and can give a more helpful error message.
+## Fixes and improvements
+- Allow '-' in text inputs
+- Change update command to install with @latest, to allow major version updates
+
 # 1.11.1
 ## Fixes and improvements
 - Fix `stats` command with count < 1000

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_event = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -468,17 +468,6 @@ function do_envvar(org, group, overwrite, key, value, access, visibility) {
     });
 }
 exports.do_envvar = do_envvar;
-function do_event(org, key, event, create) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`event`, event, `--key`, key, ...(create ? [] : [`--delete`])));
-        }
-        catch (e) {
-            throw e;
-        }
-    });
-}
-exports.do_event = do_event;
 function do_cron(org, name, overwrite, event, expr) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -746,3 +735,15 @@ function do_spending(org) {
     });
 }
 exports.do_spending = do_spending;
+function do_event(key, events) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let selected = Object.keys(events).filter((x) => events[x]);
+            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`event`, `--key`, key, selected.join(",")));
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_event = do_event;

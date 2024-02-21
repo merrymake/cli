@@ -60,9 +60,15 @@ const NOT_SERVICE_CONTEXT = (cmd: string) => {
   return hint;
 };
 const SERVICE_GROUP_CONTEXT = (cmd: string) => {
-  let serviceGroups = directoryNames(new Path(), ["event-catalogue", "public"]);
+  let struct = fetchOrgRaw();
+  let serviceGroups = directoryNames(new Path(struct.pathToRoot!), [
+    "event-catalogue",
+    "public",
+  ]);
   let hint = `You can only run '${cmd}' from inside a service group.`;
-  hint += `\nUse '${GREEN}cd ${serviceGroups[0]}${NORMAL_COLOR}' or one of these:`;
+  hint += `\nUse '${GREEN}cd ${path
+    .join(struct.pathToRoot!, serviceGroups[0].name)
+    .replace(/\\/g, "\\\\")}${NORMAL_COLOR}' or one of these:`;
   return hint;
 };
 const NOT_SERVICE_GROUP_CONTEXT = upOrg;

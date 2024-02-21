@@ -704,40 +704,16 @@ function post(org) {
         }
     });
 }
-function event_key_event(org, key, event, create) {
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_event)(org, key, event, create));
+function event_key_events(key, events) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_event)(key, events));
     return (0, utils_1.finish)();
 }
-function event_key_new(org, key) {
+function event_key(key) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let eventType = yield (0, prompt_1.shortText)("Event type", "Event type to allow through key", "hello");
-            return event_key_event(org, key, eventType, true);
-        }
-        catch (e) {
-            throw e;
-        }
-    });
-}
-function event_key(org, key) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            let resp = yield (0, utils_1.sshReq)(`list-events`, `--org`, org, `--key`, key);
+            let resp = yield (0, utils_1.sshReq)(`list-events`, `--key`, key);
             let events = JSON.parse(resp);
-            let options = events.map((x) => {
-                return {
-                    long: x.event,
-                    text: `disallow ${x.event}`,
-                    action: () => event_key_event(org, key, x.event, false),
-                };
-            });
-            options.push({
-                long: `new`,
-                short: `n`,
-                text: `allow a new event type`,
-                action: () => event_key_new(org, key),
-            });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.multiSelect)(events, (s) => event_key_events(key, s), "No events in event-catalogue. Make sure you have added events to the event-catalogue and deployed it.");
         }
         catch (e) {
             throw e;
@@ -753,8 +729,8 @@ function event(org) {
                 let n = x.name || "";
                 return {
                     long: x.key,
-                    text: `${x.key} │ ${(0, executors_1.alignLeft)(n, 12)}`,
-                    action: () => event_key(org, x.key),
+                    text: `${x.key} │ ${(0, executors_1.alignLeft)(n, process_1.stdout.getWindowSize()[0] - 36 - 9)}`,
+                    action: () => event_key(x.key),
                 };
             });
             options.push({
@@ -764,7 +740,7 @@ function event(org) {
                 action: () => keys_key(org, null, ""),
             });
             if (options.length > 1)
-                (0, executors_1.printTableHeader)("      ", { Key: 36, Name: 12 });
+                (0, executors_1.printTableHeader)("      ", { Key: 36, Name: -12 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {

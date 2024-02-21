@@ -8,8 +8,10 @@ import {
   shortText,
   spinner_start,
   spinner_stop,
+  multiSelect,
 } from "./prompt";
 import {
+  abort,
   addToExecuteQueue,
   directoryNames,
   execPromise,
@@ -914,47 +916,20 @@ async function post(org: string) {
   }
 }
 
-function event_key_event(
-  org: string,
-  key: string,
-  event: string,
-  create: boolean
-) {
-  addToExecuteQueue(() => do_event(org, key, event, create));
+function event_key_events(key: string, events: { [event: string]: boolean }) {
+  addToExecuteQueue(() => do_event(key, events));
   return finish();
 }
 
-async function event_key_new(org: string, key: string) {
+async function event_key(key: string) {
   try {
-    let eventType = await shortText(
-      "Event type",
-      "Event type to allow through key",
-      "hello"
+    let resp = await sshReq(`list-events`, `--key`, key);
+    let events: { [key: string]: boolean } = JSON.parse(resp);
+    return await multiSelect(
+      events,
+      (s) => event_key_events(key, s),
+      "No events in event-catalogue. Make sure you have added events to the event-catalogue and deployed it."
     );
-    return event_key_event(org, key, eventType, true);
-  } catch (e) {
-    throw e;
-  }
-}
-
-async function event_key(org: string, key: string) {
-  try {
-    let resp = await sshReq(`list-events`, `--org`, org, `--key`, key);
-    let events: { event: string }[] = JSON.parse(resp);
-    let options: Option[] = events.map((x) => {
-      return {
-        long: x.event,
-        text: `disallow ${x.event}`,
-        action: () => event_key_event(org, key, x.event, false),
-      };
-    });
-    options.push({
-      long: `new`,
-      short: `n`,
-      text: `allow a new event type`,
-      action: () => event_key_new(org, key),
-    });
-    return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -968,8 +943,8 @@ async function event(org: string) {
       let n = x.name || "";
       return {
         long: x.key,
-        text: `${x.key} │ ${alignLeft(n, 12)}`,
-        action: () => event_key(org, x.key),
+        text: `${x.key} │ ${alignLeft(n, stdout.getWindowSize()[0] - 36 - 9)}`,
+        action: () => event_key(x.key),
       };
     });
     options.push({
@@ -978,7 +953,7 @@ async function event(org: string) {
       text: `add a new apikey`,
       action: () => keys_key(org, null, ""),
     });
-    if (options.length > 1) printTableHeader("      ", { Key: 36, Name: 12 });
+    if (options.length > 1) printTableHeader("      ", { Key: 36, Name: -12 });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;

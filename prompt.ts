@@ -85,12 +85,21 @@ function getCursorPosition() {
 
 let command = "$ " + process.env["COMMAND"];
 
-function makeSelectionInternal(option: Option, extra: () => void) {
+function makeSelectionSuperInternal(
+  action: () => Promise<never>,
+  extra: () => void = () => {}
+) {
   moveToBottom();
   cleanup();
-  if (option.short !== "x") extra();
+  extra();
   if (listener !== undefined) stdin.removeListener("data", listener);
-  return option.action();
+  return action();
+}
+function makeSelectionInternal(option: Option, extra: () => void) {
+  return makeSelectionSuperInternal(
+    () => option.action(),
+    option.short !== "x" ? extra : () => {}
+  );
 }
 function makeSelection(option: Option) {
   return makeSelectionInternal(option, () => {
@@ -233,6 +242,170 @@ export function choice(
   });
 }
 
+const SELECTED_MARK = "✔";
+const NOT_SELECTED_MARK = "_";
+
+export function multiSelect(
+  selection: { [key: string]: boolean },
+  after: (selection: { [key: string]: boolean }) => Promise<never>,
+  errorMessage?: string
+) {
+  return new Promise<never>((resolve) => {
+    // options.push({
+    //   short: "x",
+    //   long: "x",
+    //   text: "exit",
+    //   action: () => abort(),
+    // });
+    let keys = Object.keys(selection);
+    if (keys.length === 0) {
+      console.log(errorMessage);
+      process.exit(1);
+    }
+    if (getArgs().length > 0) {
+      let arg = getArgs()[0];
+      let es = arg.split(",");
+      let result: { [key: string]: boolean } = {};
+      keys.forEach((e) => (result[e] = false));
+      let illegal = es.filter((e) => !keys.includes(e));
+      if (illegal.length > 0) {
+        output(
+          `Invalid arguments in the current context: ${illegal.join(", ")}\n`
+        );
+      } else {
+        es.forEach((e) => (result[e] = true));
+      }
+      getArgs().splice(0, getArgs().length);
+      resolve(makeSelectionSuperInternal(() => after(selection)));
+      return;
+    }
+    let str: string[] = [];
+    for (let i = 0; i < keys.length; i++) {
+      str.push("  ");
+      str.push(selection[keys[i]] === true ? SELECTED_MARK : NOT_SELECTED_MARK);
+      str.push(" ");
+      str.push(keys[i]);
+      str.push("\n");
+    }
+
+    // Add submit and exit
+    str.push(`  [s] submit\n`);
+    str.push(`  [x] exit\n`);
+
+    output(HIDE_CURSOR);
+    output(str.join(""));
+
+    if (!stdin.isTTY || stdin.setRawMode === undefined) {
+      console.log(
+        "This console does not support TTY, please use the 'mmk'-command instead."
+      );
+      process.exit(1);
+    }
+
+    let pos = 0;
+    output(YELLOW);
+    moveCursor(0, -(keys.length + 2) + pos);
+    output(`>`);
+    moveCursor(-1, 0);
+
+    // on any data into stdin
+    stdin.on(
+      "data",
+      (listener = (key) => {
+        let k = key.toString();
+        // moveCursor(0, options.length - pos);
+        // //let l = JSON.stringify(key);
+        // //output(l);
+        // stdout.write("" + yOffset);
+        // moveCursor(-("" + yOffset).length, -options.length + pos);
+        if (k === ENTER) {
+          if (pos === keys.length) {
+            // Submit
+            let selected = keys.filter((x) => selection[x] === true).join(",");
+            resolve(
+              makeSelectionSuperInternal(
+                () => after(selection),
+                () => {
+                  output("\n");
+                  output(
+                    (command +=
+                      " " +
+                      (selected.includes(" ") || selected.length === 0
+                        ? `'${selected}'`
+                        : selected))
+                  );
+                  output("\n");
+                }
+              )
+            );
+          } else if (pos > keys.length) {
+            // Exit
+            resolve(
+              makeSelectionQuietly({
+                short: "x",
+                long: "x",
+                text: "exit",
+                action: () => abort(),
+              })
+            );
+          } else {
+            let sel = (selection[keys[pos]] = !selection[keys[pos]]);
+            moveCursor(2, 0);
+            output(NORMAL_COLOR);
+            output(sel ? SELECTED_MARK : NOT_SELECTED_MARK);
+            output(YELLOW);
+            moveCursor(-3, 0);
+          }
+          return;
+        } else if (k === UP && pos <= 0) {
+          return;
+        } else if (k === UP) {
+          pos--;
+          output(` `);
+          moveCursor(-1, -1);
+          output(`>`);
+          moveCursor(-1, 0);
+        } else if (k === DOWN && pos >= keys.length + 2 - 1) {
+          return;
+        } else if (k === DOWN) {
+          pos++;
+          output(` `);
+          moveCursor(-1, 1);
+          output(`>`);
+          moveCursor(-1, 0);
+        } else if (k === "x") {
+          makeSelectionQuietly({
+            short: "x",
+            long: "x",
+            text: "exit",
+            action: () => abort(),
+          });
+        } else if (k === "s") {
+          let selected = keys.filter((x) => selection[x] === true).join(",");
+          resolve(
+            makeSelectionSuperInternal(
+              () => after(selection),
+              () => {
+                output("\n");
+                output(
+                  (command +=
+                    " " +
+                    (selected.includes(" ") || selected.length === 0
+                      ? `'${selected}'`
+                      : selected))
+                );
+                output("\n");
+              }
+            )
+          );
+        }
+        // write the key to stdout all normal like
+        // output(key);
+      })
+    );
+  });
+}
+
 let interval: NodeJS.Timer | undefined;
 let spinnerIndex = 0;
 const SPINNER = ["│", "/", "─", "\\"];
@@ -347,13 +520,16 @@ export function shortText(
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
-        } else if (k === BACKSPACE && beforeCursor.length > 0) {
+        } else if (
+          (k === BACKSPACE || k.charCodeAt(0) === 8) &&
+          beforeCursor.length > 0
+        ) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
-        } else if (/^[A-Za-z0-9@_, .-/:;#=&*?+]+$/.test(k)) {
+        } else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+]+$/.test(k)) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += k;
           stdout.clearLine(1);

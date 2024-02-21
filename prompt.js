@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start = exports.choice = exports.output = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
+exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start = exports.multiSelect = exports.choice = exports.output = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
 const node_process_1 = require("node:process");
 const args_1 = require("./args");
 const utils_1 = require("./utils");
@@ -78,14 +78,16 @@ function getCursorPosition() {
     return [xOffset, yOffset];
 }
 let command = "$ " + process.env["COMMAND"];
-function makeSelectionInternal(option, extra) {
+function makeSelectionSuperInternal(action, extra = () => { }) {
     moveToBottom();
     cleanup();
-    if (option.short !== "x")
-        extra();
+    extra();
     if (listener !== undefined)
         node_process_1.stdin.removeListener("data", listener);
-    return option.action();
+    return action();
+}
+function makeSelectionInternal(option, extra) {
+    return makeSelectionSuperInternal(() => option.action(), option.short !== "x" ? extra : () => { });
 }
 function makeSelection(option) {
     return makeSelectionInternal(option, () => {
@@ -208,6 +210,146 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
     });
 }
 exports.choice = choice;
+const SELECTED_MARK = "✔";
+const NOT_SELECTED_MARK = "_";
+function multiSelect(selection, after, errorMessage) {
+    return new Promise((resolve) => {
+        // options.push({
+        //   short: "x",
+        //   long: "x",
+        //   text: "exit",
+        //   action: () => abort(),
+        // });
+        let keys = Object.keys(selection);
+        if (keys.length === 0) {
+            console.log(errorMessage);
+            process.exit(1);
+        }
+        if ((0, args_1.getArgs)().length > 0) {
+            let arg = (0, args_1.getArgs)()[0];
+            let es = arg.split(",");
+            let result = {};
+            keys.forEach((e) => (result[e] = false));
+            let illegal = es.filter((e) => !keys.includes(e));
+            if (illegal.length > 0) {
+                output(`Invalid arguments in the current context: ${illegal.join(", ")}\n`);
+            }
+            else {
+                es.forEach((e) => (result[e] = true));
+            }
+            (0, args_1.getArgs)().splice(0, (0, args_1.getArgs)().length);
+            resolve(makeSelectionSuperInternal(() => after(selection)));
+            return;
+        }
+        let str = [];
+        for (let i = 0; i < keys.length; i++) {
+            str.push("  ");
+            str.push(selection[keys[i]] === true ? SELECTED_MARK : NOT_SELECTED_MARK);
+            str.push(" ");
+            str.push(keys[i]);
+            str.push("\n");
+        }
+        // Add submit and exit
+        str.push(`  [s] submit\n`);
+        str.push(`  [x] exit\n`);
+        output(exports.HIDE_CURSOR);
+        output(str.join(""));
+        if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
+            console.log("This console does not support TTY, please use the 'mmk'-command instead.");
+            process.exit(1);
+        }
+        let pos = 0;
+        output(exports.YELLOW);
+        moveCursor(0, -(keys.length + 2) + pos);
+        output(`>`);
+        moveCursor(-1, 0);
+        // on any data into stdin
+        node_process_1.stdin.on("data", (listener = (key) => {
+            let k = key.toString();
+            // moveCursor(0, options.length - pos);
+            // //let l = JSON.stringify(key);
+            // //output(l);
+            // stdout.write("" + yOffset);
+            // moveCursor(-("" + yOffset).length, -options.length + pos);
+            if (k === exports.ENTER) {
+                if (pos === keys.length) {
+                    // Submit
+                    let selected = keys.filter((x) => selection[x] === true).join(",");
+                    resolve(makeSelectionSuperInternal(() => after(selection), () => {
+                        output("\n");
+                        output((command +=
+                            " " +
+                                (selected.includes(" ") || selected.length === 0
+                                    ? `'${selected}'`
+                                    : selected)));
+                        output("\n");
+                    }));
+                }
+                else if (pos > keys.length) {
+                    // Exit
+                    resolve(makeSelectionQuietly({
+                        short: "x",
+                        long: "x",
+                        text: "exit",
+                        action: () => (0, utils_1.abort)(),
+                    }));
+                }
+                else {
+                    let sel = (selection[keys[pos]] = !selection[keys[pos]]);
+                    moveCursor(2, 0);
+                    output(exports.NORMAL_COLOR);
+                    output(sel ? SELECTED_MARK : NOT_SELECTED_MARK);
+                    output(exports.YELLOW);
+                    moveCursor(-3, 0);
+                }
+                return;
+            }
+            else if (k === exports.UP && pos <= 0) {
+                return;
+            }
+            else if (k === exports.UP) {
+                pos--;
+                output(` `);
+                moveCursor(-1, -1);
+                output(`>`);
+                moveCursor(-1, 0);
+            }
+            else if (k === exports.DOWN && pos >= keys.length + 2 - 1) {
+                return;
+            }
+            else if (k === exports.DOWN) {
+                pos++;
+                output(` `);
+                moveCursor(-1, 1);
+                output(`>`);
+                moveCursor(-1, 0);
+            }
+            else if (k === "x") {
+                makeSelectionQuietly({
+                    short: "x",
+                    long: "x",
+                    text: "exit",
+                    action: () => (0, utils_1.abort)(),
+                });
+            }
+            else if (k === "s") {
+                let selected = keys.filter((x) => selection[x] === true).join(",");
+                resolve(makeSelectionSuperInternal(() => after(selection), () => {
+                    output("\n");
+                    output((command +=
+                        " " +
+                            (selected.includes(" ") || selected.length === 0
+                                ? `'${selected}'`
+                                : selected)));
+                    output("\n");
+                }));
+            }
+            // write the key to stdout all normal like
+            // output(key);
+        }));
+    });
+}
+exports.multiSelect = multiSelect;
 let interval;
 let spinnerIndex = 0;
 const SPINNER = ["│", "/", "─", "\\"];
@@ -319,14 +461,15 @@ function shortText(prompt, description, defaultValueArg) {
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (k === exports.BACKSPACE && beforeCursor.length > 0) {
+            else if ((k === exports.BACKSPACE || k.charCodeAt(0) === 8) &&
+                beforeCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);
                 node_process_1.stdout.clearLine(1);
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (/^[A-Za-z0-9@_, .-/:;#=&*?+]+$/.test(k)) {
+            else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+]+$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
                 node_process_1.stdout.clearLine(1);

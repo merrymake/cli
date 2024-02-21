@@ -517,27 +517,6 @@ export async function do_envvar(
   }
 }
 
-export async function do_event(
-  org: string,
-  key: string,
-  event: string,
-  create: boolean
-) {
-  try {
-    output2(
-      await sshReq(
-        `event`,
-        event,
-        `--key`,
-        key,
-        ...(create ? [] : [`--delete`])
-      )
-    );
-  } catch (e) {
-    throw e;
-  }
-}
-
 export async function do_cron(
   org: string,
   name: string,
@@ -843,6 +822,18 @@ export async function do_spending(org: string) {
         )} │ € ${alignRight(x.cost_eur, 7)}`
       );
     });
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function do_event(
+  key: string,
+  events: { [event: string]: boolean }
+) {
+  try {
+    let selected = Object.keys(events).filter((x) => events[x]);
+    output2(await sshReq(`event`, `--key`, key, selected.join(",")));
   } catch (e) {
     throw e;
   }
