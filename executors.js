@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_delete_org = exports.do_delete_group = exports.do_delete_service = exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -747,3 +747,42 @@ function do_event(key, events) {
     });
 }
 exports.do_event = do_event;
+function do_delete_service(org, group, service) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`service`, `--delete`, `--org`, org, `--team`, group, service));
+            if (fs_1.default.existsSync(service))
+                fs_1.default.renameSync(service, `(deleted) ${service}`);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_delete_service = do_delete_service;
+function do_delete_group(org, group) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`team`, `--delete`, `--org`, org, group));
+            if (fs_1.default.existsSync(group))
+                fs_1.default.renameSync(group, `(deleted) ${group}`);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_delete_group = do_delete_group;
+function do_delete_org(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`org`, `--delete`, org));
+            if (fs_1.default.existsSync(org))
+                fs_1.default.renameSync(org, `(deleted) ${org}`);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_delete_org = do_delete_org;

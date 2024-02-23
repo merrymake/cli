@@ -73,6 +73,18 @@ function spending(org) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_spending)(org));
     return (0, utils_1.finish)();
 }
+function delete_service_name(org, group, service) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_delete_service)(org, group, service));
+    return (0, utils_1.finish)();
+}
+function delete_group_name(org, group) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_delete_group)(org, group));
+    return (0, utils_1.finish)();
+}
+function delete_org_name(org) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_delete_org)(org));
+    return (0, utils_1.finish)();
+}
 function service_template(pathToService, template) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -254,7 +266,10 @@ function register() {
                     action: () => register_key(executors_1.generateNewKey),
                 });
             }
-            return yield (0, prompt_1.choice)(keys, { cmd: false, select: true }, keys.length - 1).then((x) => x);
+            return yield (0, prompt_1.choice)(keys, {
+                invertedQuiet: { cmd: false, select: true },
+                def: keys.length - 1,
+            }).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -303,7 +318,7 @@ function queue_id(org, id) {
         long: x.r,
         text: `${(0, executors_1.alignRight)(x.r, 12)} │ ${(0, executors_1.alignLeft)(x.e, 12)} │ ${(0, executors_1.alignLeft)(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`,
         action: () => queue_event(org, x.id, x.r),
-    })), { cmd: true, select: true }).then((x) => x);
+    })), { invertedQuiet: { cmd: true, select: true } }).then((x) => x);
 }
 function queue_time_value(org, time) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_queue_time)(org, time));
@@ -364,7 +379,9 @@ function queue(org, offset) {
                 text: `specify time`,
                 action: () => queue_time(org),
             });
-            return yield (0, prompt_1.choice)(options, { cmd: false, select: false }).then((x) => x);
+            return yield (0, prompt_1.choice)(options, {
+                invertedQuiet: { cmd: false, select: false },
+            }).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -782,6 +799,54 @@ function envvar(org, group) {
         }
     });
 }
+function delete_service(org, group) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-services`, `--org`, org, `--team`, group);
+            let orgs = JSON.parse(resp);
+            return yield (0, prompt_1.choice)(orgs.map((x) => ({
+                long: x,
+                text: `delete ${x}`,
+                action: () => delete_service_name(org, group, x),
+            })), { disableAutoPick: true }).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function delete_group(org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-teams`, `--org`, org);
+            let orgs = JSON.parse(resp);
+            return yield (0, prompt_1.choice)(orgs.map((x) => ({
+                long: x,
+                text: `delete ${x}`,
+                action: () => delete_group_name(org, x),
+            })), { disableAutoPick: true }).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function delete_org() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-organizations`);
+            let orgs = JSON.parse(resp);
+            return yield (0, prompt_1.choice)(orgs.map((x) => ({
+                long: x,
+                text: `delete ${x}`,
+                action: () => delete_org_name(x),
+            })), { disableAutoPick: true }).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
 function join() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -980,8 +1045,17 @@ function start() {
                         options.push({
                             long: "repo",
                             short: "r",
-                            text: "create a new repo",
+                            text: "create a repo",
                             action: () => service(selectedGroup_hack.path, orgName, selectedGroup_hack.name),
+                        });
+                    }
+                    if (struct.serviceGroup !== null) {
+                        let group = struct.serviceGroup;
+                        options.push({
+                            long: "delete",
+                            short: "d",
+                            text: "delete a repo",
+                            action: () => delete_service(orgName, group),
                         });
                     }
                 }
@@ -1008,8 +1082,14 @@ function start() {
                     options.push({
                         long: "group",
                         short: "g",
-                        text: "create a new service group",
+                        text: "create a service group",
                         action: () => group(new utils_2.Path(), orgName),
+                    });
+                    options.push({
+                        long: "delete",
+                        short: "d",
+                        text: "delete a service group",
+                        action: () => delete_group(orgName),
                     });
                 }
                 options.push({
@@ -1088,6 +1168,13 @@ function start() {
                     short: "c",
                     text: "clone an existing organization",
                     action: () => checkout(),
+                    weight: cache.hasOrgs ? 10 : 3,
+                });
+                options.push({
+                    long: "delete",
+                    short: "d",
+                    text: "delete an organization",
+                    action: () => delete_org(),
                     weight: cache.hasOrgs ? 10 : 3,
                 });
                 options.push({

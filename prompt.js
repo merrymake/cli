@@ -108,14 +108,15 @@ function cleanup() {
     output(exports.NORMAL_COLOR);
     output(exports.SHOW_CURSOR);
 }
-function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) {
+function choice(options, opts) {
     return new Promise((resolve) => {
+        var _a, _b;
         let quick = {};
         let str = [];
-        if (options.length === 1) {
+        if (options.length === 1 && (opts === null || opts === void 0 ? void 0 : opts.disableAutoPick) !== true) {
             if ((0, args_1.getArgs)().length > 0)
                 (0, args_1.getArgs)().splice(0, 1);
-            resolve(invertedQuiet.cmd
+            resolve(((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) === true
                 ? makeSelection(options[0])
                 : makeSelectionQuietly(options[0]));
             return;
@@ -130,7 +131,9 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
             const o = options[i];
             if ((0, args_1.getArgs)()[0] === o.long || (0, args_1.getArgs)()[0] === `-${o.short}`) {
                 (0, args_1.getArgs)().splice(0, 1);
-                resolve(invertedQuiet.cmd ? makeSelection(o) : makeSelectionQuietly(o));
+                resolve(((_b = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _b === void 0 ? void 0 : _b.cmd) === true
+                    ? makeSelection(o)
+                    : makeSelectionQuietly(o));
                 return;
             }
             if (o.short)
@@ -162,13 +165,14 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
             console.log("This console does not support TTY, please use the 'mmk'-command instead.");
             process.exit(1);
         }
-        let pos = def;
+        let pos = (opts === null || opts === void 0 ? void 0 : opts.def) || 0;
         output(exports.YELLOW);
         moveCursor(0, -options.length + pos);
         output(`>`);
         moveCursor(-1, 0);
         // on any data into stdin
         node_process_1.stdin.on("data", (listener = (key) => {
+            var _a;
             let k = key.toString();
             // moveCursor(0, options.length - pos);
             // //let l = JSON.stringify(key);
@@ -176,7 +180,7 @@ function choice(options, invertedQuiet = { cmd: false, select: true }, def = 0) 
             // stdout.write("" + yOffset);
             // moveCursor(-("" + yOffset).length, -options.length + pos);
             if (k === exports.ENTER) {
-                resolve(invertedQuiet.select
+                resolve(((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) !== false
                     ? makeSelection(options[pos])
                     : makeSelectionQuietly(options[pos]));
                 return;
@@ -453,15 +457,17 @@ function shortText(prompt, description, defaultValueArg) {
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if ((k === exports.DELETE || k.charCodeAt(0) === 127) &&
-                afterCursor.length > 0) {
+            else if (k === exports.DELETE && afterCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 afterCursor = afterCursor.substring(1);
                 node_process_1.stdout.clearLine(1);
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if ((k === exports.BACKSPACE || k.charCodeAt(0) === 8) &&
+            else if ((k === exports.BACKSPACE ||
+                k.charCodeAt(0) === 8 ||
+                k.charCodeAt(0) === 46 ||
+                k.charCodeAt(0) === 127) &&
                 beforeCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);

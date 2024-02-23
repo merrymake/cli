@@ -838,3 +838,44 @@ export async function do_event(
     throw e;
   }
 }
+
+export async function do_delete_service(
+  org: string,
+  group: string,
+  service: string
+) {
+  try {
+    output2(
+      await sshReq(
+        `service`,
+        `--delete`,
+        `--org`,
+        org,
+        `--team`,
+        group,
+        service
+      )
+    );
+    if (fs.existsSync(service)) fs.renameSync(service, `(deleted) ${service}`);
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function do_delete_group(org: string, group: string) {
+  try {
+    output2(await sshReq(`team`, `--delete`, `--org`, org, group));
+    if (fs.existsSync(group)) fs.renameSync(group, `(deleted) ${group}`);
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function do_delete_org(org: string) {
+  try {
+    output2(await sshReq(`org`, `--delete`, org));
+    if (fs.existsSync(org)) fs.renameSync(org, `(deleted) ${org}`);
+  } catch (e) {
+    throw e;
+  }
+}

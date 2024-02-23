@@ -6,6 +6,12 @@
 ## Fixes and improvements
 -
 
+# 2.1.0
+## Added features
+- Add context sensitive `delete` command
+## Fixes and improvements
+- Trying to fix delete in text fields on Mac
+
 # 2.0.0
 ## Breaking changes
 - Make `event` use a multiselect, because it is much easier, safer, and faster to use, and can give a more helpful error message.

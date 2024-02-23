@@ -54,6 +54,9 @@ import {
   do_auto_approve,
   do_remove_auto_approve,
   do_spending,
+  do_delete_service,
+  do_delete_group,
+  do_delete_org,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -124,6 +127,21 @@ function roles_auto_remove(org: string, domain: string) {
 
 function spending(org: string) {
   addToExecuteQueue(() => do_spending(org));
+  return finish();
+}
+
+function delete_service_name(org: string, group: string, service: string) {
+  addToExecuteQueue(() => do_delete_service(org, group, service));
+  return finish();
+}
+
+function delete_group_name(org: string, group: string) {
+  addToExecuteQueue(() => do_delete_group(org, group));
+  return finish();
+}
+
+function delete_org_name(org: string) {
+  addToExecuteQueue(() => do_delete_org(org));
   return finish();
 }
 
@@ -342,11 +360,10 @@ async function register() {
         action: () => register_key(generateNewKey),
       });
     }
-    return await choice(
-      keys,
-      { cmd: false, select: true },
-      keys.length - 1
-    ).then((x) => x);
+    return await choice(keys, {
+      invertedQuiet: { cmd: false, select: true },
+      def: keys.length - 1,
+    }).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -408,7 +425,7 @@ function queue_id(org: string, id: string) {
         )} │ ${new Date(x.q).toLocaleString()}`,
         action: () => queue_event(org, x.id, x.r),
       })),
-    { cmd: true, select: true }
+    { invertedQuiet: { cmd: true, select: true } }
   ).then((x) => x);
 }
 
@@ -490,7 +507,9 @@ async function queue(org: string, offset: number) {
       text: `specify time`,
       action: () => queue_time(org),
     });
-    return await choice(options, { cmd: false, select: false }).then((x) => x);
+    return await choice(options, {
+      invertedQuiet: { cmd: false, select: false },
+    }).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -993,6 +1012,57 @@ async function envvar(org: string, group: string) {
   }
 }
 
+async function delete_service(org: string, group: string) {
+  try {
+    let resp = await sshReq(`list-services`, `--org`, org, `--team`, group);
+    let orgs: string[] = JSON.parse(resp);
+    return await choice(
+      orgs.map((x) => ({
+        long: x,
+        text: `delete ${x}`,
+        action: () => delete_service_name(org, group, x),
+      })),
+      { disableAutoPick: true }
+    ).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function delete_group(org: string) {
+  try {
+    let resp = await sshReq(`list-teams`, `--org`, org);
+    let orgs: string[] = JSON.parse(resp);
+    return await choice(
+      orgs.map((x) => ({
+        long: x,
+        text: `delete ${x}`,
+        action: () => delete_group_name(org, x),
+      })),
+      { disableAutoPick: true }
+    ).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function delete_org() {
+  try {
+    let resp = await sshReq(`list-organizations`);
+    let orgs: string[] = JSON.parse(resp);
+    return await choice(
+      orgs.map((x) => ({
+        long: x,
+        text: `delete ${x}`,
+        action: () => delete_org_name(x),
+      })),
+      { disableAutoPick: true }
+    ).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
 async function join() {
   try {
     let name = await shortText(
@@ -1231,13 +1301,22 @@ export async function start() {
           options.push({
             long: "repo",
             short: "r",
-            text: "create a new repo",
+            text: "create a repo",
             action: () =>
               service(
                 selectedGroup_hack.path,
                 orgName,
                 selectedGroup_hack.name
               ),
+          });
+        }
+        if (struct.serviceGroup !== null) {
+          let group = struct.serviceGroup;
+          options.push({
+            long: "delete",
+            short: "d",
+            text: "delete a repo",
+            action: () => delete_service(orgName, group),
           });
         }
       }
@@ -1266,8 +1345,14 @@ export async function start() {
         options.push({
           long: "group",
           short: "g",
-          text: "create a new service group",
+          text: "create a service group",
           action: () => group(new Path(), orgName),
+        });
+        options.push({
+          long: "delete",
+          short: "d",
+          text: "delete a service group",
+          action: () => delete_group(orgName),
         });
       }
 
@@ -1347,6 +1432,13 @@ export async function start() {
         short: "c",
         text: "clone an existing organization",
         action: () => checkout(),
+        weight: cache.hasOrgs ? 10 : 3,
+      });
+      options.push({
+        long: "delete",
+        short: "d",
+        text: "delete an organization",
+        action: () => delete_org(),
         weight: cache.hasOrgs ? 10 : 3,
       });
       options.push({

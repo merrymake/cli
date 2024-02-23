@@ -134,16 +134,19 @@ export type Option = {
 
 export function choice(
   options: Option[],
-  invertedQuiet = { cmd: false, select: true },
-  def: number = 0
+  opts?: {
+    def?: number;
+    disableAutoPick?: boolean;
+    invertedQuiet?: { cmd: boolean; select: boolean };
+  }
 ) {
   return new Promise<never>((resolve) => {
     let quick: { [key: string]: Option } = {};
     let str: string[] = [];
-    if (options.length === 1) {
+    if (options.length === 1 && opts?.disableAutoPick !== true) {
       if (getArgs().length > 0) getArgs().splice(0, 1);
       resolve(
-        invertedQuiet.cmd
+        opts?.invertedQuiet?.cmd === true
           ? makeSelection(options[0])
           : makeSelectionQuietly(options[0])
       );
@@ -159,7 +162,11 @@ export function choice(
       const o = options[i];
       if (getArgs()[0] === o.long || getArgs()[0] === `-${o.short}`) {
         getArgs().splice(0, 1);
-        resolve(invertedQuiet.cmd ? makeSelection(o) : makeSelectionQuietly(o));
+        resolve(
+          opts?.invertedQuiet?.cmd === true
+            ? makeSelection(o)
+            : makeSelectionQuietly(o)
+        );
         return;
       }
       if (o.short) quick[o.short] = o;
@@ -193,7 +200,7 @@ export function choice(
       process.exit(1);
     }
 
-    let pos = def;
+    let pos = opts?.def || 0;
     output(YELLOW);
     moveCursor(0, -options.length + pos);
     output(`>`);
@@ -211,7 +218,7 @@ export function choice(
         // moveCursor(-("" + yOffset).length, -options.length + pos);
         if (k === ENTER) {
           resolve(
-            invertedQuiet.select
+            opts?.invertedQuiet?.cmd !== false
               ? makeSelection(options[pos])
               : makeSelectionQuietly(options[pos])
           );
@@ -511,17 +518,17 @@ export function shortText(
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
-        } else if (
-          (k === DELETE || k.charCodeAt(0) === 127) &&
-          afterCursor.length > 0
-        ) {
+        } else if (k === DELETE && afterCursor.length > 0) {
           moveCursor(-beforeCursor.length, 0);
           afterCursor = afterCursor.substring(1);
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
         } else if (
-          (k === BACKSPACE || k.charCodeAt(0) === 8) &&
+          (k === BACKSPACE ||
+            k.charCodeAt(0) === 8 ||
+            k.charCodeAt(0) === 46 ||
+            k.charCodeAt(0) === 127) &&
           beforeCursor.length > 0
         ) {
           moveCursor(-beforeCursor.length, 0);
