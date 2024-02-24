@@ -111,6 +111,10 @@ function cleanup() {
 function choice(options, opts) {
     return new Promise((resolve) => {
         var _a, _b;
+        if (options.length === 0) {
+            console.log((opts === null || opts === void 0 ? void 0 : opts.errorMessage) || "There are no options.");
+            process.exit(1);
+        }
         let quick = {};
         let str = [];
         if (options.length === 1 && (opts === null || opts === void 0 ? void 0 : opts.disableAutoPick) !== true) {
@@ -466,7 +470,6 @@ function shortText(prompt, description, defaultValueArg) {
             }
             else if ((k === exports.BACKSPACE ||
                 k.charCodeAt(0) === 8 ||
-                k.charCodeAt(0) === 46 ||
                 k.charCodeAt(0) === 127) &&
                 beforeCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
@@ -475,7 +478,7 @@ function shortText(prompt, description, defaultValueArg) {
                 output(beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+]+$/.test(k)) {
+            else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+<>\\]+$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
                 node_process_1.stdout.clearLine(1);

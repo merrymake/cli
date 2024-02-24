@@ -9,6 +9,7 @@ import {
   spinner_start,
   spinner_stop,
   multiSelect,
+  YELLOW,
 } from "./prompt";
 import {
   abort,
@@ -916,7 +917,9 @@ async function post_event(org: string, eventType: string) {
         action: () => post_event_key(eventType, x.key),
       };
     });
-    return await choice(options).then((x) => x);
+    return await choice(options, {
+      errorMessage: `Organization has no active API keys. You can create one with '${YELLOW}${process.env["COMMAND"]} key${NORMAL_COLOR}'`,
+    }).then((x) => x);
   } catch (e) {
     throw e;
   }

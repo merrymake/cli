@@ -703,7 +703,9 @@ function post_event(org, eventType) {
                     action: () => post_event_key(eventType, x.key),
                 };
             });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.choice)(options, {
+                errorMessage: `Organization has no active API keys. You can create one with '${prompt_1.YELLOW}${process.env["COMMAND"]} key${prompt_1.NORMAL_COLOR}'`,
+            }).then((x) => x);
         }
         catch (e) {
             throw e;

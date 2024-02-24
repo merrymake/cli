@@ -138,9 +138,14 @@ export function choice(
     def?: number;
     disableAutoPick?: boolean;
     invertedQuiet?: { cmd: boolean; select: boolean };
+    errorMessage?: string;
   }
 ) {
   return new Promise<never>((resolve) => {
+    if (options.length === 0) {
+      console.log(opts?.errorMessage || "There are no options.");
+      process.exit(1);
+    }
     let quick: { [key: string]: Option } = {};
     let str: string[] = [];
     if (options.length === 1 && opts?.disableAutoPick !== true) {
@@ -527,7 +532,6 @@ export function shortText(
         } else if (
           (k === BACKSPACE ||
             k.charCodeAt(0) === 8 ||
-            k.charCodeAt(0) === 46 ||
             k.charCodeAt(0) === 127) &&
           beforeCursor.length > 0
         ) {
@@ -536,7 +540,7 @@ export function shortText(
           stdout.clearLine(1);
           output(beforeCursor + afterCursor);
           moveCursor(-afterCursor.length, 0);
-        } else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+]+$/.test(k)) {
+        } else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+<>\\]+$/.test(k)) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += k;
           stdout.clearLine(1);

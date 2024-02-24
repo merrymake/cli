@@ -6,6 +6,12 @@
 ## Fixes and improvements
 -
 
+# 2.1.1
+## Fixes and improvements
+- Allow more characters in text fields ('<>\')
+- Fix 'dot' bug
+- Better error message for `post` when there are no active keys
+
 # 2.1.0
 ## Added features
 - Add context sensitive `delete` command
