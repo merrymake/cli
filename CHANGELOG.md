@@ -6,6 +6,10 @@
 ## Fixes and improvements
 -
 
+# 2.1.2
+## Fixes and improvements
+- Fix display of english date time in `queue` and `key`
+
 # 2.1.1
 ## Fixes and improvements
 - Allow more characters in text fields ('<>\')

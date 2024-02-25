@@ -310,7 +310,7 @@ function queue_id(org, id) {
         River: 12,
         Event: 12,
         Status: 7,
-        "Queue time": 20,
+        "Queue time": 23,
     });
     return (0, prompt_1.choice)(cache_queue
         .filter((x) => x.id === id)
@@ -429,7 +429,7 @@ function keys(org) {
                     long: x.key,
                     text: `${x.key} │ ${(0, executors_1.alignLeft)(n, Math.max(process_1.stdout.getWindowSize()[0] -
                         36 -
-                        20 -
+                        23 -
                         "─┼──┼─".length -
                         "      ".length, 12))} │ ${ds}`,
                     action: () => keys_key(org, x.key, x.name),
@@ -445,7 +445,7 @@ function keys(org) {
                 (0, executors_1.printTableHeader)("      ", {
                     Key: 36,
                     Description: -12,
-                    "Expiry time": 20,
+                    "Expiry time": 23,
                 });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }

@@ -413,7 +413,7 @@ function queue_id(org: string, id: string) {
     River: 12,
     Event: 12,
     Status: 7,
-    "Queue time": 20,
+    "Queue time": 23,
   });
   return choice(
     cache_queue
@@ -570,7 +570,7 @@ async function keys(org: string) {
           Math.max(
             stdout.getWindowSize()[0] -
               36 -
-              20 -
+              23 -
               "─┼──┼─".length -
               "      ".length,
             12
@@ -589,7 +589,7 @@ async function keys(org: string) {
       printTableHeader("      ", {
         Key: 36,
         Description: -12,
-        "Expiry time": 20,
+        "Expiry time": 23,
       });
     return await choice(options).then((x) => x);
   } catch (e) {
