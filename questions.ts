@@ -353,7 +353,7 @@ async function register() {
       text: "Manually add key",
       action: () => register_manual(),
     });
-    if (keyfiles.includes("merrymake")) {
+    if (!keyfiles.includes("merrymake")) {
       keys.push({
         long: "new",
         short: "n",

@@ -6,6 +6,10 @@
 ## Fixes and improvements
 -
 
+# 2.1.3
+## Fixes and improvements
+- Fix `register` bug
+
 # 2.1.2
 ## Fixes and improvements
 - Fix display of english date time in `queue` and `key`
