@@ -946,6 +946,10 @@ function generateOrgName() {
             "-" +
             words_1.NOUN[~~(words_1.NOUN.length * Math.random())]);
 }
+function please_register_first() {
+    (0, utils_1.addExitMessage)(`Please run '${process.env["COMMAND"]} register' first.`);
+    return (0, utils_1.abort)();
+}
 function quickstart() {
     let cache = (0, utils_1.getCache)();
     if (!cache.registered)
@@ -1131,7 +1135,6 @@ function start() {
                 });
                 options.push({
                     long: "register",
-                    short: "r",
                     text: "register an additional sshkey or email to account",
                     action: () => register(),
                 });
@@ -1162,28 +1165,28 @@ function start() {
                     long: "org",
                     short: "o",
                     text: "create a new organization",
-                    action: () => org(),
+                    action: () => (cache.registered ? org() : please_register_first()),
                     weight: 5,
                 });
                 options.push({
                     long: "clone",
                     short: "c",
                     text: "clone an existing organization",
-                    action: () => checkout(),
+                    action: () => (cache.registered ? checkout() : please_register_first()),
                     weight: cache.hasOrgs ? 10 : 3,
                 });
                 options.push({
                     long: "delete",
                     short: "d",
                     text: "delete an organization",
-                    action: () => delete_org(),
+                    action: () => cache.registered ? delete_org() : please_register_first(),
                     weight: cache.hasOrgs ? 10 : 3,
                 });
                 options.push({
                     long: "join",
                     short: "j",
                     text: "request to join an existing organization",
-                    action: () => join(),
+                    action: () => (cache.registered ? join() : please_register_first()),
                     weight: 4,
                 });
                 options.push({

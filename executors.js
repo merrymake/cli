@@ -236,6 +236,8 @@ function addKnownHost() {
     }
     if (!isKnownHost) {
         console.log("Adding fingerprint...");
+        if (!fs_1.default.existsSync(os_1.default.homedir() + "/.ssh"))
+            fs_1.default.mkdirSync(os_1.default.homedir() + "/.ssh");
         fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, `\n${config_1.API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n`);
     }
 }

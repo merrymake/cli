@@ -261,6 +261,8 @@ export function addKnownHost() {
   }
   if (!isKnownHost) {
     console.log("Adding fingerprint...");
+    if (!fs.existsSync(os.homedir() + "/.ssh"))
+      fs.mkdirSync(os.homedir() + "/.ssh");
     fs.appendFileSync(
       `${os.homedir()}/.ssh/known_hosts`,
       `\n${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n`

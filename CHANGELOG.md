@@ -6,9 +6,15 @@
 ## Fixes and improvements
 -
 
+# 2.1.4
+## Fixes and improvements
+- Fix `register` bug when manually adding ssh-key without `.ssh` folder
+- Allow more symbols in text field
+- Tell user to run `register` first
+
 # 2.1.3
 ## Fixes and improvements
-- Fix `register` bug
+- Fix `register` not showing `new` subcommand for new users
 
 # 2.1.2
 ## Fixes and improvements
