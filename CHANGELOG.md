@@ -6,6 +6,15 @@
 ## Fixes and improvements
 -
 
+# 3.0.0
+## Breaking changes
+- Change order of questions for envvar so secrets can be hidden as *s
+## Fixes and improvements
+- Add indicator when in dryrun mode
+- Add command timeout in case the server is unreachable
+- Better name suggestion for `repo` and `group`
+- Encrypt secrets on the client-side
+
 # 2.1.4
 ## Fixes and improvements
 - Fix `register` bug when manually adding ssh-key without `.ssh` folder

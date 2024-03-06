@@ -78,6 +78,7 @@ exports.getFiles = getFiles;
 const toExecute = [];
 let dryrun = false;
 function setDryrun() {
+    output2(`${prompt_1.BLUE}Dryrun mode, changes will not be performed.${prompt_1.NORMAL_COLOR}`);
     dryrun = true;
 }
 exports.setDryrun = setDryrun;
@@ -256,7 +257,7 @@ function execStreamPromise(full, onData, cwd) {
 }
 exports.execStreamPromise = execStreamPromise;
 function sshReqInternal(cmd) {
-    return execPromise(`ssh mist@${config_1.SSH_HOST} "${cmd}"`);
+    return execPromise(`ssh -o ConnectTimeout=10 mist@${config_1.SSH_HOST} "${cmd}"`);
 }
 function sshReq(...cmd) {
     return __awaiter(this, void 0, void 0, function* () {

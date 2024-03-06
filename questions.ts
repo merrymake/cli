@@ -10,6 +10,7 @@ import {
   spinner_stop,
   multiSelect,
   YELLOW,
+  Visibility,
 } from "./prompt";
 import {
   abort,
@@ -232,10 +233,12 @@ async function duplicate(pathToService: Path, org: string, group: string) {
 
 async function service(pathToGroup: Path, org: string, group: string) {
   try {
+    let num = 1;
+    while (fs.existsSync(pathToGroup.with("service-" + num).toString())) num++;
     let name = await shortText(
       "Repository name",
       "This is where the code lives.",
-      "service-1"
+      "service-" + num
     ).then((x) => x);
     addToExecuteQueue(() => createService(pathToGroup, group, name));
     let options: Option[] = [];
@@ -270,10 +273,12 @@ async function service(pathToGroup: Path, org: string, group: string) {
 
 async function group(path: Path, org: string) {
   try {
+    let num = 1;
+    while (fs.existsSync(path.with("service-group-" + num).toString())) num++;
     let name = await shortText(
       "Service group name",
       "Used to share envvars.",
-      "service-group-1"
+      "service-group-" + num
     ).then((x) => x);
     addToExecuteQueue(() => createServiceGroup(path, name));
     return service(path.with(name), org, name);
@@ -730,72 +735,21 @@ function envvar_key_value_access_visible(
   key: string,
   value: string,
   access: string[],
-  visibility: string
+  secret: boolean
 ) {
   addToExecuteQueue(() =>
-    do_envvar(org, group, overwrite, key, value, access, visibility)
+    do_envvar(org, group, overwrite, key, value, access, secret)
   );
   return finish();
 }
 
-function envvar_key_value_access(
+function envvar_key_visible_value(
   org: string,
   group: string,
   overwrite: string,
   key: string,
   value: string,
-  access: string[]
-) {
-  if (value === "")
-    return envvar_key_value_access_visible(
-      org,
-      group,
-      overwrite,
-      key,
-      value,
-      access,
-      "--public"
-    );
-  return choice([
-    {
-      long: "secret",
-      short: "s",
-      text: "keep the value secret",
-      action: () =>
-        envvar_key_value_access_visible(
-          org,
-          group,
-          overwrite,
-          key,
-          value,
-          access,
-          ""
-        ),
-    },
-    {
-      long: "public",
-      short: "p",
-      text: "the value is public",
-      action: () =>
-        envvar_key_value_access_visible(
-          org,
-          group,
-          overwrite,
-          key,
-          value,
-          access,
-          "--public"
-        ),
-    },
-  ]);
-}
-
-function envvar_key_value(
-  org: string,
-  group: string,
-  overwrite: string,
-  key: string,
-  value: string
+  secret: boolean
 ) {
   return choice([
     {
@@ -803,39 +757,72 @@ function envvar_key_value(
       short: "b",
       text: "accessible in both prod and test",
       action: () =>
-        envvar_key_value_access(org, group, overwrite, key, value, [
-          "--prod",
-          "--test",
-        ]),
+        envvar_key_value_access_visible(
+          org,
+          group,
+          overwrite,
+          key,
+          value,
+          ["--prod", "--test"],
+          secret
+        ),
     },
     {
       long: "prod",
       short: "p",
       text: "accessible in prod",
       action: () =>
-        envvar_key_value_access(org, group, overwrite, key, value, ["--prod"]),
+        envvar_key_value_access_visible(
+          org,
+          group,
+          overwrite,
+          key,
+          value,
+          ["--prod"],
+          secret
+        ),
     },
     {
       long: "test",
       short: "t",
       text: "accessible in test",
       action: () =>
-        envvar_key_value_access(org, group, overwrite, key, value, ["--test"]),
+        envvar_key_value_access_visible(
+          org,
+          group,
+          overwrite,
+          key,
+          value,
+          ["--test"],
+          secret
+        ),
     },
   ]);
 }
 
-async function envvar_key(
+async function envvar_key_visible(
   org: string,
   group: string,
   overwrite: string,
   key: string,
-  currentValue: string
+  secret: boolean
 ) {
   try {
-    let value = await shortText("Value", "The value...", "");
+    let value = await shortText(
+      "Value",
+      "The value...",
+      "",
+      secret === true ? Visibility.Secret : Visibility.Public
+    ).then();
     if (value !== "")
-      return envvar_key_value(org, group, overwrite, key, value);
+      return envvar_key_visible_value(
+        org,
+        group,
+        overwrite,
+        key,
+        value,
+        secret
+      );
     else
       return envvar_key_value_access_visible(
         org,
@@ -844,8 +831,67 @@ async function envvar_key(
         key,
         value,
         ["--prod", "--test"],
-        "--public"
+        false
       );
+  } catch (e) {
+    throw e;
+  }
+}
+
+function envvar_key(
+  org: string,
+  group: string,
+  overwrite: string,
+  key: string
+) {
+  return choice([
+    {
+      long: "secret",
+      short: "s",
+      text: "keep the value secret",
+      action: () => envvar_key_visible(org, group, overwrite, key, true),
+    },
+    {
+      long: "public",
+      short: "p",
+      text: "the value is public",
+      action: () => envvar_key_visible(org, group, overwrite, key, false),
+    },
+  ]);
+}
+
+async function envvar_new(org: string, group: string) {
+  try {
+    let key = await shortText(
+      "Key",
+      "Key for the key-value pair",
+      "key"
+    ).then();
+    return envvar_key(org, group, "", key);
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function envvar(org: string, group: string) {
+  try {
+    let resp = await sshReq(`list-secrets`, `--org`, org, `--team`, group);
+    let orgs: { key: string; val: string; prod: boolean; test: boolean }[] =
+      JSON.parse(resp);
+    let options: Option[] = orgs.map((x) => ({
+      long: x.key,
+      text: `[${x.test ? "T" : " "}${x.prod ? "P" : " "}] ${x.key}: ${
+        x.val ? x.val : "***"
+      }`,
+      action: () => envvar_key(org, group, "--overwrite", x.key),
+    }));
+    options.push({
+      long: `new`,
+      short: `n`,
+      text: `add a new environment variable`,
+      action: () => envvar_new(org, group),
+    });
+    return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -871,7 +917,7 @@ async function post_event_key_payloadType(
       "Payload",
       "The data to be attached to the request",
       ""
-    );
+    ).then();
     return post_event_key_payload(eventType, key, contentType, payload);
   } catch (e) {
     throw e;
@@ -932,7 +978,7 @@ async function post(org: string) {
       "Event type",
       "The type of event to post",
       "hello"
-    );
+    ).then();
     return post_event(org, eventType);
   } catch (e) {
     throw e;
@@ -977,39 +1023,6 @@ async function event(org: string) {
       action: () => keys_key(org, null, ""),
     });
     if (options.length > 1) printTableHeader("      ", { Key: 36, Name: -12 });
-    return await choice(options).then((x) => x);
-  } catch (e) {
-    throw e;
-  }
-}
-
-async function envvar_new(org: string, group: string) {
-  try {
-    let key = await shortText("Key", "Key for the key-value pair", "key");
-    return envvar_key(org, group, "", key, "");
-  } catch (e) {
-    throw e;
-  }
-}
-
-async function envvar(org: string, group: string) {
-  try {
-    let resp = await sshReq(`list-secrets`, `--org`, org, `--team`, group);
-    let orgs: { key: string; val: string; prod: boolean; test: boolean }[] =
-      JSON.parse(resp);
-    let options: Option[] = orgs.map((x) => ({
-      long: x.key,
-      text: `[${x.test ? "T" : " "}${x.prod ? "P" : " "}] ${x.key}: ${
-        x.val ? x.val : "***"
-      }`,
-      action: () => envvar_key(org, group, "--overwrite", x.key, x.val),
-    }));
-    options.push({
-      long: `new`,
-      short: `n`,
-      text: `add a new secret`,
-      action: () => envvar_new(org, group),
-    });
     return await choice(options).then((x) => x);
   } catch (e) {
     throw e;
@@ -1103,7 +1116,7 @@ async function cron_name_event(
       "Cron expression",
       "Eg. every 5 minutes is '*/5 * * * *'",
       ""
-    );
+    ).then();
     return cron_name_event_expression(org, name, overwrite, event, expression);
   } catch (e) {
     throw e;
@@ -1121,7 +1134,7 @@ async function cron_name(
       "Which event to spawn",
       "Event that should be spawned",
       currentEvent
-    );
+    ).then();
     return cron_name_event(org, name, "--overwrite", event, expression);
   } catch (e) {
     throw e;
@@ -1134,7 +1147,7 @@ async function cron_new_event(org: string, event: string) {
       "Unique name",
       "Used to edit or delete the cron job later",
       event
-    );
+    ).then();
     return cron_name_event(org, name, "", event, "");
   } catch (e) {
     throw e;
@@ -1147,7 +1160,7 @@ async function cron_new(org: string) {
       "Which event to spawn",
       "Event that should be spawned",
       "event"
-    );
+    ).then();
     return cron_new_event(org, event);
   } catch (e) {
     throw e;

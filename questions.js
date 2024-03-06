@@ -151,7 +151,10 @@ function duplicate(pathToService, org, group) {
 function service(pathToGroup, org, group) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let name = yield (0, prompt_1.shortText)("Repository name", "This is where the code lives.", "service-1").then((x) => x);
+            let num = 1;
+            while (fs_1.default.existsSync(pathToGroup.with("service-" + num).toString()))
+                num++;
+            let name = yield (0, prompt_1.shortText)("Repository name", "This is where the code lives.", "service-" + num).then((x) => x);
             (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createService)(pathToGroup, group, name));
             let options = [];
             let services = (0, utils_1.directoryNames)(pathToGroup, []);
@@ -185,7 +188,10 @@ function service(pathToGroup, org, group) {
 function group(path, org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let name = yield (0, prompt_1.shortText)("Service group name", "Used to share envvars.", "service-group-1").then((x) => x);
+            let num = 1;
+            while (fs_1.default.existsSync(path.with("service-group-" + num).toString()))
+                num++;
+            let name = yield (0, prompt_1.shortText)("Service group name", "Used to share envvars.", "service-group-" + num).then((x) => x);
             (0, utils_1.addToExecuteQueue)(() => (0, executors_1.createServiceGroup)(path, name));
             return service(path.with(name), org, name);
         }
@@ -588,61 +594,90 @@ function roles(org) {
         }
     });
 }
-function envvar_key_value_access_visible(org, group, overwrite, key, value, access, visibility) {
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_envvar)(org, group, overwrite, key, value, access, visibility));
+function envvar_key_value_access_visible(org, group, overwrite, key, value, access, secret) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_envvar)(org, group, overwrite, key, value, access, secret));
     return (0, utils_1.finish)();
 }
-function envvar_key_value_access(org, group, overwrite, key, value, access) {
-    if (value === "")
-        return envvar_key_value_access_visible(org, group, overwrite, key, value, access, "--public");
-    return (0, prompt_1.choice)([
-        {
-            long: "secret",
-            short: "s",
-            text: "keep the value secret",
-            action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, access, ""),
-        },
-        {
-            long: "public",
-            short: "p",
-            text: "the value is public",
-            action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, access, "--public"),
-        },
-    ]);
-}
-function envvar_key_value(org, group, overwrite, key, value) {
+function envvar_key_visible_value(org, group, overwrite, key, value, secret) {
     return (0, prompt_1.choice)([
         {
             long: "both",
             short: "b",
             text: "accessible in both prod and test",
-            action: () => envvar_key_value_access(org, group, overwrite, key, value, [
-                "--prod",
-                "--test",
-            ]),
+            action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, ["--prod", "--test"], secret),
         },
         {
             long: "prod",
             short: "p",
             text: "accessible in prod",
-            action: () => envvar_key_value_access(org, group, overwrite, key, value, ["--prod"]),
+            action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, ["--prod"], secret),
         },
         {
             long: "test",
             short: "t",
             text: "accessible in test",
-            action: () => envvar_key_value_access(org, group, overwrite, key, value, ["--test"]),
+            action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, ["--test"], secret),
         },
     ]);
 }
-function envvar_key(org, group, overwrite, key, currentValue) {
+function envvar_key_visible(org, group, overwrite, key, secret) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let value = yield (0, prompt_1.shortText)("Value", "The value...", "");
+            let value = yield (0, prompt_1.shortText)("Value", "The value...", "", secret === true ? prompt_1.Visibility.Secret : prompt_1.Visibility.Public).then();
             if (value !== "")
-                return envvar_key_value(org, group, overwrite, key, value);
+                return envvar_key_visible_value(org, group, overwrite, key, value, secret);
             else
-                return envvar_key_value_access_visible(org, group, overwrite, key, value, ["--prod", "--test"], "--public");
+                return envvar_key_value_access_visible(org, group, overwrite, key, value, ["--prod", "--test"], false);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function envvar_key(org, group, overwrite, key) {
+    return (0, prompt_1.choice)([
+        {
+            long: "secret",
+            short: "s",
+            text: "keep the value secret",
+            action: () => envvar_key_visible(org, group, overwrite, key, true),
+        },
+        {
+            long: "public",
+            short: "p",
+            text: "the value is public",
+            action: () => envvar_key_visible(org, group, overwrite, key, false),
+        },
+    ]);
+}
+function envvar_new(org, group) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let key = yield (0, prompt_1.shortText)("Key", "Key for the key-value pair", "key").then();
+            return envvar_key(org, group, "", key);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function envvar(org, group) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let resp = yield (0, utils_1.sshReq)(`list-secrets`, `--org`, org, `--team`, group);
+            let orgs = JSON.parse(resp);
+            let options = orgs.map((x) => ({
+                long: x.key,
+                text: `[${x.test ? "T" : " "}${x.prod ? "P" : " "}] ${x.key}: ${x.val ? x.val : "***"}`,
+                action: () => envvar_key(org, group, "--overwrite", x.key),
+            }));
+            options.push({
+                long: `new`,
+                short: `n`,
+                text: `add a new environment variable`,
+                action: () => envvar_new(org, group),
+            });
+            return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -656,7 +691,7 @@ function post_event_key_payload(eventType, key, contentType, payload) {
 function post_event_key_payloadType(eventType, key, contentType) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let payload = yield (0, prompt_1.shortText)("Payload", "The data to be attached to the request", "");
+            let payload = yield (0, prompt_1.shortText)("Payload", "The data to be attached to the request", "").then();
             return post_event_key_payload(eventType, key, contentType, payload);
         }
         catch (e) {
@@ -715,7 +750,7 @@ function post_event(org, eventType) {
 function post(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let eventType = yield (0, prompt_1.shortText)("Event type", "The type of event to post", "hello");
+            let eventType = yield (0, prompt_1.shortText)("Event type", "The type of event to post", "hello").then();
             return post_event(org, eventType);
         }
         catch (e) {
@@ -760,40 +795,6 @@ function event(org) {
             });
             if (options.length > 1)
                 (0, executors_1.printTableHeader)("      ", { Key: 36, Name: -12 });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
-        }
-        catch (e) {
-            throw e;
-        }
-    });
-}
-function envvar_new(org, group) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            let key = yield (0, prompt_1.shortText)("Key", "Key for the key-value pair", "key");
-            return envvar_key(org, group, "", key, "");
-        }
-        catch (e) {
-            throw e;
-        }
-    });
-}
-function envvar(org, group) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            let resp = yield (0, utils_1.sshReq)(`list-secrets`, `--org`, org, `--team`, group);
-            let orgs = JSON.parse(resp);
-            let options = orgs.map((x) => ({
-                long: x.key,
-                text: `[${x.test ? "T" : " "}${x.prod ? "P" : " "}] ${x.key}: ${x.val ? x.val : "***"}`,
-                action: () => envvar_key(org, group, "--overwrite", x.key, x.val),
-            }));
-            options.push({
-                long: `new`,
-                short: `n`,
-                text: `add a new secret`,
-                action: () => envvar_new(org, group),
-            });
             return yield (0, prompt_1.choice)(options).then((x) => x);
         }
         catch (e) {
@@ -867,7 +868,7 @@ function cron_name_event_expression(org, name, overwrite, event, expression) {
 function cron_name_event(org, name, overwrite, event, currentExpression) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let expression = yield (0, prompt_1.shortText)("Cron expression", "Eg. every 5 minutes is '*/5 * * * *'", "");
+            let expression = yield (0, prompt_1.shortText)("Cron expression", "Eg. every 5 minutes is '*/5 * * * *'", "").then();
             return cron_name_event_expression(org, name, overwrite, event, expression);
         }
         catch (e) {
@@ -878,7 +879,7 @@ function cron_name_event(org, name, overwrite, event, currentExpression) {
 function cron_name(org, name, currentEvent, expression) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let event = yield (0, prompt_1.shortText)("Which event to spawn", "Event that should be spawned", currentEvent);
+            let event = yield (0, prompt_1.shortText)("Which event to spawn", "Event that should be spawned", currentEvent).then();
             return cron_name_event(org, name, "--overwrite", event, expression);
         }
         catch (e) {
@@ -889,7 +890,7 @@ function cron_name(org, name, currentEvent, expression) {
 function cron_new_event(org, event) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let name = yield (0, prompt_1.shortText)("Unique name", "Used to edit or delete the cron job later", event);
+            let name = yield (0, prompt_1.shortText)("Unique name", "Used to edit or delete the cron job later", event).then();
             return cron_name_event(org, name, "", event, "");
         }
         catch (e) {
@@ -900,7 +901,7 @@ function cron_new_event(org, event) {
 function cron_new(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let event = yield (0, prompt_1.shortText)("Which event to spawn", "Event that should be spawned", "event");
+            let event = yield (0, prompt_1.shortText)("Which event to spawn", "Event that should be spawned", "event").then();
             return cron_new_event(org, event);
         }
         catch (e) {

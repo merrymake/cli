@@ -20,8 +20,10 @@ const config_1 = require("./config");
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const child_process_1 = require("child_process");
 const prompt_1 = require("./prompt");
+const path_1 = __importDefault(require("path"));
 const args_1 = require("./args");
 const process_1 = require("process");
+const secret_lib_1 = require("@merrymake/secret-lib");
 function clone(struct, name) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -165,7 +167,7 @@ function createServiceGroup(pth, name) {
             console.log("Creating service group...");
             let { org } = (0, utils_1.fetchOrg)();
             fs_1.default.mkdirSync(name);
-            yield (0, utils_1.sshReq)(`team`, name, `--org`, org.name);
+            console.log(yield (0, utils_1.sshReq)(`team`, name, `--org`, org.name));
             process.chdir(before);
         }
         catch (e) {
@@ -459,10 +461,29 @@ function do_key(org, key, name, duration) {
     });
 }
 exports.do_key = do_key;
-function do_envvar(org, group, overwrite, key, value, access, visibility) {
+function do_envvar(org, group, overwrite, key, value, access, secret) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`secret`, key, overwrite, ...access, `--org`, org, `--team`, group, `--value`, value, visibility));
+            let struct = (0, utils_1.fetchOrgRaw)();
+            let val;
+            if (secret === true) {
+                let repoBase = `${config_1.GIT_HOST}/${org}/${group}/.key`;
+                yield (0, utils_1.execPromise)(`git clone -q "${repoBase}"`, path_1.default.join(struct.pathToRoot, ".merrymake"));
+                let key = fs_1.default.readFileSync(path_1.default.join(struct.pathToRoot, ".merrymake", ".key", "merrymake.key"));
+                val = new secret_lib_1.MerrymakeCrypto()
+                    .encrypt(Buffer.from(value), key)
+                    .toString("base64");
+            }
+            else {
+                val = value;
+            }
+            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`secret`, key, overwrite, ...access, `--org`, org, `--team`, group, `--value`, val, secret ? "--encrypted" : "--public"));
+            if (secret === true) {
+                fs_1.default.rmSync(path_1.default.join(struct.pathToRoot, ".merrymake", ".key"), {
+                    force: true,
+                    recursive: true,
+                });
+            }
         }
         catch (e) {
             throw e;

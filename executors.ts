@@ -24,6 +24,7 @@ import { RED, BLUE, YELLOW, NORMAL_COLOR, GREEN } from "./prompt";
 import path from "path";
 import { getArgs } from "./args";
 import { stdout } from "process";
+import { MerrymakeCrypto } from "@merrymake/secret-lib";
 
 async function clone(struct: any, name: string) {
   try {
@@ -172,7 +173,7 @@ export async function createServiceGroup(pth: Path, name: string) {
     console.log("Creating service group...");
     let { org } = fetchOrg();
     fs.mkdirSync(name);
-    await sshReq(`team`, name, `--org`, org.name);
+    console.log(await sshReq(`team`, name, `--org`, org.name));
     process.chdir(before);
   } catch (e) {
     throw e;
@@ -496,9 +497,26 @@ export async function do_envvar(
   key: string,
   value: string,
   access: string[],
-  visibility: string
+  secret: boolean
 ) {
   try {
+    let struct = fetchOrgRaw();
+    let val: string;
+    if (secret === true) {
+      let repoBase = `${GIT_HOST}/${org}/${group}/.key`;
+      await execPromise(
+        `git clone -q "${repoBase}"`,
+        path.join(struct.pathToRoot!, ".merrymake")
+      );
+      let key = fs.readFileSync(
+        path.join(struct.pathToRoot!, ".merrymake", ".key", "merrymake.key")
+      );
+      val = new MerrymakeCrypto()
+        .encrypt(Buffer.from(value), key)
+        .toString("base64");
+    } else {
+      val = value;
+    }
     output2(
       await sshReq(
         `secret`,
@@ -510,10 +528,16 @@ export async function do_envvar(
         `--team`,
         group,
         `--value`,
-        value,
-        visibility
+        val,
+        secret ? "--encrypted" : "--public"
       )
     );
+    if (secret === true) {
+      fs.rmSync(path.join(struct.pathToRoot!, ".merrymake", ".key"), {
+        force: true,
+        recursive: true,
+      });
+    }
   } catch (e) {
     throw e;
   }

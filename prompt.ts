@@ -84,6 +84,7 @@ function getCursorPosition() {
 }
 
 let command = "$ " + process.env["COMMAND"];
+let hasSecret = false;
 
 function makeSelectionSuperInternal(
   action: () => Promise<never>,
@@ -103,18 +104,22 @@ function makeSelectionInternal(option: Option, extra: () => void) {
 }
 function makeSelection(option: Option) {
   return makeSelectionInternal(option, () => {
-    output("\n");
-    output(
-      (command +=
-        " " + (option.long.includes(" ") ? `'${option.long}'` : option.long))
-    );
+    if (hasSecret === false) {
+      output("\n");
+      output(
+        (command +=
+          " " + (option.long.includes(" ") ? `'${option.long}'` : option.long))
+      );
+    }
     output("\n");
   });
 }
 function makeSelectionQuietly(option: Option) {
   return makeSelectionInternal(option, () => {
-    command +=
-      " " + (option.long.includes(" ") ? `'${option.long}'` : option.long);
+    if (hasSecret === false) {
+      command +=
+        " " + (option.long.includes(" ") ? `'${option.long}'` : option.long);
+    }
   });
 }
 
@@ -436,12 +441,18 @@ export function spinner_stop() {
   }
 }
 
+export enum Visibility {
+  Secret,
+  Public,
+}
 export function shortText(
   prompt: string,
   description: string,
-  defaultValueArg: string | null
+  defaultValueArg: string | null,
+  hide = Visibility.Public
 ) {
   return new Promise<string>((resolve) => {
+    if (hide === Visibility.Secret) hasSecret = true;
     let defaultValue = defaultValueArg === null ? "" : defaultValueArg;
     if (getArgs()[0] !== undefined) {
       let result = getArgs()[0] === "_" ? defaultValue : getArgs()[0];
@@ -488,16 +499,18 @@ export function shortText(
           cleanup();
           let combinedStr = beforeCursor + afterCursor;
           let result = combinedStr.length === 0 ? defaultValue : combinedStr;
-          output("\n");
-          output(
-            (command +=
-              " " +
-              (result.length === 0
-                ? "_"
-                : result.includes(" ")
-                ? `'${result}'`
-                : result))
-          );
+          if (hasSecret === false) {
+            output("\n");
+            output(
+              (command +=
+                " " +
+                (result.length === 0
+                  ? "_"
+                  : result.includes(" ")
+                  ? `'${result}'`
+                  : result))
+            );
+          }
           output("\n");
           if (listener !== undefined) stdin.removeListener("data", listener);
           resolve(result);
@@ -514,20 +527,32 @@ export function shortText(
             beforeCursor.charAt(beforeCursor.length - 1) + afterCursor;
           beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);
           stdout.clearLine(1);
-          output(beforeCursor + afterCursor);
+          output(
+            hide === Visibility.Secret
+              ? (beforeCursor + afterCursor).replace(/./g, "*")
+              : beforeCursor + afterCursor
+          );
           moveCursor(-afterCursor.length, 0);
         } else if (k === RIGHT && afterCursor.length > 0) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += afterCursor.charAt(0);
           afterCursor = afterCursor.substring(1);
           stdout.clearLine(1);
-          output(beforeCursor + afterCursor);
+          output(
+            hide === Visibility.Secret
+              ? (beforeCursor + afterCursor).replace(/./g, "*")
+              : beforeCursor + afterCursor
+          );
           moveCursor(-afterCursor.length, 0);
         } else if (k === DELETE && afterCursor.length > 0) {
           moveCursor(-beforeCursor.length, 0);
           afterCursor = afterCursor.substring(1);
           stdout.clearLine(1);
-          output(beforeCursor + afterCursor);
+          output(
+            hide === Visibility.Secret
+              ? (beforeCursor + afterCursor).replace(/./g, "*")
+              : beforeCursor + afterCursor
+          );
           moveCursor(-afterCursor.length, 0);
         } else if (
           (k === BACKSPACE ||
@@ -538,13 +563,21 @@ export function shortText(
           moveCursor(-beforeCursor.length, 0);
           beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);
           stdout.clearLine(1);
-          output(beforeCursor + afterCursor);
+          output(
+            hide === Visibility.Secret
+              ? (beforeCursor + afterCursor).replace(/./g, "*")
+              : beforeCursor + afterCursor
+          );
           moveCursor(-afterCursor.length, 0);
         } else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+<>()\[\]{}\\]+$/.test(k)) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += k;
           stdout.clearLine(1);
-          output(beforeCursor + afterCursor);
+          output(
+            hide === Visibility.Secret
+              ? (beforeCursor + afterCursor).replace(/./g, "*")
+              : beforeCursor + afterCursor
+          );
           moveCursor(-afterCursor.length, 0);
         }
         // write the key to stdout all normal like

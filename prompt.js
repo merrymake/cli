@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exit = exports.shortText = exports.spinner_stop = exports.spinner_start = exports.multiSelect = exports.choice = exports.output = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
+exports.exit = exports.shortText = exports.Visibility = exports.spinner_stop = exports.spinner_start = exports.multiSelect = exports.choice = exports.output = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
 const node_process_1 = require("node:process");
 const args_1 = require("./args");
 const utils_1 = require("./utils");
@@ -78,6 +78,7 @@ function getCursorPosition() {
     return [xOffset, yOffset];
 }
 let command = "$ " + process.env["COMMAND"];
+let hasSecret = false;
 function makeSelectionSuperInternal(action, extra = () => { }) {
     moveToBottom();
     cleanup();
@@ -91,16 +92,20 @@ function makeSelectionInternal(option, extra) {
 }
 function makeSelection(option) {
     return makeSelectionInternal(option, () => {
-        output("\n");
-        output((command +=
-            " " + (option.long.includes(" ") ? `'${option.long}'` : option.long)));
+        if (hasSecret === false) {
+            output("\n");
+            output((command +=
+                " " + (option.long.includes(" ") ? `'${option.long}'` : option.long)));
+        }
         output("\n");
     });
 }
 function makeSelectionQuietly(option) {
     return makeSelectionInternal(option, () => {
-        command +=
-            " " + (option.long.includes(" ") ? `'${option.long}'` : option.long);
+        if (hasSecret === false) {
+            command +=
+                " " + (option.long.includes(" ") ? `'${option.long}'` : option.long);
+        }
     });
 }
 let listener;
@@ -378,8 +383,15 @@ function spinner_stop() {
     }
 }
 exports.spinner_stop = spinner_stop;
-function shortText(prompt, description, defaultValueArg) {
+var Visibility;
+(function (Visibility) {
+    Visibility[Visibility["Secret"] = 0] = "Secret";
+    Visibility[Visibility["Public"] = 1] = "Public";
+})(Visibility || (exports.Visibility = Visibility = {}));
+function shortText(prompt, description, defaultValueArg, hide = Visibility.Public) {
     return new Promise((resolve) => {
+        if (hide === Visibility.Secret)
+            hasSecret = true;
         let defaultValue = defaultValueArg === null ? "" : defaultValueArg;
         if ((0, args_1.getArgs)()[0] !== undefined) {
             let result = (0, args_1.getArgs)()[0] === "_" ? defaultValue : (0, args_1.getArgs)()[0];
@@ -422,14 +434,16 @@ function shortText(prompt, description, defaultValueArg) {
                 cleanup();
                 let combinedStr = beforeCursor + afterCursor;
                 let result = combinedStr.length === 0 ? defaultValue : combinedStr;
-                output("\n");
-                output((command +=
-                    " " +
-                        (result.length === 0
-                            ? "_"
-                            : result.includes(" ")
-                                ? `'${result}'`
-                                : result)));
+                if (hasSecret === false) {
+                    output("\n");
+                    output((command +=
+                        " " +
+                            (result.length === 0
+                                ? "_"
+                                : result.includes(" ")
+                                    ? `'${result}'`
+                                    : result)));
+                }
                 output("\n");
                 if (listener !== undefined)
                     node_process_1.stdin.removeListener("data", listener);
@@ -450,7 +464,9 @@ function shortText(prompt, description, defaultValueArg) {
                     beforeCursor.charAt(beforeCursor.length - 1) + afterCursor;
                 beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);
                 node_process_1.stdout.clearLine(1);
-                output(beforeCursor + afterCursor);
+                output(hide === Visibility.Secret
+                    ? (beforeCursor + afterCursor).replace(/./g, "*")
+                    : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
             else if (k === exports.RIGHT && afterCursor.length > 0) {
@@ -458,14 +474,18 @@ function shortText(prompt, description, defaultValueArg) {
                 beforeCursor += afterCursor.charAt(0);
                 afterCursor = afterCursor.substring(1);
                 node_process_1.stdout.clearLine(1);
-                output(beforeCursor + afterCursor);
+                output(hide === Visibility.Secret
+                    ? (beforeCursor + afterCursor).replace(/./g, "*")
+                    : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
             else if (k === exports.DELETE && afterCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 afterCursor = afterCursor.substring(1);
                 node_process_1.stdout.clearLine(1);
-                output(beforeCursor + afterCursor);
+                output(hide === Visibility.Secret
+                    ? (beforeCursor + afterCursor).replace(/./g, "*")
+                    : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
             else if ((k === exports.BACKSPACE ||
@@ -475,14 +495,18 @@ function shortText(prompt, description, defaultValueArg) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);
                 node_process_1.stdout.clearLine(1);
-                output(beforeCursor + afterCursor);
+                output(hide === Visibility.Secret
+                    ? (beforeCursor + afterCursor).replace(/./g, "*")
+                    : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
             else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+<>()\[\]{}\\]+$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
                 node_process_1.stdout.clearLine(1);
-                output(beforeCursor + afterCursor);
+                output(hide === Visibility.Secret
+                    ? (beforeCursor + afterCursor).replace(/./g, "*")
+                    : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
             // write the key to stdout all normal like

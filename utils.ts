@@ -14,6 +14,7 @@ import {
   spinner_start,
   spinner_stop,
   output,
+  BLUE,
 } from "./prompt";
 
 export class Path {
@@ -47,6 +48,7 @@ const toExecute: (() => void)[] = [];
 let dryrun = false;
 
 export function setDryrun() {
+  output2(`${BLUE}Dryrun mode, changes will not be performed.${NORMAL_COLOR}`);
   dryrun = true;
 }
 export function addToExecuteQueue(f: () => void) {
@@ -229,7 +231,7 @@ export function execStreamPromise(
 }
 
 function sshReqInternal(cmd: string) {
-  return execPromise(`ssh mist@${SSH_HOST} "${cmd}"`);
+  return execPromise(`ssh -o ConnectTimeout=10 mist@${SSH_HOST} "${cmd}"`);
 }
 export async function sshReq(...cmd: string[]) {
   try {
