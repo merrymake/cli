@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_delete_org = exports.do_delete_group = exports.do_delete_service = exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_inspect = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_delete_org = exports.do_delete_group = exports.do_delete_service = exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_replay = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -95,11 +95,8 @@ function createFolderStructure(struct, prefix, org, team) {
                             fs_1.default.mkdirSync(dir, { recursive: true });
                         }
                         if (!fs_1.default.existsSync(dir + "/.git")) {
-                            (0, utils_1.output2)("Here1 " + dir);
                             yield (0, utils_1.execPromise)(`git init --initial-branch=main`, dir);
-                            (0, utils_1.output2)("Here2 " + dir);
                             yield (0, utils_1.execPromise)(`git remote add origin ${repo}`, dir);
-                            (0, utils_1.output2)("Here3 " + dir);
                             fs_1.default.writeFileSync(dir + "/fetch.bat", `@echo off
 git fetch
 git reset --hard origin/main
@@ -108,7 +105,8 @@ del fetch.sh
                             fs_1.default.writeFileSync(dir + "/fetch.sh", `#!/bin/sh
 git fetch
 git reset --hard origin/main
-rm fetch.bat fetch.sh`);
+rm fetch.bat fetch.sh`, {});
+                            fs_1.default.chmodSync(dir + "/fetch.sh", "755");
                         }
                         else {
                             yield (0, utils_1.execPromise)(`git remote set-url origin ${repo}`, dir);
@@ -422,22 +420,18 @@ function do_build() {
     });
 }
 exports.do_build = do_build;
-function do_inspect(org, id, river) {
+function do_replay(org, id, river) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let res = JSON.parse(yield (0, utils_1.sshReq)(`inspect`, id, `--river`, river, `--org`, `${org}`));
-            let resout = res.output;
-            delete res.output;
-            console.log(res);
-            (0, utils_1.output2)("Output:");
-            (0, utils_1.output2)(resout);
+            yield (0, utils_1.sshReq)(`replay`, id, `--river`, river, `--org`, `${org}`);
+            (0, utils_1.output2)("Replayed event.");
         }
         catch (e) {
             throw e;
         }
     });
 }
-exports.do_inspect = do_inspect;
+exports.do_replay = do_replay;
 function do_key(org, key, name, duration) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -523,7 +517,7 @@ function alignLeft(str, width) {
 exports.alignLeft = alignLeft;
 function printTableHeader(prefix, widths) {
     if ((0, args_1.getArgs)().length > 0)
-        return;
+        return "";
     let totalWidth = process_1.stdout.getWindowSize()[0] - prefix.length;
     let vals = Object.values(widths);
     let rest = totalWidth -
@@ -533,12 +527,13 @@ function printTableHeader(prefix, widths) {
         Object.keys(widths)
             .map((k) => k.trim().padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
             .join(" │ ");
-    (0, utils_1.output2)(header);
+    let result = header + "\n";
     let divider = prefix +
         Object.keys(widths)
             .map((k) => "─".repeat(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
             .join("─┼─");
-    (0, utils_1.output2)(divider);
+    result += divider;
+    return result;
 }
 exports.printTableHeader = printTableHeader;
 function do_queue_time(org, time) {
@@ -546,13 +541,13 @@ function do_queue_time(org, time) {
         try {
             let resp = yield (0, utils_1.sshReq)(`queue`, `--org`, org, `--time`, "" + time);
             let queue = JSON.parse(resp);
-            printTableHeader("", {
+            (0, utils_1.output2)(printTableHeader("", {
                 Id: 6,
                 River: 12,
                 Event: 12,
                 Status: 7,
                 "Queue time": 20,
-            });
+            }));
             queue.forEach((x) => (0, utils_1.output2)(`${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${alignLeft(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`));
         }
         catch (e) {

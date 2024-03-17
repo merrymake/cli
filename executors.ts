@@ -105,11 +105,8 @@ async function createFolderStructure(
             fs.mkdirSync(dir, { recursive: true });
           }
           if (!fs.existsSync(dir + "/.git")) {
-            output2("Here1 " + dir);
             await execPromise(`git init --initial-branch=main`, dir);
-            output2("Here2 " + dir);
             await execPromise(`git remote add origin ${repo}`, dir);
-            output2("Here3 " + dir);
             fs.writeFileSync(
               dir + "/fetch.bat",
               `@echo off
@@ -123,8 +120,10 @@ del fetch.sh
               `#!/bin/sh
 git fetch
 git reset --hard origin/main
-rm fetch.bat fetch.sh`
+rm fetch.bat fetch.sh`,
+              {}
             );
+            fs.chmodSync(dir + "/fetch.sh", "755");
           } else {
             await execPromise(`git remote set-url origin ${repo}`, dir);
           }
@@ -444,16 +443,10 @@ export async function do_build() {
   }
 }
 
-export async function do_inspect(org: string, id: string, river: string) {
+export async function do_replay(org: string, id: string, river: string) {
   try {
-    let res = JSON.parse(
-      await sshReq(`inspect`, id, `--river`, river, `--org`, `${org}`)
-    );
-    let resout = res.output;
-    delete res.output;
-    console.log(res);
-    output2("Output:");
-    output2(resout);
+    await sshReq(`replay`, id, `--river`, river, `--org`, `${org}`);
+    output2("Replayed event.");
   } catch (e) {
     throw e;
   }
@@ -590,7 +583,7 @@ export function printTableHeader(
   prefix: string,
   widths: { [key: string]: number }
 ) {
-  if (getArgs().length > 0) return;
+  if (getArgs().length > 0) return "";
   let totalWidth = stdout.getWindowSize()[0] - prefix.length;
   let vals = Object.values(widths);
   let rest =
@@ -604,7 +597,7 @@ export function printTableHeader(
         k.trim().padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
       )
       .join(" │ ");
-  output2(header);
+  let result = header + "\n";
   let divider =
     prefix +
     Object.keys(widths)
@@ -612,7 +605,8 @@ export function printTableHeader(
         "─".repeat(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
       )
       .join("─┼─");
-  output2(divider);
+  result += divider;
+  return result;
 }
 
 export async function do_queue_time(org: string, time: number) {
@@ -625,13 +619,15 @@ export async function do_queue_time(org: string, time: number) {
       r: string;
       s: string;
     }[] = JSON.parse(resp);
-    printTableHeader("", {
-      Id: 6,
-      River: 12,
-      Event: 12,
-      Status: 7,
-      "Queue time": 20,
-    });
+    output2(
+      printTableHeader("", {
+        Id: 6,
+        River: 12,
+        Event: 12,
+        Status: 7,
+        "Queue time": 20,
+      })
+    );
     queue.forEach((x) =>
       output2(
         `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${alignLeft(

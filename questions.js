@@ -98,7 +98,7 @@ function service_template(pathToService, template) {
                     }) }));
             }))()));
             langs.sort((a, b) => b.weight - a.weight);
-            return yield (0, prompt_1.choice)(langs.map((x) => ({
+            return yield (0, prompt_1.choice)("Which programming language would you like to use?", langs.map((x) => ({
                 long: x.long,
                 short: x.short,
                 text: x.long,
@@ -117,7 +117,7 @@ function duplicate_service_deploy(pathToService, org, group, service, deploy) {
     return (0, utils_1.finish)();
 }
 function duplicate_service(pathToService, org, group, service) {
-    return (0, prompt_1.choice)([
+    return (0, prompt_1.choice)("Would you also like to deploy the new service?", [
         {
             long: "deploy",
             short: "d",
@@ -137,7 +137,7 @@ function duplicate(pathToService, org, group) {
         try {
             let resp = yield (0, utils_1.sshReq)(`list-services`, `--org`, org, `--team`, group);
             let repos = JSON.parse(resp);
-            return yield (0, prompt_1.choice)(repos.map((x) => ({
+            return yield (0, prompt_1.choice)("Which service would you like to duplicate?", repos.map((x) => ({
                 long: x,
                 text: `${x}`,
                 action: () => duplicate_service(pathToService, org, group, x),
@@ -178,7 +178,7 @@ function service(pathToGroup, org, group) {
                 text: "just an empty repository",
                 action: () => (0, utils_1.finish)(),
             });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.choice)("What would you like the new repo to contain?", options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -272,7 +272,7 @@ function register() {
                     action: () => register_key(executors_1.generateNewKey),
                 });
             }
-            return yield (0, prompt_1.choice)(keys, {
+            return yield (0, prompt_1.choice)("Which SSH key would you like to use?", keys, {
                 invertedQuiet: { cmd: false, select: true },
                 def: keys.length - 1,
             }).then((x) => x);
@@ -286,10 +286,6 @@ function checkout_org(org) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_clone)(org));
     return (0, utils_1.finish)();
 }
-function queue_event(org, id, river) {
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_inspect)(org, id, river));
-    return (0, utils_1.finish)();
-}
 function checkout() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -299,9 +295,9 @@ function checkout() {
             }
             let resp = yield (0, utils_1.sshReq)(`list-organizations`);
             let orgs = JSON.parse(resp);
-            return yield (0, prompt_1.choice)(orgs.map((x) => ({
+            return yield (0, prompt_1.choice)("Which organization would you like to clone?", orgs.map((x) => ({
                 long: x,
-                text: `checkout ${x}`,
+                text: `${x}`,
                 action: () => checkout_org(x),
             }))).then((x) => x);
         }
@@ -310,15 +306,41 @@ function checkout() {
         }
     });
 }
+function queue_event_replay(org, id, river) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_replay)(org, id, river));
+    return (0, utils_1.finish)();
+}
+function queue_event(org, id, river) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let res = JSON.parse(yield (0, utils_1.sshReq)(`inspect`, id, `--river`, river, `--org`, org));
+            let resout = res.output;
+            delete res.output;
+            console.log(res);
+            (0, utils_1.output2)("Output:");
+            (0, utils_1.output2)(resout);
+            return (0, prompt_1.choice)("Do you want to replay this service invocation?", [
+                {
+                    long: "replay",
+                    text: "replay service invocation",
+                    action: () => queue_event_replay(org, id, river),
+                },
+            ], { disableAutoPick: true });
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
 let cache_queue;
 function queue_id(org, id) {
-    (0, executors_1.printTableHeader)("      ", {
+    let tableHeader = (0, executors_1.printTableHeader)("      ", {
         River: 12,
         Event: 12,
         Status: 7,
         "Queue time": 23,
     });
-    return (0, prompt_1.choice)(cache_queue
+    return (0, prompt_1.choice)("Which event would you like to inspect?\n" + tableHeader, cache_queue
         .filter((x) => x.id === id)
         .map((x) => ({
         long: x.r,
@@ -350,19 +372,23 @@ function queue(org, offset) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let options;
+            let tableHeader;
             if (["time", "next"].includes((0, args_1.getArgs)()[0])) {
                 options = [];
+                tableHeader = "";
             }
             else {
                 let resp = yield (0, utils_1.sshReq)(`queue`, `--org`, org, "--count", "" + QUEUE_COUNT, "--offset", "" + offset);
                 cache_queue = JSON.parse(resp);
-                (0, executors_1.printTableHeader)("      ", {
-                    Id: 6,
-                    River: 12,
-                    Event: 12,
-                    Status: 7,
-                    "Queue time": 20,
-                });
+                tableHeader =
+                    "\n" +
+                        (0, executors_1.printTableHeader)("      ", {
+                            Id: 6,
+                            River: 12,
+                            Event: 12,
+                            Status: 7,
+                            "Queue time": 20,
+                        });
                 options = cache_queue.map((x) => ({
                     long: x.id,
                     text: `${x.id} │ ${(0, executors_1.alignRight)(x.r, 12)} │ ${(0, executors_1.alignLeft)(x.e, 12)} │ ${(0, executors_1.alignLeft)(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`,
@@ -385,7 +411,7 @@ function queue(org, offset) {
                 text: `specify time`,
                 action: () => queue_time(org),
             });
-            return yield (0, prompt_1.choice)(options, {
+            return yield (0, prompt_1.choice)("Which event would you like to inspect?" + tableHeader, options, {
                 invertedQuiet: { cmd: false, select: false },
             }).then((x) => x);
         }
@@ -447,13 +473,16 @@ function keys(org) {
                 text: `add a new apikey`,
                 action: () => keys_key(org, null, ""),
             });
+            let tableHeader = "";
             if (options.length > 1)
-                (0, executors_1.printTableHeader)("      ", {
-                    Key: 36,
-                    Description: -12,
-                    "Expiry time": 23,
-                });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+                tableHeader =
+                    "\n" +
+                        (0, executors_1.printTableHeader)("      ", {
+                            Key: 36,
+                            Description: -12,
+                            "Expiry time": 23,
+                        });
+            return yield (0, prompt_1.choice)("Which apikey would you like to edit?" + tableHeader, options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -472,7 +501,7 @@ function roles_user_attach(org, user) {
                     action: () => roles_user_attach_role(org, user, role),
                 };
             });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.choice)("Which role would you like to assign?", options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -495,7 +524,7 @@ function roles_user(org, user) {
                 text: `remove all roles and access`,
                 action: () => roles_user_attach_role(org, user, "Pending"),
             });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.choice)("What would you like to do?", options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -514,7 +543,7 @@ function roles_auto_new_domain(org, domain) {
                     action: () => roles_auto_domain_role(org, domain, role),
                 };
             });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.choice)("Which role should new users get?", options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -556,7 +585,7 @@ function roles_auto(org) {
                 text: `setup a new domain rule`,
                 action: () => roles_auto_new(org),
             });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.choice)("What would you like to do?", options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -587,7 +616,7 @@ function roles(org) {
                 text: `configure domain auto approval`,
                 action: () => roles_auto(org),
             });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.choice)("Which user do you want to manage?", options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -599,11 +628,11 @@ function envvar_key_value_access_visible(org, group, overwrite, key, value, acce
     return (0, utils_1.finish)();
 }
 function envvar_key_visible_value(org, group, overwrite, key, value, secret) {
-    return (0, prompt_1.choice)([
+    return (0, prompt_1.choice)("Where would you like the variable to be visible?", [
         {
             long: "both",
             short: "b",
-            text: "accessible in both prod and test",
+            text: "accessible in both prod and smoke test",
             action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, ["--prod", "--test"], secret),
         },
         {
@@ -615,7 +644,7 @@ function envvar_key_visible_value(org, group, overwrite, key, value, secret) {
         {
             long: "test",
             short: "t",
-            text: "accessible in test",
+            text: "accessible in smoke test",
             action: () => envvar_key_value_access_visible(org, group, overwrite, key, value, ["--test"], secret),
         },
     ]);
@@ -635,11 +664,11 @@ function envvar_key_visible(org, group, overwrite, key, secret) {
     });
 }
 function envvar_key(org, group, overwrite, key) {
-    return (0, prompt_1.choice)([
+    return (0, prompt_1.choice)("What is the visibility of the variable?", [
         {
             long: "secret",
             short: "s",
-            text: "keep the value secret",
+            text: "the value is secret",
             action: () => envvar_key_visible(org, group, overwrite, key, true),
         },
         {
@@ -647,6 +676,12 @@ function envvar_key(org, group, overwrite, key) {
             short: "p",
             text: "the value is public",
             action: () => envvar_key_visible(org, group, overwrite, key, false),
+        },
+        {
+            long: "delete",
+            short: "d",
+            text: "delete the environment variable",
+            action: () => envvar_key_value_access_visible(org, group, overwrite, key, "", ["--prod", "--test"], false),
         },
     ]);
 }
@@ -677,7 +712,7 @@ function envvar(org, group) {
                 text: `add a new environment variable`,
                 action: () => envvar_new(org, group),
             });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+            return yield (0, prompt_1.choice)("Which environment variable do you want to edit?", options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -700,7 +735,7 @@ function post_event_key_payloadType(eventType, key, contentType) {
     });
 }
 function post_event_key(eventType, key) {
-    return (0, prompt_1.choice)([
+    return (0, prompt_1.choice)("What type of payload should the event use?", [
         {
             long: "empty",
             short: "e",
@@ -738,7 +773,7 @@ function post_event(org, eventType) {
                     action: () => post_event_key(eventType, x.key),
                 };
             });
-            return yield (0, prompt_1.choice)(options, {
+            return yield (0, prompt_1.choice)("Which key to post through?", options, {
                 errorMessage: `Organization has no active API keys. You can create one with '${prompt_1.YELLOW}${process.env["COMMAND"]} key${prompt_1.NORMAL_COLOR}'`,
             }).then((x) => x);
         }
@@ -793,9 +828,10 @@ function event(org) {
                 text: `add a new apikey`,
                 action: () => keys_key(org, null, ""),
             });
+            let tableHeader = "";
             if (options.length > 1)
-                (0, executors_1.printTableHeader)("      ", { Key: 36, Name: -12 });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+                tableHeader = "\n" + (0, executors_1.printTableHeader)("      ", { Key: 36, Name: -12 });
+            return yield (0, prompt_1.choice)("Which key to allow events through?" + tableHeader, options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -807,7 +843,7 @@ function delete_service(org, group) {
         try {
             let resp = yield (0, utils_1.sshReq)(`list-services`, `--org`, org, `--team`, group);
             let orgs = JSON.parse(resp);
-            return yield (0, prompt_1.choice)(orgs.map((x) => ({
+            return yield (0, prompt_1.choice)("Which SERVICE do you want to delete?", orgs.map((x) => ({
                 long: x,
                 text: `delete ${x}`,
                 action: () => delete_service_name(org, group, x),
@@ -823,7 +859,7 @@ function delete_group(org) {
         try {
             let resp = yield (0, utils_1.sshReq)(`list-teams`, `--org`, org);
             let orgs = JSON.parse(resp);
-            return yield (0, prompt_1.choice)(orgs.map((x) => ({
+            return yield (0, prompt_1.choice)("Which service GROUP do you want to delete?", orgs.map((x) => ({
                 long: x,
                 text: `delete ${x}`,
                 action: () => delete_group_name(org, x),
@@ -839,7 +875,7 @@ function delete_org() {
         try {
             let resp = yield (0, utils_1.sshReq)(`list-organizations`);
             let orgs = JSON.parse(resp);
-            return yield (0, prompt_1.choice)(orgs.map((x) => ({
+            return yield (0, prompt_1.choice)("Which ORGANIZATION do you want to delete?", orgs.map((x) => ({
                 long: x,
                 text: `delete ${x}`,
                 action: () => delete_org_name(x),
@@ -925,9 +961,12 @@ function cron(org) {
                 text: `setup a new cron job`,
                 action: () => cron_new(org),
             });
+            let tableHeader = "";
             if (options.length > 1)
-                (0, executors_1.printTableHeader)("      ", { Name: 30, Event: 18, Expression: 20 });
-            return yield (0, prompt_1.choice)(options).then((x) => x);
+                tableHeader =
+                    "\n" +
+                        (0, executors_1.printTableHeader)("      ", { Name: 30, Event: 18, Expression: 20 });
+            return yield (0, prompt_1.choice)("Which cron job do you want to edit?" + tableHeader, options).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -1144,7 +1183,7 @@ function start() {
                     text: "help diagnose potential issues",
                     action: () => help(),
                 });
-                return yield (0, prompt_1.choice)(options).then((x) => x);
+                return yield (0, prompt_1.choice)("What would you like to do?", options).then((x) => x);
             }
             else {
                 let cache = (0, utils_1.getCache)();
@@ -1197,7 +1236,7 @@ function start() {
                     weight: 0,
                 });
                 options.sort((a, b) => b.weight - a.weight);
-                return yield (0, prompt_1.choice)(options).then((x) => x);
+                return yield (0, prompt_1.choice)("What would you like to do?", options).then((x) => x);
             }
         }
         catch (e) {

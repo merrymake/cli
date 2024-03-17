@@ -39,7 +39,6 @@ import {
   generateNewKey,
   useExistingKey,
   do_fetch,
-  do_inspect,
   do_key,
   do_envvar,
   do_cron,
@@ -60,6 +59,7 @@ import {
   do_delete_service,
   do_delete_group,
   do_delete_org,
+  do_replay,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -166,6 +166,7 @@ async function service_template(pathToService: Path, template: string) {
     );
     langs.sort((a, b) => b.weight - a.weight);
     return await choice(
+      "Which programming language would you like to use?",
       langs.map((x) => ({
         long: x.long,
         short: x.short,
@@ -197,7 +198,7 @@ function duplicate_service(
   group: string,
   service: string
 ) {
-  return choice([
+  return choice("Would you also like to deploy the new service?", [
     {
       long: "deploy",
       short: "d",
@@ -220,6 +221,7 @@ async function duplicate(pathToService: Path, org: string, group: string) {
     let resp = await sshReq(`list-services`, `--org`, org, `--team`, group);
     let repos: string[] = JSON.parse(resp);
     return await choice(
+      "Which service would you like to duplicate?",
       repos.map((x) => ({
         long: x,
         text: `${x}`,
@@ -265,7 +267,10 @@ async function service(pathToGroup: Path, org: string, group: string) {
       text: "just an empty repository",
       action: () => finish(),
     });
-    return await choice(options).then((x) => x);
+    return await choice(
+      "What would you like the new repo to contain?",
+      options
+    ).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -367,7 +372,7 @@ async function register() {
         action: () => register_key(generateNewKey),
       });
     }
-    return await choice(keys, {
+    return await choice("Which SSH key would you like to use?", keys, {
       invertedQuiet: { cmd: false, select: true },
       def: keys.length - 1,
     }).then((x) => x);
@@ -381,11 +386,6 @@ function checkout_org(org: string) {
   return finish();
 }
 
-function queue_event(org: string, id: string, river: string) {
-  addToExecuteQueue(() => do_inspect(org, id, river));
-  return finish();
-}
-
 async function checkout() {
   try {
     if (getArgs().length > 0 && getArgs()[0] !== "_") {
@@ -395,12 +395,44 @@ async function checkout() {
     let resp = await sshReq(`list-organizations`);
     let orgs: string[] = JSON.parse(resp);
     return await choice(
+      "Which organization would you like to clone?",
       orgs.map((x) => ({
         long: x,
-        text: `checkout ${x}`,
+        text: `${x}`,
         action: () => checkout_org(x),
       }))
     ).then((x) => x);
+  } catch (e) {
+    throw e;
+  }
+}
+
+function queue_event_replay(org: string, id: string, river: string) {
+  addToExecuteQueue(() => do_replay(org, id, river));
+  return finish();
+}
+
+async function queue_event(org: string, id: string, river: string) {
+  try {
+    let res = JSON.parse(
+      await sshReq(`inspect`, id, `--river`, river, `--org`, org)
+    );
+    let resout = res.output;
+    delete res.output;
+    console.log(res);
+    output2("Output:");
+    output2(resout);
+    return choice(
+      "Do you want to replay this service invocation?",
+      [
+        {
+          long: "replay",
+          text: "replay service invocation",
+          action: () => queue_event_replay(org, id, river),
+        },
+      ],
+      { disableAutoPick: true }
+    );
   } catch (e) {
     throw e;
   }
@@ -415,13 +447,14 @@ let cache_queue: {
 }[];
 
 function queue_id(org: string, id: string) {
-  printTableHeader("      ", {
+  let tableHeader = printTableHeader("      ", {
     River: 12,
     Event: 12,
     Status: 7,
     "Queue time": 23,
   });
   return choice(
+    "Which event would you like to inspect?\n" + tableHeader,
     cache_queue
       .filter((x) => x.id === id)
       .map((x) => ({
@@ -470,8 +503,10 @@ const QUEUE_COUNT = 15;
 async function queue(org: string, offset: number) {
   try {
     let options: Option[];
+    let tableHeader: string;
     if (["time", "next"].includes(getArgs()[0])) {
       options = [];
+      tableHeader = "";
     } else {
       let resp = await sshReq(
         `queue`,
@@ -483,13 +518,15 @@ async function queue(org: string, offset: number) {
         "" + offset
       );
       cache_queue = JSON.parse(resp);
-      printTableHeader("      ", {
-        Id: 6,
-        River: 12,
-        Event: 12,
-        Status: 7,
-        "Queue time": 20,
-      });
+      tableHeader =
+        "\n" +
+        printTableHeader("      ", {
+          Id: 6,
+          River: 12,
+          Event: 12,
+          Status: 7,
+          "Queue time": 20,
+        });
       options = cache_queue.map((x) => ({
         long: x.id,
         text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(
@@ -514,9 +551,13 @@ async function queue(org: string, offset: number) {
       text: `specify time`,
       action: () => queue_time(org),
     });
-    return await choice(options, {
-      invertedQuiet: { cmd: false, select: false },
-    }).then((x) => x);
+    return await choice(
+      "Which event would you like to inspect?" + tableHeader,
+      options,
+      {
+        invertedQuiet: { cmd: false, select: false },
+      }
+    ).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -591,13 +632,19 @@ async function keys(org: string) {
       text: `add a new apikey`,
       action: () => keys_key(org, null, ""),
     });
+    let tableHeader = "";
     if (options.length > 1)
-      printTableHeader("      ", {
-        Key: 36,
-        Description: -12,
-        "Expiry time": 23,
-      });
-    return await choice(options).then((x) => x);
+      tableHeader =
+        "\n" +
+        printTableHeader("      ", {
+          Key: 36,
+          Description: -12,
+          "Expiry time": 23,
+        });
+    return await choice(
+      "Which apikey would you like to edit?" + tableHeader,
+      options
+    ).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -614,7 +661,9 @@ async function roles_user_attach(org: string, user: string) {
         action: () => roles_user_attach_role(org, user, role),
       };
     });
-    return await choice(options).then((x) => x);
+    return await choice("Which role would you like to assign?", options).then(
+      (x) => x
+    );
   } catch (e) {
     throw e;
   }
@@ -635,7 +684,7 @@ async function roles_user(org: string, user: string) {
       text: `remove all roles and access`,
       action: () => roles_user_attach_role(org, user, "Pending"),
     });
-    return await choice(options).then((x) => x);
+    return await choice("What would you like to do?", options).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -652,7 +701,9 @@ async function roles_auto_new_domain(org: string, domain: string) {
         action: () => roles_auto_domain_role(org, domain, role),
       };
     });
-    return await choice(options).then((x) => x);
+    return await choice("Which role should new users get?", options).then(
+      (x) => x
+    );
   } catch (e) {
     throw e;
   }
@@ -693,7 +744,7 @@ async function roles_auto(org: string) {
       text: `setup a new domain rule`,
       action: () => roles_auto_new(org),
     });
-    return await choice(options).then((x) => x);
+    return await choice("What would you like to do?", options).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -722,7 +773,9 @@ async function roles(org: string) {
       text: `configure domain auto approval`,
       action: () => roles_auto(org),
     });
-    return await choice(options).then((x) => x);
+    return await choice("Which user do you want to manage?", options).then(
+      (x) => x
+    );
   } catch (e) {
     throw e;
   }
@@ -751,11 +804,11 @@ function envvar_key_visible_value(
   value: string,
   secret: boolean
 ) {
-  return choice([
+  return choice("Where would you like the variable to be visible?", [
     {
       long: "both",
       short: "b",
-      text: "accessible in both prod and test",
+      text: "accessible in both prod and smoke test",
       action: () =>
         envvar_key_value_access_visible(
           org,
@@ -785,7 +838,7 @@ function envvar_key_visible_value(
     {
       long: "test",
       short: "t",
-      text: "accessible in test",
+      text: "accessible in smoke test",
       action: () =>
         envvar_key_value_access_visible(
           org,
@@ -844,11 +897,11 @@ function envvar_key(
   overwrite: string,
   key: string
 ) {
-  return choice([
+  return choice("What is the visibility of the variable?", [
     {
       long: "secret",
       short: "s",
-      text: "keep the value secret",
+      text: "the value is secret",
       action: () => envvar_key_visible(org, group, overwrite, key, true),
     },
     {
@@ -856,6 +909,21 @@ function envvar_key(
       short: "p",
       text: "the value is public",
       action: () => envvar_key_visible(org, group, overwrite, key, false),
+    },
+    {
+      long: "delete",
+      short: "d",
+      text: "delete the environment variable",
+      action: () =>
+        envvar_key_value_access_visible(
+          org,
+          group,
+          overwrite,
+          key,
+          "",
+          ["--prod", "--test"],
+          false
+        ),
     },
   ]);
 }
@@ -891,7 +959,10 @@ async function envvar(org: string, group: string) {
       text: `add a new environment variable`,
       action: () => envvar_new(org, group),
     });
-    return await choice(options).then((x) => x);
+    return await choice(
+      "Which environment variable do you want to edit?",
+      options
+    ).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -925,7 +996,7 @@ async function post_event_key_payloadType(
 }
 
 function post_event_key(eventType: string, key: string) {
-  return choice([
+  return choice("What type of payload should the event use?", [
     {
       long: "empty",
       short: "e",
@@ -964,7 +1035,7 @@ async function post_event(org: string, eventType: string) {
         action: () => post_event_key(eventType, x.key),
       };
     });
-    return await choice(options, {
+    return await choice("Which key to post through?", options, {
       errorMessage: `Organization has no active API keys. You can create one with '${YELLOW}${process.env["COMMAND"]} key${NORMAL_COLOR}'`,
     }).then((x) => x);
   } catch (e) {
@@ -1022,8 +1093,13 @@ async function event(org: string) {
       text: `add a new apikey`,
       action: () => keys_key(org, null, ""),
     });
-    if (options.length > 1) printTableHeader("      ", { Key: 36, Name: -12 });
-    return await choice(options).then((x) => x);
+    let tableHeader = "";
+    if (options.length > 1)
+      tableHeader = "\n" + printTableHeader("      ", { Key: 36, Name: -12 });
+    return await choice(
+      "Which key to allow events through?" + tableHeader,
+      options
+    ).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -1034,6 +1110,7 @@ async function delete_service(org: string, group: string) {
     let resp = await sshReq(`list-services`, `--org`, org, `--team`, group);
     let orgs: string[] = JSON.parse(resp);
     return await choice(
+      "Which SERVICE do you want to delete?",
       orgs.map((x) => ({
         long: x,
         text: `delete ${x}`,
@@ -1051,6 +1128,7 @@ async function delete_group(org: string) {
     let resp = await sshReq(`list-teams`, `--org`, org);
     let orgs: string[] = JSON.parse(resp);
     return await choice(
+      "Which service GROUP do you want to delete?",
       orgs.map((x) => ({
         long: x,
         text: `delete ${x}`,
@@ -1068,6 +1146,7 @@ async function delete_org() {
     let resp = await sshReq(`list-organizations`);
     let orgs: string[] = JSON.parse(resp);
     return await choice(
+      "Which ORGANIZATION do you want to delete?",
       orgs.map((x) => ({
         long: x,
         text: `delete ${x}`,
@@ -1185,9 +1264,15 @@ async function cron(org: string) {
       text: `setup a new cron job`,
       action: () => cron_new(org),
     });
+    let tableHeader = "";
     if (options.length > 1)
-      printTableHeader("      ", { Name: 30, Event: 18, Expression: 20 });
-    return await choice(options).then((x) => x);
+      tableHeader =
+        "\n" +
+        printTableHeader("      ", { Name: 30, Event: 18, Expression: 20 });
+    return await choice(
+      "Which cron job do you want to edit?" + tableHeader,
+      options
+    ).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -1424,7 +1509,7 @@ export async function start() {
         action: () => help(),
       });
 
-      return await choice(options).then((x) => x);
+      return await choice("What would you like to do?", options).then((x) => x);
     } else {
       let cache = getCache();
       let options: (Option & { weight: number })[] = [];
@@ -1477,7 +1562,7 @@ export async function start() {
         weight: 0,
       });
       options.sort((a, b) => b.weight - a.weight);
-      return await choice(options).then((x) => x);
+      return await choice("What would you like to do?", options).then((x) => x);
     }
   } catch (e) {
     throw e;

@@ -113,15 +113,13 @@ function cleanup() {
     output(exports.NORMAL_COLOR);
     output(exports.SHOW_CURSOR);
 }
-function choice(options, opts) {
+function choice(heading, options, opts) {
     return new Promise((resolve) => {
-        var _a, _b;
+        var _a, _b, _c;
         if (options.length === 0) {
             console.log((opts === null || opts === void 0 ? void 0 : opts.errorMessage) || "There are no options.");
             process.exit(1);
         }
-        let quick = {};
-        let str = [];
         if (options.length === 1 && (opts === null || opts === void 0 ? void 0 : opts.disableAutoPick) !== true) {
             if ((0, args_1.getArgs)().length > 0)
                 (0, args_1.getArgs)().splice(0, 1);
@@ -136,6 +134,8 @@ function choice(options, opts) {
             text: "exit",
             action: () => (0, utils_1.abort)(),
         });
+        let quick = {};
+        let str = [heading + "\n"];
         for (let i = 0; i < options.length; i++) {
             const o = options[i];
             if ((0, args_1.getArgs)()[0] === o.long || (0, args_1.getArgs)()[0] === `-${o.short}`) {
@@ -160,9 +160,16 @@ function choice(options, opts) {
             str.push(after);
             str.push("\n");
         }
+        let pos = (opts === null || opts === void 0 ? void 0 : opts.def) || 0;
         if ((0, args_1.getArgs)().length > 0) {
-            let arg = (0, args_1.getArgs)()[0];
-            if (contexts_1.CONTEXTS[arg] !== undefined)
+            let arg = (0, args_1.getArgs)().splice(0, 1)[0];
+            if (arg === "_") {
+                resolve(((_c = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _c === void 0 ? void 0 : _c.cmd) === true
+                    ? makeSelection(options[pos])
+                    : makeSelectionQuietly(options[pos]));
+                return;
+            }
+            else if (contexts_1.CONTEXTS[arg] !== undefined)
                 output(contexts_1.CONTEXTS[arg](arg) + "\n");
             else
                 output(`Invalid argument in the current context: ${arg}\n`);
@@ -174,7 +181,6 @@ function choice(options, opts) {
             console.log("This console does not support TTY, please use the 'mmk'-command instead.");
             process.exit(1);
         }
-        let pos = (opts === null || opts === void 0 ? void 0 : opts.def) || 0;
         output(exports.YELLOW);
         moveCursor(0, -options.length + pos);
         output(`>`);
@@ -500,7 +506,7 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
                     : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+<>()\[\]{}\\]+$/.test(k)) {
+            else if (/^[A-Za-z0-9@_, .\-/:;#=&*?!"'`%£$€+<>()\[\]{}\\]+$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
                 node_process_1.stdout.clearLine(1);

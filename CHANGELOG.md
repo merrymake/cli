@@ -6,6 +6,16 @@
 ## Fixes and improvements
 -
 
+# 3.1.0
+## Added features
+- Ability to `replay` service runs from `queue`
+## Fixes and improvements
+- Underscore `_` auto-selects the default option
+- Remove some old debugging logging
+- Remove the word "keep" from secret envvar selection
+- Add option to delete envvar without selecting visibility
+- Add short header question to all choices
+
 # 3.0.0
 ## Breaking changes
 - Change order of questions for envvar so secrets can be hidden as *s

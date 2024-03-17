@@ -138,6 +138,7 @@ export type Option = {
 };
 
 export function choice(
+  heading: string,
   options: Option[],
   opts?: {
     def?: number;
@@ -151,8 +152,6 @@ export function choice(
       console.log(opts?.errorMessage || "There are no options.");
       process.exit(1);
     }
-    let quick: { [key: string]: Option } = {};
-    let str: string[] = [];
     if (options.length === 1 && opts?.disableAutoPick !== true) {
       if (getArgs().length > 0) getArgs().splice(0, 1);
       resolve(
@@ -168,6 +167,8 @@ export function choice(
       text: "exit",
       action: () => abort(),
     });
+    let quick: { [key: string]: Option } = {};
+    let str: string[] = [heading + "\n"];
     for (let i = 0; i < options.length; i++) {
       const o = options[i];
       if (getArgs()[0] === o.long || getArgs()[0] === `-${o.short}`) {
@@ -193,9 +194,17 @@ export function choice(
       str.push(after);
       str.push("\n");
     }
+    let pos = opts?.def || 0;
     if (getArgs().length > 0) {
-      let arg = getArgs()[0];
-      if (CONTEXTS[arg] !== undefined) output(CONTEXTS[arg](arg) + "\n");
+      let arg = getArgs().splice(0, 1)[0];
+      if (arg === "_") {
+        resolve(
+          opts?.invertedQuiet?.cmd === true
+            ? makeSelection(options[pos])
+            : makeSelectionQuietly(options[pos])
+        );
+        return;
+      } else if (CONTEXTS[arg] !== undefined) output(CONTEXTS[arg](arg) + "\n");
       else output(`Invalid argument in the current context: ${arg}\n`);
       getArgs().splice(0, getArgs().length);
     }
@@ -210,7 +219,6 @@ export function choice(
       process.exit(1);
     }
 
-    let pos = opts?.def || 0;
     output(YELLOW);
     moveCursor(0, -options.length + pos);
     output(`>`);
@@ -569,7 +577,9 @@ export function shortText(
               : beforeCursor + afterCursor
           );
           moveCursor(-afterCursor.length, 0);
-        } else if (/^[A-Za-z0-9@_, .\-/:;#=&*?+<>()\[\]{}\\]+$/.test(k)) {
+        } else if (
+          /^[A-Za-z0-9@_, .\-/:;#=&*?!"'`%£$€+<>()\[\]{}\\]+$/.test(k)
+        ) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += k;
           stdout.clearLine(1);
