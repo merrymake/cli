@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_bitbucket = exports.do_create_deployment_agent = exports.do_delete_org = exports.do_delete_group = exports.do_delete_service = exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_replay = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = exports.SPECIAL_FOLDERS = void 0;
+exports.do_bitbucket = exports.BITBUCKET_FILE = exports.do_create_deployment_agent = exports.do_delete_org = exports.do_delete_group = exports.do_delete_service = exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post_file = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_replay = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = exports.SPECIAL_FOLDERS = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -24,6 +24,7 @@ const path_1 = __importDefault(require("path"));
 const args_1 = require("./args");
 const process_1 = require("process");
 const secret_lib_1 = require("@merrymake/secret-lib");
+const ext2mime_1 = require("@merrymake/ext2mime");
 exports.SPECIAL_FOLDERS = ["event-catalogue", "public"];
 function clone(struct, name) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -187,9 +188,9 @@ function createService(pth, group, name) {
             console.log("Creating service...");
             let { org, pathToRoot } = (0, utils_1.fetchOrg)();
             yield (0, utils_1.sshReq)(`service`, name, `--team`, group, `--org`, org.name);
-            if (fs_1.default.existsSync(pathToRoot + BITBUCKET_FILE)) {
+            if (fs_1.default.existsSync(pathToRoot + exports.BITBUCKET_FILE)) {
                 fs_1.default.mkdirSync(name, { recursive: true });
-                fs_1.default.appendFileSync(pathToRoot + BITBUCKET_FILE, "\n" + bitbucketStep(group + "/" + name));
+                fs_1.default.appendFileSync(pathToRoot + exports.BITBUCKET_FILE, "\n" + bitbucketStep(group + "/" + name));
                 (0, utils_1.addExitMessage)(`Use '${prompt_1.GREEN}cd ${pth
                     .with(name)
                     .toString()
@@ -630,6 +631,22 @@ function do_post(eventType, key, contentType, payload) {
     });
 }
 exports.do_post = do_post;
+function do_post_file(eventType, key, filename) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let content = fs_1.default.readFileSync(filename).toString();
+            let type = (0, ext2mime_1.optimisticMimeTypeOf)(filename.substring(filename.lastIndexOf(".") + 1));
+            if (type === null)
+                throw "Could not determine content type";
+            let resp = yield (0, utils_1.urlReq)(`${config_1.RAPIDS_HOST}/${key}/${eventType}`, "POST", content, type.toString());
+            (0, utils_1.output2)(resp.body);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_post_file = do_post_file;
 function do_join(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -840,7 +857,7 @@ function do_create_deployment_agent(org, name, file) {
     });
 }
 exports.do_create_deployment_agent = do_create_deployment_agent;
-const BITBUCKET_FILE = "bitbucket-pipelines.yml";
+exports.BITBUCKET_FILE = "bitbucket-pipelines.yml";
 function bitbucketStep(pth) {
     return `          - step:
               name: ${pth}
@@ -865,7 +882,7 @@ git config --global user.email "support@merrymake.eu"
 git config --global user.name "Merrymake"
 git add -A && (git diff-index --quiet HEAD || git commit -m 'Deploy from BitBucket')
 export RES=$(git push merrymake HEAD:main --force 2>&1); echo "\${RES}"
-case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succeeds"*) exit 0 ;; *) echo "Deployment failed"; exit -1 ;; esac`);
+case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succeeds"*) exit 0 ;; *"Processed events"*) exit 0 ;; *) echo "Deployment failed"; exit -1 ;; esac`);
             let reply = yield (0, utils_1.sshReq)(`clone`, struct.org.name);
             if (!reply.startsWith("{")) {
                 (0, utils_1.output2)(reply);
@@ -876,12 +893,14 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
                 `pipelines:
   branches:
     master:
-      - parallel:`,
+      - parallel:
+# SERVICES ARE AUTOMATICALLY ADDED BELOW`,
             ];
             let folders = [...exports.SPECIAL_FOLDERS];
             fetch("", structure, (path, team, service) => folders.push(path + "/" + service));
             for (let i = 0; i < folders.length; i++) {
                 let folder = folders[i];
+                (0, utils_1.output2)(`Processing ${folder}`);
                 let toService = struct.pathToRoot + folder;
                 try {
                     yield (0, utils_1.execPromise)(`git fetch`, toService);
@@ -891,10 +910,10 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
                 fs_1.default.rmSync(`${toService}/.git`, { recursive: true, force: true });
                 pipelineFile.push(bitbucketStep(folder));
             }
-            fs_1.default.writeFileSync(struct.pathToRoot + BITBUCKET_FILE, pipelineFile.join("\n"));
+            fs_1.default.writeFileSync(struct.pathToRoot + exports.BITBUCKET_FILE, pipelineFile.join("\n"));
             yield (0, utils_1.execPromise)(`git init`, struct.pathToRoot);
-            yield (0, utils_1.execPromise)(`git remote add origin ${host}`, struct.pathToRoot);
             yield (0, utils_1.execPromise)(`git update-index --add --chmod=+x .merrymake/deploy.sh`, struct.pathToRoot);
+            yield (0, utils_1.execPromise)(`git remote add origin ${host}`, struct.pathToRoot);
         }
         catch (e) {
             throw e;

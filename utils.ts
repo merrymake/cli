@@ -35,10 +35,6 @@ export class Path {
   }
 }
 
-export function getFilesFilter(path: Path, suffix: string): string[] {
-  return getFiles_internal(path, "").filter((x) => x.endsWith(suffix));
-}
-
 export function getFiles(path: Path): string[] {
   return getFiles_internal(path, "");
 }

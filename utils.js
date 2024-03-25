@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.getFilesFilter = exports.Path = void 0;
+exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
 const http_1 = __importDefault(require("http"));
 const https_1 = __importDefault(require("https"));
 const config_1 = require("./config");
@@ -67,10 +67,6 @@ class Path {
     }
 }
 exports.Path = Path;
-function getFilesFilter(path, suffix) {
-    return getFiles_internal(path, "").filter((x) => x.endsWith(suffix));
-}
-exports.getFilesFilter = getFilesFilter;
 function getFiles(path) {
     return getFiles_internal(path, "");
 }

@@ -1,6 +1,6 @@
 import path from "path";
 import os from "os";
-import fs from "fs";
+import fs, { readdirSync } from "fs";
 import {
   RED,
   NORMAL_COLOR,
@@ -21,7 +21,6 @@ import {
   finish,
   getCache,
   getFiles,
-  getFilesFilter,
   output2,
   sshReq,
 } from "./utils";
@@ -64,6 +63,8 @@ import {
   do_create_deployment_agent,
   do_bitbucket,
   SPECIAL_FOLDERS,
+  BITBUCKET_FILE,
+  do_post_file,
 } from "./executors";
 import { VERSION_CMD, type ProjectType } from "@merrymake/detect-project-type";
 import { execSync } from "child_process";
@@ -72,6 +73,7 @@ import { Run } from "./simulator";
 import { getArgs, initializeArgs } from "./args";
 import { ADJECTIVE, NOUN } from "./words";
 import { stdout } from "process";
+import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 
 function service_template_language(
   path: Path,
@@ -987,7 +989,16 @@ function post_event_key_payload(
   return finish();
 }
 
-async function post_event_key_payloadType(
+function post_event_key_payload_file_name(
+  eventType: string,
+  key: string,
+  filename: string
+) {
+  addToExecuteQueue(() => do_post_file(eventType, key, filename));
+  return finish();
+}
+
+async function post_event_key_payload_type(
   eventType: string,
   key: string,
   contentType: string
@@ -1004,26 +1015,52 @@ async function post_event_key_payloadType(
   }
 }
 
+async function post_event_key_payload_file(eventType: string, key: string) {
+  try {
+    let files = readdirSync(".", { withFileTypes: true }).flatMap((x) =>
+      x.isDirectory() ? [] : [x.name]
+    );
+    let options = files.map<Option>((x) => {
+      return {
+        long: x,
+        text: x,
+        action: () => post_event_key_payload_file_name(eventType, key, x),
+      };
+    });
+    return await choice("Which file would you like to send?", options, {}).then(
+      (x) => x
+    );
+  } catch (e) {
+    throw e;
+  }
+}
+
 function post_event_key(eventType: string, key: string) {
   return choice("What type of payload should the event use?", [
     {
       long: "empty",
       short: "e",
       text: "empty message, ie. no payload",
-      action: () => post_event_key_payload(eventType, key, `plain/text`, ``),
+      action: () => post_event_key_payload(eventType, key, `text/plain`, ``),
+    },
+    {
+      long: "file",
+      short: "f",
+      text: "attach file content payload",
+      action: () => post_event_key_payload_file(eventType, key),
     },
     {
       long: "text",
       short: "t",
       text: "attach plain text payload",
-      action: () => post_event_key_payloadType(eventType, key, `plain/text`),
+      action: () => post_event_key_payload_type(eventType, key, `text/plain`),
     },
     {
       long: "json",
       short: "j",
       text: "attach json payload",
       action: () =>
-        post_event_key_payloadType(eventType, key, `application/json`),
+        post_event_key_payload_type(eventType, key, `application/json`),
     },
   ]);
 }
@@ -1103,7 +1140,7 @@ async function hosting_bitbucket(pathToRoot: string, org: string) {
       return {
         long: f,
         text: `use service user ${f}`,
-        action: () => hosting_bitbucket_key(org, f),
+        action: () => hosting_bitbucket_key(org, `.merrymake/${f}.key`),
       };
     });
     options.push({
@@ -1595,11 +1632,13 @@ export async function start() {
         text: "register an additional sshkey or email to account",
         action: () => register(),
       });
-      options.push({
-        long: "hosting",
-        text: "configure git hosting with bitbucket", // TODO add github, gitlab, and azure devops
-        action: () => hosting(struct.pathToRoot, orgName),
-      });
+      if (!fs.existsSync(struct.pathToRoot + BITBUCKET_FILE)) {
+        options.push({
+          long: "hosting",
+          text: "configure git hosting with bitbucket", // TODO add github, gitlab, and azure devops
+          action: () => hosting(struct.pathToRoot, orgName),
+        });
+      }
       options.push({
         long: "help",
         text: "help diagnose potential issues",

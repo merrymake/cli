@@ -25,6 +25,7 @@ import path from "path";
 import { getArgs } from "./args";
 import { stdout } from "process";
 import { MerrymakeCrypto } from "@merrymake/secret-lib";
+import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 
 export const SPECIAL_FOLDERS = ["event-catalogue", "public"];
 
@@ -740,6 +741,29 @@ export async function do_post(
   }
 }
 
+export async function do_post_file(
+  eventType: string,
+  key: string,
+  filename: string
+) {
+  try {
+    let content = fs.readFileSync(filename).toString();
+    let type = optimisticMimeTypeOf(
+      filename.substring(filename.lastIndexOf(".") + 1)
+    );
+    if (type === null) throw "Could not determine content type";
+    let resp = await urlReq(
+      `${RAPIDS_HOST}/${key}/${eventType}`,
+      "POST",
+      content,
+      type.toString()
+    );
+    output2(resp.body);
+  } catch (e) {
+    throw e;
+  }
+}
+
 export async function do_join(org: string) {
   try {
     output2(await sshReq(`org`, `--join`, org));
@@ -957,7 +981,7 @@ export async function do_create_deployment_agent(
   }
 }
 
-const BITBUCKET_FILE = "bitbucket-pipelines.yml";
+export const BITBUCKET_FILE = "bitbucket-pipelines.yml";
 function bitbucketStep(pth: string) {
   return `          - step:
               name: ${pth}
@@ -984,7 +1008,7 @@ git config --global user.email "support@merrymake.eu"
 git config --global user.name "Merrymake"
 git add -A && (git diff-index --quiet HEAD || git commit -m 'Deploy from BitBucket')
 export RES=$(git push merrymake HEAD:main --force 2>&1); echo "\${RES}"
-case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succeeds"*) exit 0 ;; *) echo "Deployment failed"; exit -1 ;; esac`
+case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succeeds"*) exit 0 ;; *"Processed events"*) exit 0 ;; *) echo "Deployment failed"; exit -1 ;; esac`
     );
     let reply = await sshReq(`clone`, struct.org.name);
     if (!reply.startsWith("{")) {
@@ -996,7 +1020,8 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
       `pipelines:
   branches:
     master:
-      - parallel:`,
+      - parallel:
+# SERVICES ARE AUTOMATICALLY ADDED BELOW`,
     ];
     let folders: string[] = [...SPECIAL_FOLDERS];
     fetch("", structure, (path, team, service) =>
@@ -1004,6 +1029,7 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
     );
     for (let i = 0; i < folders.length; i++) {
       let folder = folders[i];
+      output2(`Processing ${folder}`);
       let toService = struct.pathToRoot + folder;
       try {
         await execPromise(`git fetch`, toService);
@@ -1017,11 +1043,11 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
       pipelineFile.join("\n")
     );
     await execPromise(`git init`, struct.pathToRoot);
-    await execPromise(`git remote add origin ${host}`, struct.pathToRoot);
     await execPromise(
       `git update-index --add --chmod=+x .merrymake/deploy.sh`,
       struct.pathToRoot
     );
+    await execPromise(`git remote add origin ${host}`, struct.pathToRoot);
   } catch (e) {
     throw e;
   }

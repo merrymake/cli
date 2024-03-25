@@ -6,7 +6,14 @@
 ## Fixes and improvements
 -
 
-# 3.2.0:
+# 3.3.0
+## Added features
+- Add `file` option to `post` command
+## Fixes and improvements
+- Fix some issues with `hosting` command
+- Fix reply type for errors
+
+# 3.2.0
 ## Added features
 - Add `hosting` command to setup BitBucket hosting with service user
 

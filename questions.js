@@ -1,4 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -14,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.start = void 0;
 const os_1 = __importDefault(require("os"));
-const fs_1 = __importDefault(require("fs"));
+const fs_1 = __importStar(require("fs"));
 const prompt_1 = require("./prompt");
 const utils_1 = require("./utils");
 const utils_2 = require("./utils");
@@ -727,11 +750,33 @@ function post_event_key_payload(eventType, key, contentType, payload) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_post)(eventType, key, contentType, payload));
     return (0, utils_1.finish)();
 }
-function post_event_key_payloadType(eventType, key, contentType) {
+function post_event_key_payload_file_name(eventType, key, filename) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_post_file)(eventType, key, filename));
+    return (0, utils_1.finish)();
+}
+function post_event_key_payload_type(eventType, key, contentType) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let payload = yield (0, prompt_1.shortText)("Payload", "The data to be attached to the request", "").then();
             return post_event_key_payload(eventType, key, contentType, payload);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function post_event_key_payload_file(eventType, key) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let files = (0, fs_1.readdirSync)(".", { withFileTypes: true }).flatMap((x) => x.isDirectory() ? [] : [x.name]);
+            let options = files.map((x) => {
+                return {
+                    long: x,
+                    text: x,
+                    action: () => post_event_key_payload_file_name(eventType, key, x),
+                };
+            });
+            return yield (0, prompt_1.choice)("Which file would you like to send?", options, {}).then((x) => x);
         }
         catch (e) {
             throw e;
@@ -744,19 +789,25 @@ function post_event_key(eventType, key) {
             long: "empty",
             short: "e",
             text: "empty message, ie. no payload",
-            action: () => post_event_key_payload(eventType, key, `plain/text`, ``),
+            action: () => post_event_key_payload(eventType, key, `text/plain`, ``),
+        },
+        {
+            long: "file",
+            short: "f",
+            text: "attach file content payload",
+            action: () => post_event_key_payload_file(eventType, key),
         },
         {
             long: "text",
             short: "t",
             text: "attach plain text payload",
-            action: () => post_event_key_payloadType(eventType, key, `plain/text`),
+            action: () => post_event_key_payload_type(eventType, key, `text/plain`),
         },
         {
             long: "json",
             short: "j",
             text: "attach json payload",
-            action: () => post_event_key_payloadType(eventType, key, `application/json`),
+            action: () => post_event_key_payload_type(eventType, key, `application/json`),
         },
     ]);
 }
@@ -830,7 +881,7 @@ function hosting_bitbucket(pathToRoot, org) {
                 return {
                     long: f,
                     text: `use service user ${f}`,
-                    action: () => hosting_bitbucket_key(org, f),
+                    action: () => hosting_bitbucket_key(org, `.merrymake/${f}.key`),
                 };
             });
             options.push({
@@ -1260,11 +1311,13 @@ function start() {
                     text: "register an additional sshkey or email to account",
                     action: () => register(),
                 });
-                options.push({
-                    long: "hosting",
-                    text: "configure git hosting with bitbucket", // TODO add github, gitlab, and azure devops
-                    action: () => hosting(struct.pathToRoot, orgName),
-                });
+                if (!fs_1.default.existsSync(struct.pathToRoot + executors_1.BITBUCKET_FILE)) {
+                    options.push({
+                        long: "hosting",
+                        text: "configure git hosting with bitbucket", // TODO add github, gitlab, and azure devops
+                        action: () => hosting(struct.pathToRoot, orgName),
+                    });
+                }
                 options.push({
                     long: "help",
                     text: "help diagnose potential issues",

@@ -289,7 +289,7 @@ export class Run {
     try {
       let rivers = hooks.riversFor(event);
       if (rivers === undefined)
-        return reply(resp, HTTP.CLIENT_ERROR.NO_HOOKS, undefined);
+        return reply(resp, HTTP.CLIENT_ERROR.NO_HOOKS, "text/plain");
       let conf = hooks.getApiConfig(event);
       this.runService(
         pathToRoot,
@@ -306,7 +306,7 @@ export class Run {
         let pending = pendingReplies[traceId];
         if (pending !== undefined) {
           delete pendingReplies[traceId];
-          reply(resp, HTTP.SUCCESS.QUEUE_JOB, undefined);
+          reply(resp, HTTP.SUCCESS.QUEUE_JOB, "text/plain");
         }
       }
     } catch (e) {
@@ -472,24 +472,24 @@ function timedOutput(str: string) {
 module HTTP {
   export module SUCCESS {
     export const SINGLE_REPLY = (data: Buffer) => ({ code: 200, data });
-    export const QUEUE_JOB = { code: 200, data: Buffer.from("Queued") };
+    export const QUEUE_JOB = { code: 200, data: Buffer.from("Queued job.") };
   }
   export module CLIENT_ERROR {
     export const TIMEOUT_JOB = {
       code: 400,
-      data: Buffer.from("Job timed out"),
+      data: Buffer.from("Job timed out."),
     };
     export const NO_HOOKS = {
       code: 400,
-      data: Buffer.from("Event has no hooks"),
+      data: Buffer.from("Event has no hooks."),
     };
     export const TOO_MANY_FILES = (x: number) => ({
       code: 400,
-      data: Buffer.from(`No more than ${x} files allowed`),
+      data: Buffer.from(`No more than ${x} files allowed.`),
     });
     export const TOO_FEW_FILES = (x: number) => ({
       code: 400,
-      data: Buffer.from(`At least ${x} files required`),
+      data: Buffer.from(`At least ${x} files required.`),
     });
     export const TOO_LARGE_FILES = (x: string, s: string) => ({
       code: 400,

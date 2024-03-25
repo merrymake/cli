@@ -233,7 +233,7 @@ class Run {
             try {
                 let rivers = hooks.riversFor(event);
                 if (rivers === undefined)
-                    return reply(resp, HTTP.CLIENT_ERROR.NO_HOOKS, undefined);
+                    return reply(resp, HTTP.CLIENT_ERROR.NO_HOOKS, "text/plain");
                 let conf = hooks.getApiConfig(event);
                 this.runService(pathToRoot, port, event, payload, traceId, sessionId, hooks, contentType);
                 if (conf === undefined || conf.streaming !== true) {
@@ -241,7 +241,7 @@ class Run {
                     let pending = pendingReplies[traceId];
                     if (pending !== undefined) {
                         delete pendingReplies[traceId];
-                        reply(resp, HTTP.SUCCESS.QUEUE_JOB, undefined);
+                        reply(resp, HTTP.SUCCESS.QUEUE_JOB, "text/plain");
                     }
                 }
             }
@@ -363,25 +363,25 @@ var HTTP;
     let SUCCESS;
     (function (SUCCESS) {
         SUCCESS.SINGLE_REPLY = (data) => ({ code: 200, data });
-        SUCCESS.QUEUE_JOB = { code: 200, data: Buffer.from("Queued") };
+        SUCCESS.QUEUE_JOB = { code: 200, data: Buffer.from("Queued job.") };
     })(SUCCESS = HTTP.SUCCESS || (HTTP.SUCCESS = {}));
     let CLIENT_ERROR;
     (function (CLIENT_ERROR) {
         CLIENT_ERROR.TIMEOUT_JOB = {
             code: 400,
-            data: Buffer.from("Job timed out"),
+            data: Buffer.from("Job timed out."),
         };
         CLIENT_ERROR.NO_HOOKS = {
             code: 400,
-            data: Buffer.from("Event has no hooks"),
+            data: Buffer.from("Event has no hooks."),
         };
         CLIENT_ERROR.TOO_MANY_FILES = (x) => ({
             code: 400,
-            data: Buffer.from(`No more than ${x} files allowed`),
+            data: Buffer.from(`No more than ${x} files allowed.`),
         });
         CLIENT_ERROR.TOO_FEW_FILES = (x) => ({
             code: 400,
-            data: Buffer.from(`At least ${x} files required`),
+            data: Buffer.from(`At least ${x} files required.`),
         });
         CLIENT_ERROR.TOO_LARGE_FILES = (x, s) => ({
             code: 400,
