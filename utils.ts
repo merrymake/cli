@@ -35,11 +35,19 @@ export class Path {
   }
 }
 
-export function getFiles(path: Path, prefix: string): string[] {
+export function getFilesFilter(path: Path, suffix: string): string[] {
+  return getFiles_internal(path, "").filter((x) => x.endsWith(suffix));
+}
+
+export function getFiles(path: Path): string[] {
+  return getFiles_internal(path, "");
+}
+
+function getFiles_internal(path: Path, prefix: string): string[] {
   if (!fs.existsSync(path.toString())) return [];
   return readdirSync(path.toString(), { withFileTypes: true }).flatMap((x) =>
     x.isDirectory()
-      ? getFiles(path.with(x.name), prefix + x.name + "/")
+      ? getFiles_internal(path.with(x.name), prefix + x.name + "/")
       : [prefix + x.name]
   );
 }

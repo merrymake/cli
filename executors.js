@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_delete_org = exports.do_delete_group = exports.do_delete_service = exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_replay = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = void 0;
+exports.do_bitbucket = exports.do_create_deployment_agent = exports.do_delete_org = exports.do_delete_group = exports.do_delete_service = exports.do_event = exports.do_spending = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = exports.do_join = exports.do_post = exports.do_help = exports.do_queue_time = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_cron = exports.do_envvar = exports.do_key = exports.do_replay = exports.do_build = exports.do_redeploy = exports.do_deploy = exports.generateNewKey = exports.useExistingKey = exports.do_register = exports.addKnownHost = exports.do_duplicate = exports.fetch_template = exports.createService = exports.createServiceGroup = exports.createOrganization = exports.do_clone = exports.do_fetch = exports.SPECIAL_FOLDERS = void 0;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("./utils");
@@ -24,6 +24,7 @@ const path_1 = __importDefault(require("path"));
 const args_1 = require("./args");
 const process_1 = require("process");
 const secret_lib_1 = require("@merrymake/secret-lib");
+exports.SPECIAL_FOLDERS = ["event-catalogue", "public"];
 function clone(struct, name) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -37,21 +38,21 @@ function clone(struct, name) {
             yield (0, utils_1.execPromise)(`git init --initial-branch=main`, dir);
             yield (0, utils_1.execPromise)(`git remote add origin "${config_1.GIT_HOST}/${name}/public"`, dir);
             // await execPromise(`git fetch`, dir);
-            fetch(`./${name}`, name, struct);
+            fetch(`./${name}/`, struct, (path, team, service) => createServiceFolder(path, name, team, service));
         }
         catch (e) {
             throw e;
         }
     });
 }
-function fetch(prefix, org, struct) {
+function fetch(prefix, struct, func) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let keys = Object.keys(struct);
             for (let i = 0; i < keys.length; i++) {
                 let group = keys[i];
-                fs_1.default.mkdirSync(`${prefix}/${group}`, { recursive: true });
-                yield createFolderStructure(struct[group], `${prefix}/${group}`, org, group);
+                fs_1.default.mkdirSync(`${prefix}${group}`, { recursive: true });
+                yield createFolderStructure(struct[group], `${prefix}${group}`, group, func);
             }
         }
         catch (e) {
@@ -70,7 +71,7 @@ function do_fetch() {
             }
             (0, utils_1.output2)(`Fetching...`);
             let structure = JSON.parse(reply);
-            yield fetch(org.pathToRoot, org.org.name, structure);
+            yield fetch(org.pathToRoot, structure, (path, team, service) => createServiceFolder(path, org.org.name, team, service));
         }
         catch (e) {
             throw e;
@@ -78,43 +79,47 @@ function do_fetch() {
     });
 }
 exports.do_fetch = do_fetch;
-function createFolderStructure(struct, prefix, org, team) {
+function createServiceFolder(path, org, team, service) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let repo = `"${config_1.GIT_HOST}/${org}/${team}/${service}"`;
+        let dir = `${path}/${service}`;
+        try {
+            if (!fs_1.default.existsSync(dir)) {
+                fs_1.default.mkdirSync(dir, { recursive: true });
+            }
+            if (!fs_1.default.existsSync(dir + "/.git")) {
+                yield (0, utils_1.execPromise)(`git init --initial-branch=main`, dir);
+                yield (0, utils_1.execPromise)(`git remote add origin ${repo}`, dir);
+                fs_1.default.writeFileSync(dir + "/fetch.bat", `@echo off
+git fetch
+git reset --hard origin/main
+del fetch.sh
+(goto) 2>nul & del fetch.bat`);
+                fs_1.default.writeFileSync(dir + "/fetch.sh", `#!/bin/sh
+git fetch
+git reset --hard origin/main
+rm fetch.bat fetch.sh`, {});
+                fs_1.default.chmodSync(dir + "/fetch.sh", "755");
+            }
+            else {
+                yield (0, utils_1.execPromise)(`git remote set-url origin ${repo}`, dir);
+            }
+        }
+        catch (e) {
+            console.log(e);
+        }
+    });
+}
+function createFolderStructure(struct, prefix, team, func) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let keys = Object.keys(struct);
             for (let i = 0; i < keys.length; i++) {
                 let k = keys[i];
                 if (struct[k] instanceof Object)
-                    yield createFolderStructure(struct[k], prefix + "/" + k, org, team);
+                    yield createFolderStructure(struct[k], prefix + "/" + k, team, func);
                 else {
-                    // output(`git clone "${HOST}/${org}/${team}/${k}" "${prefix}/${k}"`);
-                    let repo = `"${config_1.GIT_HOST}/${org}/${team}/${k}"`;
-                    let dir = `${prefix}/${k}`;
-                    try {
-                        if (!fs_1.default.existsSync(dir)) {
-                            fs_1.default.mkdirSync(dir, { recursive: true });
-                        }
-                        if (!fs_1.default.existsSync(dir + "/.git")) {
-                            yield (0, utils_1.execPromise)(`git init --initial-branch=main`, dir);
-                            yield (0, utils_1.execPromise)(`git remote add origin ${repo}`, dir);
-                            fs_1.default.writeFileSync(dir + "/fetch.bat", `@echo off
-git fetch
-git reset --hard origin/main
-del fetch.sh
-(goto) 2>nul & del fetch.bat`);
-                            fs_1.default.writeFileSync(dir + "/fetch.sh", `#!/bin/sh
-git fetch
-git reset --hard origin/main
-rm fetch.bat fetch.sh`, {});
-                            fs_1.default.chmodSync(dir + "/fetch.sh", "755");
-                        }
-                        else {
-                            yield (0, utils_1.execPromise)(`git remote set-url origin ${repo}`, dir);
-                        }
-                    }
-                    catch (e) {
-                        console.log(e);
-                    }
+                    func(prefix, team, k);
                 }
             }
         }
@@ -165,7 +170,7 @@ function createServiceGroup(pth, name) {
             console.log("Creating service group...");
             let { org } = (0, utils_1.fetchOrg)();
             fs_1.default.mkdirSync(name);
-            console.log(yield (0, utils_1.sshReq)(`team`, name, `--org`, org.name));
+            yield (0, utils_1.sshReq)(`team`, name, `--org`, org.name);
             process.chdir(before);
         }
         catch (e) {
@@ -180,23 +185,33 @@ function createService(pth, group, name) {
             let before = process.cwd();
             process.chdir(pth.toString());
             console.log("Creating service...");
-            let { org } = (0, utils_1.fetchOrg)();
+            let { org, pathToRoot } = (0, utils_1.fetchOrg)();
             yield (0, utils_1.sshReq)(`service`, name, `--team`, group, `--org`, org.name);
-            let repoBase = `${config_1.GIT_HOST}/${org.name}/${group}`;
-            try {
-                yield (0, utils_1.execPromise)(`git clone -q "${repoBase}/${name}" ${name}`);
+            if (fs_1.default.existsSync(pathToRoot + BITBUCKET_FILE)) {
+                fs_1.default.mkdirSync(name, { recursive: true });
+                fs_1.default.appendFileSync(pathToRoot + BITBUCKET_FILE, "\n" + bitbucketStep(group + "/" + name));
+                (0, utils_1.addExitMessage)(`Use '${prompt_1.GREEN}cd ${pth
+                    .with(name)
+                    .toString()
+                    .replace(/\\/g, "\\\\")}${prompt_1.NORMAL_COLOR}' to go to the new service. \nAutomatic deployment added to BitBucket pipeline.`);
             }
-            catch (e) {
-                if (("" + e).startsWith("warning: You appear to have cloned an empty repository.")) {
+            else {
+                let repoBase = `${config_1.GIT_HOST}/${org.name}/${group}`;
+                try {
+                    yield (0, utils_1.execPromise)(`git clone -q "${repoBase}/${name}" ${name}`);
                 }
-                else
-                    throw e;
+                catch (e) {
+                    if (("" + e).startsWith("warning: You appear to have cloned an empty repository.")) {
+                    }
+                    else
+                        throw e;
+                }
+                yield (0, utils_1.execPromise)(`git symbolic-ref HEAD refs/heads/main`, name);
+                (0, utils_1.addExitMessage)(`Use '${prompt_1.GREEN}cd ${pth
+                    .with(name)
+                    .toString()
+                    .replace(/\\/g, "\\\\")}${prompt_1.NORMAL_COLOR}' to go to the new service. \nThen use '${prompt_1.GREEN}${process.env["COMMAND"]} deploy${prompt_1.NORMAL_COLOR}' to deploy it.`);
             }
-            yield (0, utils_1.execPromise)(`git symbolic-ref HEAD refs/heads/main`, name);
-            (0, utils_1.addExitMessage)(`Use '${prompt_1.GREEN}cd ${pth
-                .with(name)
-                .toString()
-                .replace(/\\/g, "\\\\")}${prompt_1.NORMAL_COLOR}' to go to the new service. \nThen use '${prompt_1.GREEN}${process.env["COMMAND"]} deploy${prompt_1.NORMAL_COLOR}' to deploy it.`);
             process.chdir(before);
         }
         catch (e) {
@@ -210,7 +225,12 @@ function do_pull(pth, repo) {
         try {
             let before = process.cwd();
             process.chdir(pth.toString());
-            yield (0, utils_1.execPromise)(`git pull -q "${repo}"`);
+            if (fs_1.default.existsSync(".git"))
+                yield (0, utils_1.execPromise)(`git pull -q "${repo}"`);
+            else {
+                yield (0, utils_1.execPromise)(`git clone -q "${repo}" .`);
+                fs_1.default.rmSync(".git", { recursive: true, force: true });
+            }
             process.chdir(before);
         }
         catch (e) {
@@ -423,7 +443,7 @@ exports.do_build = do_build;
 function do_replay(org, id, river) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield (0, utils_1.sshReq)(`replay`, id, `--river`, river, `--org`, `${org}`);
+            yield (0, utils_1.sshReq)(`replay`, id, `--river`, river, `--org`, org);
             (0, utils_1.output2)("Replayed event.");
         }
         catch (e) {
@@ -804,3 +824,81 @@ function do_delete_org(org) {
     });
 }
 exports.do_delete_org = do_delete_org;
+function do_create_deployment_agent(org, name, file) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            (0, utils_1.output2)("Creating service user...");
+            let cmd = [`service-user`, org];
+            if (name !== "")
+                cmd.push(`--name`, name);
+            let key = yield (0, utils_1.sshReq)(...cmd);
+            fs_1.default.writeFileSync(file, key);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_create_deployment_agent = do_create_deployment_agent;
+const BITBUCKET_FILE = "bitbucket-pipelines.yml";
+function bitbucketStep(pth) {
+    return `          - step:
+              name: ${pth}
+              script:
+                - ./.merrymake/deploy.sh ${pth}`;
+}
+function do_bitbucket(org, host, key) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let struct = (0, utils_1.fetchOrg)();
+            fs_1.default.writeFileSync(struct.pathToRoot + path_1.default.join(".merrymake", "deploy.sh"), `set -o errexit
+chmod 600 ${key}
+eval \`ssh-agent\`
+ssh-add ${key}
+echo "api.merrymake.io ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO" >> ~/.ssh/known_hosts
+cd $1
+git init
+git remote add merrymake ssh://mist@api.merrymake.io/${org}/$1
+git fetch merrymake
+git reset merrymake/main || echo "No previous deployment"
+git config --global user.email "support@merrymake.eu"
+git config --global user.name "Merrymake"
+git add -A && (git diff-index --quiet HEAD || git commit -m 'Deploy from BitBucket')
+export RES=$(git push merrymake HEAD:main --force 2>&1); echo "\${RES}"
+case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succeeds"*) exit 0 ;; *) echo "Deployment failed"; exit -1 ;; esac`);
+            let reply = yield (0, utils_1.sshReq)(`clone`, struct.org.name);
+            if (!reply.startsWith("{")) {
+                (0, utils_1.output2)(reply);
+                return;
+            }
+            let structure = JSON.parse(reply);
+            let pipelineFile = [
+                `pipelines:
+  branches:
+    master:
+      - parallel:`,
+            ];
+            let folders = [...exports.SPECIAL_FOLDERS];
+            fetch("", structure, (path, team, service) => folders.push(path + "/" + service));
+            for (let i = 0; i < folders.length; i++) {
+                let folder = folders[i];
+                let toService = struct.pathToRoot + folder;
+                try {
+                    yield (0, utils_1.execPromise)(`git fetch`, toService);
+                    yield (0, utils_1.execPromise)(`git reset origin/main`, toService);
+                }
+                catch (e) { }
+                fs_1.default.rmSync(`${toService}/.git`, { recursive: true, force: true });
+                pipelineFile.push(bitbucketStep(folder));
+            }
+            fs_1.default.writeFileSync(struct.pathToRoot + BITBUCKET_FILE, pipelineFile.join("\n"));
+            yield (0, utils_1.execPromise)(`git init`, struct.pathToRoot);
+            yield (0, utils_1.execPromise)(`git remote add origin ${host}`, struct.pathToRoot);
+            yield (0, utils_1.execPromise)(`git update-index --add --chmod=+x .merrymake/deploy.sh`, struct.pathToRoot);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_bitbucket = do_bitbucket;

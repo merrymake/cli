@@ -6,6 +6,10 @@
 ## Fixes and improvements
 -
 
+# 3.2.0:
+## Added features
+- Add `hosting` command to setup BitBucket hosting with service user
+
 # 3.1.0
 ## Added features
 - Ability to `replay` service runs from `queue`

@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
+exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.getFilesFilter = exports.Path = void 0;
 const http_1 = __importDefault(require("http"));
 const https_1 = __importDefault(require("https"));
 const config_1 = require("./config");
@@ -67,14 +67,21 @@ class Path {
     }
 }
 exports.Path = Path;
-function getFiles(path, prefix) {
+function getFilesFilter(path, suffix) {
+    return getFiles_internal(path, "").filter((x) => x.endsWith(suffix));
+}
+exports.getFilesFilter = getFilesFilter;
+function getFiles(path) {
+    return getFiles_internal(path, "");
+}
+exports.getFiles = getFiles;
+function getFiles_internal(path, prefix) {
     if (!fs_1.default.existsSync(path.toString()))
         return [];
     return (0, node_fs_1.readdirSync)(path.toString(), { withFileTypes: true }).flatMap((x) => x.isDirectory()
-        ? getFiles(path.with(x.name), prefix + x.name + "/")
+        ? getFiles_internal(path.with(x.name), prefix + x.name + "/")
         : [prefix + x.name]);
 }
-exports.getFiles = getFiles;
 const toExecute = [];
 let dryrun = false;
 function setDryrun() {

@@ -85,6 +85,10 @@ function delete_org_name(org) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_delete_org)(org));
     return (0, utils_1.finish)();
 }
+function hosting_bitbucket_key_host(org, host, key) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_bitbucket)(org, host, key));
+    return (0, utils_1.finish)();
+}
 function service_template(pathToService, template) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -249,26 +253,26 @@ function register_manual() {
 function register() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let keyfiles = (0, utils_1.getFiles)(new utils_2.Path(`${os_1.default.homedir()}/.ssh`), "").filter((x) => x.endsWith(".pub"));
+            let keyfiles = (0, utils_1.getFiles)(new utils_2.Path(`${os_1.default.homedir()}/.ssh`)).filter((x) => x.endsWith(".pub"));
             let keys = keyfiles.map((x) => {
                 let f = x.substring(0, x.length - ".pub".length);
                 return {
                     long: f,
-                    text: `Use key ${f}`,
+                    text: `use key ${f}`,
                     action: () => register_key(() => (0, executors_1.useExistingKey)(f)),
                 };
             });
             keys.push({
                 long: "add",
                 short: "a",
-                text: "Manually add key",
+                text: "manually add key",
                 action: () => register_manual(),
             });
             if (!keyfiles.includes("merrymake")) {
                 keys.push({
                     long: "new",
                     short: "n",
-                    text: "Setup new key specifically for Merrymake",
+                    text: "setup new key specifically for Merrymake",
                     action: () => register_key(executors_1.generateNewKey),
                 });
             }
@@ -793,6 +797,85 @@ function post(org) {
         }
     });
 }
+function hosting_bitbucket_key(org, file) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let host = yield (0, prompt_1.shortText)("Bitbucket repo", "The URL to the bitbucket mono-repository.", `https://...`).then((x) => x);
+            return hosting_bitbucket_key_host(org, host, file);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function hosting_bitbucket_create(pathToRoot, org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let name = yield (0, prompt_1.shortText)("Name", "Display name for the service user", `Service User`).then((x) => x);
+            let file = ".merrymake/" + name.toLowerCase().replace(" ", "-") + ".key";
+            (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_create_deployment_agent)(org, name, file));
+            return hosting_bitbucket_key(org, file);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function hosting_bitbucket(pathToRoot, org) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let keyfiles = (0, utils_1.getFiles)(new utils_2.Path(`${pathToRoot}/.merrymake`)).filter((x) => x.endsWith(".key"));
+            let options = keyfiles.map((x) => {
+                let f = x.substring(0, x.length - ".key".length);
+                return {
+                    long: f,
+                    text: `use service user ${f}`,
+                    action: () => hosting_bitbucket_key(org, f),
+                };
+            });
+            options.push({
+                long: `create`,
+                short: `c`,
+                text: `create service user`,
+                action: () => hosting_bitbucket_create(pathToRoot, org),
+            });
+            return yield (0, prompt_1.choice)("Which service user would you like to use?", options, {
+                invertedQuiet: { cmd: false, select: true },
+            }).then((x) => x);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function hosting(pathToRoot, org) {
+    return (0, prompt_1.choice)("Which host would you like to use?", [
+        {
+            long: "bitbucket",
+            short: "b",
+            text: "bitbucket",
+            action: () => hosting_bitbucket(pathToRoot, org),
+        },
+        // {
+        //   long: "github",
+        //   short: "h",
+        //   text: "github",
+        //   action: () => hosting_github(),
+        // },
+        // {
+        //   long: "gitlab",
+        //   short: "h",
+        //   text: "gitlab",
+        //   action: () => hosting_gitlab(),
+        // },
+        // {
+        //   long: "azure devops",
+        //   short: "h",
+        //   text: "azure devops",
+        //   action: () => hosting_azure_devops(),
+        // },
+    ]);
+}
 function event_key_events(key, events) {
     (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_event)(key, events));
     return (0, utils_1.finish)();
@@ -1009,7 +1092,6 @@ function sim() {
     (0, utils_1.addToExecuteQueue)(() => new simulator_1.Run(3000).execute());
     return (0, utils_1.finish)();
 }
-const SPECIAL_FOLDERS = ["event-catalogue", "public"];
 function start() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -1022,7 +1104,7 @@ function start() {
                 let struct = {
                     org: rawStruct.org,
                     serviceGroup: rawStruct.serviceGroup !== null &&
-                        !SPECIAL_FOLDERS.includes(rawStruct.serviceGroup)
+                        !executors_1.SPECIAL_FOLDERS.includes(rawStruct.serviceGroup)
                         ? rawStruct.serviceGroup
                         : null,
                     inEventCatalogue: rawStruct.serviceGroup === "event-catalogue",
@@ -1177,6 +1259,11 @@ function start() {
                     long: "register",
                     text: "register an additional sshkey or email to account",
                     action: () => register(),
+                });
+                options.push({
+                    long: "hosting",
+                    text: "configure git hosting with bitbucket", // TODO add github, gitlab, and azure devops
+                    action: () => hosting(struct.pathToRoot, orgName),
                 });
                 options.push({
                     long: "help",

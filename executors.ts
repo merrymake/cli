@@ -26,6 +26,8 @@ import { getArgs } from "./args";
 import { stdout } from "process";
 import { MerrymakeCrypto } from "@merrymake/secret-lib";
 
+export const SPECIAL_FOLDERS = ["event-catalogue", "public"];
+
 async function clone(struct: any, name: string) {
   try {
     output2(`Cloning ${name}...`);
@@ -44,23 +46,29 @@ async function clone(struct: any, name: string) {
       dir
     );
     // await execPromise(`git fetch`, dir);
-    fetch(`./${name}`, name, struct);
+    fetch(`./${name}/`, struct, (path, team, service) =>
+      createServiceFolder(path, name, team, service)
+    );
   } catch (e) {
     throw e;
   }
 }
 
-async function fetch(prefix: string, org: string, struct: any) {
+async function fetch(
+  prefix: string,
+  struct: any,
+  func: (path: string, team: string, service: string) => void
+) {
   try {
     let keys = Object.keys(struct);
     for (let i = 0; i < keys.length; i++) {
       let group = keys[i];
-      fs.mkdirSync(`${prefix}/${group}`, { recursive: true });
+      fs.mkdirSync(`${prefix}${group}`, { recursive: true });
       await createFolderStructure(
         struct[group],
-        `${prefix}/${group}`,
-        org,
-        group
+        `${prefix}${group}`,
+        group,
+        func
       );
     }
   } catch (e) {
@@ -78,58 +86,68 @@ export async function do_fetch() {
     }
     output2(`Fetching...`);
     let structure = JSON.parse(reply);
-    await fetch(org.pathToRoot, org.org.name, structure);
+    await fetch(org.pathToRoot, structure, (path, team, service) =>
+      createServiceFolder(path, org.org.name, team, service)
+    );
   } catch (e) {
     throw e;
+  }
+}
+
+async function createServiceFolder(
+  path: string,
+  org: string,
+  team: string,
+  service: string
+) {
+  let repo = `"${GIT_HOST}/${org}/${team}/${service}"`;
+  let dir = `${path}/${service}`;
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    if (!fs.existsSync(dir + "/.git")) {
+      await execPromise(`git init --initial-branch=main`, dir);
+      await execPromise(`git remote add origin ${repo}`, dir);
+      fs.writeFileSync(
+        dir + "/fetch.bat",
+        `@echo off
+git fetch
+git reset --hard origin/main
+del fetch.sh
+(goto) 2>nul & del fetch.bat`
+      );
+      fs.writeFileSync(
+        dir + "/fetch.sh",
+        `#!/bin/sh
+git fetch
+git reset --hard origin/main
+rm fetch.bat fetch.sh`,
+        {}
+      );
+      fs.chmodSync(dir + "/fetch.sh", "755");
+    } else {
+      await execPromise(`git remote set-url origin ${repo}`, dir);
+    }
+  } catch (e) {
+    console.log(e);
   }
 }
 
 async function createFolderStructure(
   struct: any,
   prefix: string,
-  org: string,
-  team: string
+  team: string,
+  func: (path: string, team: string, service: string) => void
 ) {
   try {
     let keys = Object.keys(struct);
     for (let i = 0; i < keys.length; i++) {
       let k = keys[i];
       if (struct[k] instanceof Object)
-        await createFolderStructure(struct[k], prefix + "/" + k, org, team);
+        await createFolderStructure(struct[k], prefix + "/" + k, team, func);
       else {
-        // output(`git clone "${HOST}/${org}/${team}/${k}" "${prefix}/${k}"`);
-        let repo = `"${GIT_HOST}/${org}/${team}/${k}"`;
-        let dir = `${prefix}/${k}`;
-        try {
-          if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-          }
-          if (!fs.existsSync(dir + "/.git")) {
-            await execPromise(`git init --initial-branch=main`, dir);
-            await execPromise(`git remote add origin ${repo}`, dir);
-            fs.writeFileSync(
-              dir + "/fetch.bat",
-              `@echo off
-git fetch
-git reset --hard origin/main
-del fetch.sh
-(goto) 2>nul & del fetch.bat`
-            );
-            fs.writeFileSync(
-              dir + "/fetch.sh",
-              `#!/bin/sh
-git fetch
-git reset --hard origin/main
-rm fetch.bat fetch.sh`,
-              {}
-            );
-            fs.chmodSync(dir + "/fetch.sh", "755");
-          } else {
-            await execPromise(`git remote set-url origin ${repo}`, dir);
-          }
-        } catch (e) {
-          console.log(e);
-        }
+        func(prefix, team, k);
       }
     }
   } catch (e) {
@@ -172,7 +190,7 @@ export async function createServiceGroup(pth: Path, name: string) {
     console.log("Creating service group...");
     let { org } = fetchOrg();
     fs.mkdirSync(name);
-    console.log(await sshReq(`team`, name, `--org`, org.name));
+    await sshReq(`team`, name, `--org`, org.name);
     process.chdir(before);
   } catch (e) {
     throw e;
@@ -184,31 +202,48 @@ export async function createService(pth: Path, group: string, name: string) {
     let before = process.cwd();
     process.chdir(pth.toString());
     console.log("Creating service...");
-    let { org } = fetchOrg();
+    let { org, pathToRoot } = fetchOrg();
     await sshReq(`service`, name, `--team`, group, `--org`, org.name);
-    let repoBase = `${GIT_HOST}/${org.name}/${group}`;
-    try {
-      await execPromise(`git clone -q "${repoBase}/${name}" ${name}`);
-    } catch (e) {
-      if (
-        ("" + e).startsWith(
-          "warning: You appear to have cloned an empty repository."
-        )
-      ) {
-      } else throw e;
+    if (fs.existsSync(pathToRoot + BITBUCKET_FILE)) {
+      fs.mkdirSync(name, { recursive: true });
+      fs.appendFileSync(
+        pathToRoot + BITBUCKET_FILE,
+        "\n" + bitbucketStep(group + "/" + name)
+      );
+      addExitMessage(
+        `Use '${GREEN}cd ${pth
+          .with(name)
+          .toString()
+          .replace(
+            /\\/g,
+            "\\\\"
+          )}${NORMAL_COLOR}' to go to the new service. \nAutomatic deployment added to BitBucket pipeline.`
+      );
+    } else {
+      let repoBase = `${GIT_HOST}/${org.name}/${group}`;
+      try {
+        await execPromise(`git clone -q "${repoBase}/${name}" ${name}`);
+      } catch (e) {
+        if (
+          ("" + e).startsWith(
+            "warning: You appear to have cloned an empty repository."
+          )
+        ) {
+        } else throw e;
+      }
+      await execPromise(`git symbolic-ref HEAD refs/heads/main`, name);
+      addExitMessage(
+        `Use '${GREEN}cd ${pth
+          .with(name)
+          .toString()
+          .replace(
+            /\\/g,
+            "\\\\"
+          )}${NORMAL_COLOR}' to go to the new service. \nThen use '${GREEN}${
+          process.env["COMMAND"]
+        } deploy${NORMAL_COLOR}' to deploy it.`
+      );
     }
-    await execPromise(`git symbolic-ref HEAD refs/heads/main`, name);
-    addExitMessage(
-      `Use '${GREEN}cd ${pth
-        .with(name)
-        .toString()
-        .replace(
-          /\\/g,
-          "\\\\"
-        )}${NORMAL_COLOR}' to go to the new service. \nThen use '${GREEN}${
-        process.env["COMMAND"]
-      } deploy${NORMAL_COLOR}' to deploy it.`
-    );
     process.chdir(before);
   } catch (e) {
     throw e;
@@ -219,7 +254,11 @@ async function do_pull(pth: Path, repo: string) {
   try {
     let before = process.cwd();
     process.chdir(pth.toString());
-    await execPromise(`git pull -q "${repo}"`);
+    if (fs.existsSync(".git")) await execPromise(`git pull -q "${repo}"`);
+    else {
+      await execPromise(`git clone -q "${repo}" .`);
+      fs.rmSync(".git", { recursive: true, force: true });
+    }
     process.chdir(before);
   } catch (e) {
     throw e;
@@ -445,7 +484,7 @@ export async function do_build() {
 
 export async function do_replay(org: string, id: string, river: string) {
   try {
-    await sshReq(`replay`, id, `--river`, river, `--org`, `${org}`);
+    await sshReq(`replay`, id, `--river`, river, `--org`, org);
     output2("Replayed event.");
   } catch (e) {
     throw e;
@@ -897,6 +936,92 @@ export async function do_delete_org(org: string) {
   try {
     output2(await sshReq(`org`, `--delete`, org));
     if (fs.existsSync(org)) fs.renameSync(org, `(deleted) ${org}`);
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function do_create_deployment_agent(
+  org: string,
+  name: string,
+  file: string
+) {
+  try {
+    output2("Creating service user...");
+    let cmd = [`service-user`, org];
+    if (name !== "") cmd.push(`--name`, name);
+    let key = await sshReq(...cmd);
+    fs.writeFileSync(file, key);
+  } catch (e) {
+    throw e;
+  }
+}
+
+const BITBUCKET_FILE = "bitbucket-pipelines.yml";
+function bitbucketStep(pth: string) {
+  return `          - step:
+              name: ${pth}
+              script:
+                - ./.merrymake/deploy.sh ${pth}`;
+}
+
+export async function do_bitbucket(org: string, host: string, key: string) {
+  try {
+    let struct = fetchOrg();
+    fs.writeFileSync(
+      struct.pathToRoot + path.join(".merrymake", "deploy.sh"),
+      `set -o errexit
+chmod 600 ${key}
+eval \`ssh-agent\`
+ssh-add ${key}
+echo "api.merrymake.io ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO" >> ~/.ssh/known_hosts
+cd $1
+git init
+git remote add merrymake ssh://mist@api.merrymake.io/${org}/$1
+git fetch merrymake
+git reset merrymake/main || echo "No previous deployment"
+git config --global user.email "support@merrymake.eu"
+git config --global user.name "Merrymake"
+git add -A && (git diff-index --quiet HEAD || git commit -m 'Deploy from BitBucket')
+export RES=$(git push merrymake HEAD:main --force 2>&1); echo "\${RES}"
+case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succeeds"*) exit 0 ;; *) echo "Deployment failed"; exit -1 ;; esac`
+    );
+    let reply = await sshReq(`clone`, struct.org.name);
+    if (!reply.startsWith("{")) {
+      output2(reply);
+      return;
+    }
+    let structure = JSON.parse(reply);
+    let pipelineFile = [
+      `pipelines:
+  branches:
+    master:
+      - parallel:`,
+    ];
+    let folders: string[] = [...SPECIAL_FOLDERS];
+    fetch("", structure, (path, team, service) =>
+      folders.push(path + "/" + service)
+    );
+    for (let i = 0; i < folders.length; i++) {
+      let folder = folders[i];
+      let toService = struct.pathToRoot + folder;
+      try {
+        await execPromise(`git fetch`, toService);
+        await execPromise(`git reset origin/main`, toService);
+      } catch (e) {}
+      fs.rmSync(`${toService}/.git`, { recursive: true, force: true });
+      pipelineFile.push(bitbucketStep(folder));
+    }
+    fs.writeFileSync(
+      struct.pathToRoot + BITBUCKET_FILE,
+      pipelineFile.join("\n")
+    );
+    await execPromise(`git init`, struct.pathToRoot);
+    await execPromise(`git remote add origin ${host}`, struct.pathToRoot);
+    await execPromise(
+      `git update-index --add --chmod=+x .merrymake/deploy.sh`,
+      struct.pathToRoot
+    );
   } catch (e) {
     throw e;
   }
