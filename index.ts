@@ -70,6 +70,6 @@ if (stdin.isTTY) {
       e
     );
   }
-  console.log("\x1b[31mERROR %s\x1b[0m", e);
+  console.log(`\x1b[31mERROR ${e.toString().trimEnd()}\x1b[0m`);
   process.exit(0);
 });

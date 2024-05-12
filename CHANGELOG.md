@@ -6,6 +6,10 @@
 ## Fixes and improvements
 -
 
+# 3.4.0
+## Added features
+- Add timezone to `cron`
+
 # 3.3.0
 ## Added features
 - Add `file` option to `post` command

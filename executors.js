@@ -151,8 +151,7 @@ function createOrganization(name) {
         try {
             let reply = yield (0, utils_1.sshReq)(`org`, name);
             if (!reply.startsWith("{")) {
-                (0, utils_1.output2)(reply);
-                return;
+                throw reply;
             }
             let structure = JSON.parse(reply);
             yield clone(structure, name);
@@ -506,10 +505,10 @@ function do_envvar(org, group, overwrite, key, value, access, secret) {
     });
 }
 exports.do_envvar = do_envvar;
-function do_cron(org, name, overwrite, event, expr) {
+function do_cron(org, name, overwrite, event, expr, timezone) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let call = yield (0, utils_1.sshReq)(`cron`, name, overwrite, event, `--expr`, expr, `--org`, org);
+            let call = yield (0, utils_1.sshReq)(`cron`, name, overwrite, event, `--expr`, expr, `--org`, org, `--timezone`, timezone);
             if (expr === "") {
                 (0, utils_1.output2)(call);
             }

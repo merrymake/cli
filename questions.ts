@@ -1302,15 +1302,45 @@ async function join() {
   }
 }
 
-function cron_name_event_expression(
+function cron_name_event_expression_timezone(
   org: string,
   name: string,
   overwrite: string,
   event: string,
-  expression: string
+  expression: string,
+  timezone: string
 ) {
-  addToExecuteQueue(() => do_cron(org, name, overwrite, event, expression));
+  addToExecuteQueue(() =>
+    do_cron(org, name, overwrite, event, expression, timezone)
+  );
   return finish();
+}
+
+async function cron_name_event_expression(
+  org: string,
+  name: string,
+  overwrite: string,
+  event: string,
+  expression: string,
+  currentTimezone: string
+) {
+  try {
+    let timezone = await shortText(
+      "Timezone",
+      "IANA format, eg. America/New_York, CET",
+      currentTimezone
+    ).then();
+    return cron_name_event_expression_timezone(
+      org,
+      name,
+      overwrite,
+      event,
+      expression,
+      timezone
+    );
+  } catch (e) {
+    throw e;
+  }
 }
 
 async function cron_name_event(
@@ -1318,7 +1348,7 @@ async function cron_name_event(
   name: string,
   overwrite: string,
   event: string,
-  currentExpression: string
+  currentTimezone: string
 ) {
   try {
     let expression = await shortText(
@@ -1326,7 +1356,14 @@ async function cron_name_event(
       "Eg. every 5 minutes is '*/5 * * * *'",
       ""
     ).then();
-    return cron_name_event_expression(org, name, overwrite, event, expression);
+    return cron_name_event_expression(
+      org,
+      name,
+      overwrite,
+      event,
+      expression,
+      currentTimezone
+    );
   } catch (e) {
     throw e;
   }
@@ -1336,7 +1373,7 @@ async function cron_name(
   org: string,
   name: string,
   currentEvent: string,
-  expression: string
+  currentTimezone: string
 ) {
   try {
     let event = await shortText(
@@ -1344,7 +1381,7 @@ async function cron_name(
       "Event that should be spawned",
       currentEvent
     ).then();
-    return cron_name_event(org, name, "--overwrite", event, expression);
+    return cron_name_event(org, name, "--overwrite", event, currentTimezone);
   } catch (e) {
     throw e;
   }
@@ -1357,7 +1394,7 @@ async function cron_new_event(org: string, event: string) {
       "Used to edit or delete the cron job later",
       event
     ).then();
-    return cron_name_event(org, name, "", event, "");
+    return cron_name_event(org, name, "", event, "UTC");
   } catch (e) {
     throw e;
   }
@@ -1379,14 +1416,19 @@ async function cron_new(org: string) {
 async function cron(org: string) {
   try {
     let resp = await sshReq(`list-crons`, `--org`, org);
-    let orgs: { name: string; event: string; expression: string }[] =
-      JSON.parse(resp);
+    let orgs: {
+      name: string;
+      event: string;
+      expression: string;
+      timezone: string;
+    }[] = JSON.parse(resp);
     let options: Option[] = orgs.map((x) => ({
       long: x.name,
-      text: `${alignRight(x.name, 30)} │ ${alignLeft(x.event, 18)} │ ${
-        x.expression
-      }`,
-      action: () => cron_name(org, x.name, x.event, x.expression),
+      text: `${alignRight(x.name, 15)} │ ${alignLeft(
+        x.event,
+        15
+      )} │ ${alignLeft(x.timezone || "UTC", 15)} │ ${x.expression}`,
+      action: () => cron_name(org, x.name, x.event, x.timezone),
     }));
     options.push({
       long: `new`,
@@ -1398,7 +1440,12 @@ async function cron(org: string) {
     if (options.length > 1)
       tableHeader =
         "\n" +
-        printTableHeader("      ", { Name: 30, Event: 18, Expression: 20 });
+        printTableHeader("      ", {
+          Name: 15,
+          Event: 15,
+          Timezone: 15,
+          Expression: 20,
+        });
     return await choice(
       "Which cron job do you want to edit?" + tableHeader,
       options

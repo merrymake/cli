@@ -66,6 +66,6 @@ if (node_process_1.stdin.isTTY) {
         (0, executors_1.addKnownHost)();
         console.log("\x1b[31mAn error occurred, please try again. If the problem persists reach out on http://discord.merrymake.eu \x1b[0m", e);
     }
-    console.log("\x1b[31mERROR %s\x1b[0m", e);
+    console.log(`\x1b[31mERROR ${e.toString().trimEnd()}\x1b[0m`);
     process.exit(0);
 });

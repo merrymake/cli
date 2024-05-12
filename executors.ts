@@ -174,8 +174,7 @@ export async function createOrganization(name: string) {
   try {
     let reply = await sshReq(`org`, name);
     if (!reply.startsWith("{")) {
-      output2(reply);
-      return;
+      throw reply;
     }
     let structure = JSON.parse(reply);
     await clone(structure, name);
@@ -581,7 +580,8 @@ export async function do_cron(
   name: string,
   overwrite: string,
   event: string,
-  expr: string
+  expr: string,
+  timezone: string
 ) {
   try {
     let call = await sshReq(
@@ -592,7 +592,9 @@ export async function do_cron(
       `--expr`,
       expr,
       `--org`,
-      org
+      org,
+      `--timezone`,
+      timezone
     );
     if (expr === "") {
       output2(call);

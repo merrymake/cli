@@ -1031,26 +1031,37 @@ function join() {
         }
     });
 }
-function cron_name_event_expression(org, name, overwrite, event, expression) {
-    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_cron)(org, name, overwrite, event, expression));
+function cron_name_event_expression_timezone(org, name, overwrite, event, expression, timezone) {
+    (0, utils_1.addToExecuteQueue)(() => (0, executors_1.do_cron)(org, name, overwrite, event, expression, timezone));
     return (0, utils_1.finish)();
 }
-function cron_name_event(org, name, overwrite, event, currentExpression) {
+function cron_name_event_expression(org, name, overwrite, event, expression, currentTimezone) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let expression = yield (0, prompt_1.shortText)("Cron expression", "Eg. every 5 minutes is '*/5 * * * *'", "").then();
-            return cron_name_event_expression(org, name, overwrite, event, expression);
+            let timezone = yield (0, prompt_1.shortText)("Timezone", "IANA format, eg. America/New_York, CET", currentTimezone).then();
+            return cron_name_event_expression_timezone(org, name, overwrite, event, expression, timezone);
         }
         catch (e) {
             throw e;
         }
     });
 }
-function cron_name(org, name, currentEvent, expression) {
+function cron_name_event(org, name, overwrite, event, currentTimezone) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let expression = yield (0, prompt_1.shortText)("Cron expression", "Eg. every 5 minutes is '*/5 * * * *'", "").then();
+            return cron_name_event_expression(org, name, overwrite, event, expression, currentTimezone);
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function cron_name(org, name, currentEvent, currentTimezone) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let event = yield (0, prompt_1.shortText)("Which event to spawn", "Event that should be spawned", currentEvent).then();
-            return cron_name_event(org, name, "--overwrite", event, expression);
+            return cron_name_event(org, name, "--overwrite", event, currentTimezone);
         }
         catch (e) {
             throw e;
@@ -1061,7 +1072,7 @@ function cron_new_event(org, event) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let name = yield (0, prompt_1.shortText)("Unique name", "Used to edit or delete the cron job later", event).then();
-            return cron_name_event(org, name, "", event, "");
+            return cron_name_event(org, name, "", event, "UTC");
         }
         catch (e) {
             throw e;
@@ -1086,8 +1097,8 @@ function cron(org) {
             let orgs = JSON.parse(resp);
             let options = orgs.map((x) => ({
                 long: x.name,
-                text: `${(0, executors_1.alignRight)(x.name, 30)} │ ${(0, executors_1.alignLeft)(x.event, 18)} │ ${x.expression}`,
-                action: () => cron_name(org, x.name, x.event, x.expression),
+                text: `${(0, executors_1.alignRight)(x.name, 15)} │ ${(0, executors_1.alignLeft)(x.event, 15)} │ ${(0, executors_1.alignLeft)(x.timezone || "UTC", 15)} │ ${x.expression}`,
+                action: () => cron_name(org, x.name, x.event, x.timezone),
             }));
             options.push({
                 long: `new`,
@@ -1099,7 +1110,12 @@ function cron(org) {
             if (options.length > 1)
                 tableHeader =
                     "\n" +
-                        (0, executors_1.printTableHeader)("      ", { Name: 30, Event: 18, Expression: 20 });
+                        (0, executors_1.printTableHeader)("      ", {
+                            Name: 15,
+                            Event: 15,
+                            Timezone: 15,
+                            Expression: 20,
+                        });
             return yield (0, prompt_1.choice)("Which cron job do you want to edit?" + tableHeader, options).then((x) => x);
         }
         catch (e) {
