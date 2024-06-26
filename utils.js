@@ -35,15 +35,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
+exports.toFolderName = exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
+const child_process_1 = require("child_process");
+const fs_1 = __importDefault(require("fs"));
 const http_1 = __importDefault(require("http"));
 const https_1 = __importDefault(require("https"));
-const config_1 = require("./config");
-const path_1 = __importDefault(require("path"));
-const os_1 = __importDefault(require("os"));
-const fs_1 = __importDefault(require("fs"));
-const child_process_1 = require("child_process");
 const node_fs_1 = require("node:fs");
+const os_1 = __importDefault(require("os"));
+const path_1 = __importDefault(require("path"));
+const config_1 = require("./config");
 const conf = __importStar(require("./package.json"));
 const prompt_1 = require("./prompt");
 class Path {
@@ -138,10 +138,6 @@ function saveCache(cache) {
 }
 exports.saveCache = saveCache;
 function fetchOrgRaw() {
-    if (fs_1.default.existsSync(path_1.default.join(".mist", "conf.json"))) {
-        let org = JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(".mist", "conf.json")));
-        return { org, serviceGroup: null, pathToRoot: "." + path_1.default.sep };
-    }
     if (fs_1.default.existsSync(path_1.default.join(".merrymake", "conf.json"))) {
         let org = JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(".merrymake", "conf.json")));
         return { org, serviceGroup: null, pathToRoot: "." + path_1.default.sep };
@@ -151,11 +147,6 @@ function fetchOrgRaw() {
     let folder = path_1.default.sep;
     let serviceGroup = null;
     for (let i = cwd.length - 1; i >= 0; i--) {
-        if (fs_1.default.existsSync(out + path_1.default.join("..", ".mist", "conf.json"))) {
-            serviceGroup = cwd[i];
-            let org = (JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(`${out}..`, `.mist`, `conf.json`))));
-            return { org, serviceGroup, pathToRoot: out + ".." + path_1.default.sep };
-        }
         if (fs_1.default.existsSync(out + path_1.default.join("..", ".merrymake", "conf.json"))) {
             serviceGroup = cwd[i];
             let org = (JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(`${out}..`, `.merrymake`, `conf.json`))));
@@ -329,3 +320,7 @@ function directoryNames(path, exclude) {
         .filter((x) => x.isDirectory() && !exclude.includes(x.name) && !x.name.startsWith("."));
 }
 exports.directoryNames = directoryNames;
+function toFolderName(str) {
+    return str.toLowerCase().replace(/[^a-z0-9\-_]/g, "-");
+}
+exports.toFolderName = toFolderName;

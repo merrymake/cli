@@ -10,11 +10,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_process_1 = require("node:process");
+const args_1 = require("./args");
 const prompt_1 = require("./prompt");
 const utils_1 = require("./utils");
-const questions_1 = require("./questions");
-const args_1 = require("./args");
-const executors_1 = require("./executors");
+const register_1 = require("./newCommands/register");
+const newCommands_1 = require("./newCommands");
 // if (!stdin.isTTY || stdin.setRawMode === undefined) {
 //   console.log(
 //     "This console does not support TTY, please use 'winpty mm' or the 'mmk'-command instead."
@@ -59,11 +59,11 @@ if (node_process_1.stdin.isTTY) {
 // TODO roles
 (() => __awaiter(void 0, void 0, void 0, function* () {
     (0, utils_1.checkVersion)();
-    let token = yield (0, questions_1.start)();
+    let token = yield (0, newCommands_1.index)();
 }))().catch((e) => {
     (0, prompt_1.exit)();
     if (("" + e).includes("Permission denied")) {
-        (0, executors_1.addKnownHost)();
+        (0, register_1.addKnownHost)();
         console.log("\x1b[31mAn error occurred, please try again. If the problem persists reach out on http://discord.merrymake.eu \x1b[0m", e);
     }
     console.log(`\x1b[31mERROR ${e.toString().trimEnd()}\x1b[0m`);

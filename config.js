@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GIT_HOST = exports.SSH_USER = exports.SSH_HOST = exports.HTTP_HOST = exports.RAPIDS_HOST = exports.API_URL = exports.MERRYMAKE_IO = void 0;
-exports.MERRYMAKE_IO = `merrymake.io`;
+exports.MERRYMAKE_IO = `mftd5j9yrugj7a6zmvydmjke.merrymake.io`;
 exports.API_URL = `api.${exports.MERRYMAKE_IO}`;
 exports.RAPIDS_HOST = `https://rapids.${exports.MERRYMAKE_IO}`;
 exports.HTTP_HOST = `https://${exports.API_URL}`;

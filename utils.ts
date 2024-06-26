@@ -1,21 +1,21 @@
+import { exec, spawn } from "child_process";
+import fs from "fs";
 import http from "http";
 import https from "https";
-import { SSH_HOST } from "./config";
-import path from "path";
-import os from "os";
-import fs from "fs";
-import { exec, spawn } from "child_process";
 import { readdirSync } from "node:fs";
+import os from "os";
+import path from "path";
+import { SSH_HOST } from "./config";
 import * as conf from "./package.json";
 import {
-  YELLOW,
+  BLUE,
   NORMAL_COLOR,
   exit,
+  output,
   spinner_start,
   spinner_stop,
-  output,
-  BLUE,
 } from "./prompt";
+import { PathTo } from "./types";
 
 export class Path {
   constructor(private offset = ".") {
@@ -90,7 +90,7 @@ export function TODO(): never {
 }
 
 export interface OrgFile {
-  name: string;
+  organizationId: string;
 }
 interface CacheFile {
   registered: boolean;
@@ -108,12 +108,6 @@ export function saveCache(cache: CacheFile) {
 }
 
 export function fetchOrgRaw() {
-  if (fs.existsSync(path.join(".mist", "conf.json"))) {
-    let org: OrgFile = JSON.parse(
-      "" + fs.readFileSync(path.join(".mist", "conf.json"))
-    );
-    return { org, serviceGroup: null, pathToRoot: "." + path.sep };
-  }
   if (fs.existsSync(path.join(".merrymake", "conf.json"))) {
     let org: OrgFile = JSON.parse(
       "" + fs.readFileSync(path.join(".merrymake", "conf.json"))
@@ -126,15 +120,6 @@ export function fetchOrgRaw() {
   let folder = path.sep;
   let serviceGroup: string | null = null;
   for (let i = cwd.length - 1; i >= 0; i--) {
-    if (fs.existsSync(out + path.join("..", ".mist", "conf.json"))) {
-      serviceGroup = cwd[i];
-      let org = <OrgFile>(
-        JSON.parse(
-          "" + fs.readFileSync(path.join(`${out}..`, `.mist`, `conf.json`))
-        )
-      );
-      return { org, serviceGroup, pathToRoot: out + ".." + path.sep };
-    }
     if (fs.existsSync(out + path.join("..", ".merrymake", "conf.json"))) {
       serviceGroup = cwd[i];
       let org = <OrgFile>(
@@ -306,7 +291,7 @@ export function urlReq(
   );
 }
 
-export function directoryNames(path: Path, exclude: string[]) {
+export function directoryNames(path: PathTo, exclude: string[]) {
   if (!fs.existsSync(path.toString())) return [];
   return fs
     .readdirSync(path.toString(), { withFileTypes: true })
@@ -314,4 +299,8 @@ export function directoryNames(path: Path, exclude: string[]) {
       (x) =>
         x.isDirectory() && !exclude.includes(x.name) && !x.name.startsWith(".")
     );
+}
+
+export function toFolderName(str: string) {
+  return str.toLowerCase().replace(/[^a-z0-9\-_]/g, "-");
 }

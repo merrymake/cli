@@ -1,4 +1,4 @@
-export const MERRYMAKE_IO = `merrymake.io`;
+export const MERRYMAKE_IO = `mftd5j9yrugj7a6zmvydmjke.merrymake.io`;
 export const API_URL = `api.${MERRYMAKE_IO}`;
 export const RAPIDS_HOST = `https://rapids.${MERRYMAKE_IO}`;
 

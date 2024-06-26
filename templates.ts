@@ -31,12 +31,12 @@ export const templates: {
     text: "initialize with a basic template",
     languages: [
       "python",
-      "csharp",
-      "java",
+      // "csharp",
+      // "java",
       "typescript",
       "rust",
-      "go",
-      "javascript",
+      // "go",
+      // "javascript",
     ],
   },
   // web: {

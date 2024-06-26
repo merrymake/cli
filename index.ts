@@ -1,10 +1,9 @@
 import { stdin } from "node:process";
-import path from "path";
-import { CTRL_C, exit } from "./prompt";
-import { abort, addToExecuteQueue, checkVersion, setDryrun } from "./utils";
-import { start } from "./questions";
 import { initializeArgs } from "./args";
-import { addKnownHost } from "./executors";
+import { CTRL_C, exit } from "./prompt";
+import { abort, checkVersion, setDryrun } from "./utils";
+import { addKnownHost } from "./newCommands/register";
+import { index } from "./newCommands";
 
 // if (!stdin.isTTY || stdin.setRawMode === undefined) {
 //   console.log(
@@ -60,7 +59,7 @@ if (stdin.isTTY) {
 
 (async () => {
   checkVersion();
-  let token: never = await start();
+  let token: never = await index();
 })().catch((e) => {
   exit();
   if (("" + e).includes("Permission denied")) {

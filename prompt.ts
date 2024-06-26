@@ -474,8 +474,8 @@ export function shortText(
     }
 
     let str = prompt;
-    if (defaultValue === "") str += ` (optional)`;
-    else str += ` (default: ${defaultValue})`;
+    if (defaultValue === "") str += ` (${YELLOW}optional${NORMAL_COLOR})`;
+    else str += ` (default: ${YELLOW}${defaultValue}${NORMAL_COLOR})`;
     str += ": ";
     output(str);
     let [prevX, prevY] = getCursorPosition();

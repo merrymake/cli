@@ -412,9 +412,9 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
         }
         let str = prompt;
         if (defaultValue === "")
-            str += ` (optional)`;
+            str += ` (${exports.YELLOW}optional${exports.NORMAL_COLOR})`;
         else
-            str += ` (default: ${defaultValue})`;
+            str += ` (default: ${exports.YELLOW}${defaultValue}${exports.NORMAL_COLOR})`;
         str += ": ";
         output(str);
         let [prevX, prevY] = getCursorPosition();
