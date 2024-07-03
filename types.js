@@ -60,6 +60,9 @@ class PathToServiceGroup {
     with(folder) {
         return new PathToRepository(path_1.default.join(this.pathToServiceGroup, folder));
     }
+    last() {
+        return this.pathToServiceGroup.substring(this.pathToServiceGroup.lastIndexOf("/"));
+    }
     toString() {
         return this.pathToServiceGroup;
     }

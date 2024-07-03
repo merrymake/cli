@@ -1,11 +1,10 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 import fs, { readdirSync } from "fs";
-import { getArgs } from "../args";
 import { RAPIDS_HOST } from "../config";
 import { Option, choice, shortText } from "../prompt";
+import { OrganizationId } from "../types";
 import { addToExecuteQueue, finish, output2, sshReq, urlReq } from "../utils";
 import { key_create } from "./apikey";
-import { OrganizationId } from "../types";
 
 export async function do_post(
   eventType: string,
@@ -14,7 +13,7 @@ export async function do_post(
   payload: string
 ) {
   try {
-    let resp = await urlReq(
+    const resp = await urlReq(
       `${RAPIDS_HOST}/${key}/${eventType}`,
       "POST",
       payload,
@@ -32,12 +31,12 @@ export async function do_post_file(
   filename: string
 ) {
   try {
-    let content = fs.readFileSync(filename).toString();
-    let type = optimisticMimeTypeOf(
+    const content = fs.readFileSync(filename).toString();
+    const type = optimisticMimeTypeOf(
       filename.substring(filename.lastIndexOf(".") + 1)
     );
     if (type === null) throw "Could not determine content type";
-    let resp = await urlReq(
+    const resp = await urlReq(
       `${RAPIDS_HOST}/${key}/${eventType}`,
       "POST",
       content,
@@ -59,14 +58,10 @@ async function post_key(
   foo: (key: string) => Promise<void>
 ) {
   try {
-    if (getArgs().length > 0 && getArgs()[0] !== "_") {
-      let key = getArgs().splice(0, 1)[0];
-      return await post_event_payload_key(() => foo(key));
-    }
-    let resp = await sshReq(`apikey-list`, organizationId.toString());
-    let keys: { name: string; id: string }[] = JSON.parse(resp);
-    let options: Option[] = keys.map((x) => {
-      let n = x.name ? ` (${x.name})` : "";
+    const resp = await sshReq(`apikey-list`, organizationId.toString());
+    const keys: { name: string; id: string }[] = JSON.parse(resp);
+    const options: Option[] = keys.map((x) => {
+      const n = x.name ? ` (${x.name})` : "";
       return {
         long: x.id,
         text: `${x.id}${n}`,
@@ -94,7 +89,7 @@ async function post_event_payload_type(
   contentType: string
 ) {
   try {
-    let payload = await shortText(
+    const payload = await shortText(
       "Payload",
       "The data to be attached to the request",
       ""
@@ -112,10 +107,10 @@ async function post_event_payload_file(
   eventType: string
 ) {
   try {
-    let files = readdirSync(".", { withFileTypes: true }).flatMap((x) =>
+    const files = readdirSync(".", { withFileTypes: true }).flatMap((x) =>
       x.isDirectory() ? [] : [x.name]
     );
-    let options = files.map<Option>((x) => {
+    const options = files.map<Option>((x) => {
       return {
         long: x,
         text: x,
@@ -167,7 +162,7 @@ function post_event(organizationId: OrganizationId, eventType: string) {
 
 export async function post(organizationId: OrganizationId) {
   try {
-    let eventType = await shortText(
+    const eventType = await shortText(
       "Event type",
       "The type of event to post",
       "hello"

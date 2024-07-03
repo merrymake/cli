@@ -1,17 +1,16 @@
+import { MerrymakeCrypto } from "@merrymake/secret-lib";
 import fs from "fs";
+import path from "path";
+import { GIT_HOST } from "../config";
+import { Option, Visibility, choice, shortText } from "../prompt";
+import { OrganizationId, PathToOrganization, ServiceGroupId } from "../types";
 import {
+  addToExecuteQueue,
   execPromise,
+  finish,
   output2,
   sshReq,
-  fetchOrgRaw,
-  addToExecuteQueue,
-  finish,
 } from "../utils";
-import { GIT_HOST } from "../config";
-import path from "path";
-import { MerrymakeCrypto } from "@merrymake/secret-lib";
-import { choice, shortText, Visibility, Option } from "../prompt";
-import { OrganizationId, PathToOrganization, ServiceGroupId } from "../types";
 
 async function do_envvar(
   pathToOrganization: PathToOrganization,
@@ -25,12 +24,12 @@ async function do_envvar(
   try {
     let val: string;
     if (encrypted === true) {
-      let repoBase = `${GIT_HOST}/o${organizationId.toString()}/g${serviceGroupId.toString()}/.key`;
+      const repoBase = `${GIT_HOST}/o${organizationId.toString()}/g${serviceGroupId.toString()}/.key`;
       await execPromise(
         `git clone -q "${repoBase}"`,
         pathToOrganization.with(".merrymake").toString()
       );
-      let key = fs.readFileSync(
+      const key = fs.readFileSync(
         pathToOrganization
           .with(".merrymake")
           .with(".key")
@@ -159,7 +158,7 @@ async function envvar_key_visible(
   secret: boolean
 ) {
   try {
-    let value = await shortText(
+    const value = await shortText(
       "Value",
       "The value...",
       "",
@@ -246,7 +245,7 @@ async function envvar_new(
   serviceGroupId: ServiceGroupId
 ) {
   try {
-    let key = await shortText(
+    const key = await shortText(
       "Key",
       "Key for the key-value pair",
       "key"
@@ -263,10 +262,10 @@ export async function envvar(
   serviceGroupId: ServiceGroupId
 ) {
   try {
-    let resp = await sshReq(`envvar-list`, serviceGroupId.toString());
-    let orgs: { k: string; v: string; i: boolean; p: boolean }[] =
+    const resp = await sshReq(`envvar-list`, serviceGroupId.toString());
+    const orgs: { k: string; v: string; i: boolean; p: boolean }[] =
       JSON.parse(resp);
-    let options: Option[] = orgs.map((x) => ({
+    const options: Option[] = orgs.map((x) => ({
       long: x.k,
       text: `[${x.i ? "I" : " "}${x.p ? "P" : " "}] ${x.k}: ${x.v}`,
       action: () =>

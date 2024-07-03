@@ -13,29 +13,30 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.index = void 0;
+const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const prompt_1 = require("../prompt");
 const types_1 = require("../types");
 const utils_1 = require("../utils");
-const queue_1 = require("./queue");
-const register_1 = require("./register");
-const role_1 = require("./role");
-const fs_1 = __importDefault(require("fs"));
-const org_1 = require("./org");
 const apikey_1 = require("./apikey");
-const event_1 = require("./event");
-const group_1 = require("./group");
-const repo_1 = require("./repo");
-const fetch_1 = require("./fetch");
 const deploy_1 = require("./deploy");
 const envvar_1 = require("./envvar");
+const event_1 = require("./event");
+const fetch_1 = require("./fetch");
+const group_1 = require("./group");
+const hosting_1 = require("./hosting");
+const org_1 = require("./org");
+const queue_1 = require("./queue");
+const register_1 = require("./register");
+const repo_1 = require("./repo");
+const role_1 = require("./role");
 function getContext() {
     return __awaiter(this, void 0, void 0, function* () {
         let repository;
         let serviceGroup;
         let organization;
-        let cwd = process.cwd().split(/\/|\\/);
-        let out = "";
+        const cwd = process.cwd().split(/\/|\\/);
+        let out = ".";
         for (let i = cwd.length - 1; i >= 0; i--) {
             if (fs_1.default.existsSync(path_1.default.join(out, "merrymake.json"))) {
                 if (fs_1.default.existsSync(path_1.default.join(out, ".git"))) {
@@ -76,78 +77,97 @@ function index() {
         try {
             const options = [];
             const { repository, serviceGroup, organization } = yield getContext();
-            if (repository !== undefined) {
+            if (fs_1.default.existsSync(`.git`)) {
                 options.push({
                     long: "deploy",
                     short: "d",
                     text: "deploy service to the cloud",
+                    weight: 900,
                     action: () => (0, deploy_1.deploy)(),
                 });
             }
             if (serviceGroup !== undefined) {
-                if (repository === undefined) {
-                    options.push({
-                        long: "fetch",
-                        short: "f",
-                        text: "fetch updates to service groups and repos",
-                        action: () => (0, fetch_1.fetch)(organization.pathTo, organization.id),
-                    });
-                }
                 options.push({
                     long: "envvar",
                     short: "e",
                     text: "add or edit envvar for service group",
+                    weight: 800,
                     action: () => (0, envvar_1.envvar)(organization.pathTo, organization.id, serviceGroup.id),
                 }, {
                     long: "repo",
                     short: "r",
                     text: "add or edit repository",
-                    action: () => (0, repo_1.repo)(serviceGroup.pathTo, organization.id, serviceGroup.id),
+                    weight: 700,
+                    action: () => (0, repo_1.repo)(organization, serviceGroup),
                 });
             }
             if (organization !== undefined) {
                 if (serviceGroup === undefined) {
+                    if (!fs_1.default.existsSync(organization.pathTo.with(hosting_1.BITBUCKET_FILE).toString())) {
+                        options.push({
+                            long: "fetch",
+                            short: "f",
+                            text: "fetch updates to service groups and repos",
+                            weight: 600,
+                            action: () => (0, fetch_1.fetch)(organization),
+                        });
+                        options.push({
+                            long: "hosting",
+                            short: "h",
+                            text: "configure git hosting with bitbucket",
+                            weight: 100,
+                            action: () => (0, hosting_1.hosting)(organization),
+                        });
+                    }
                     options.push({
                         long: "group",
                         short: "g",
                         text: "create a service group",
-                        action: () => (0, group_1.group)(organization.pathTo, organization.id),
+                        weight: 500,
+                        action: () => (0, group_1.group)(organization),
+                    }, {
+                        long: "role",
+                        short: "o",
+                        text: "add or assign roles to users in the organization",
+                        weight: 200,
+                        action: () => (0, role_1.role)(organization.id),
                     });
                 }
                 options.push({
                     long: "rapids",
                     short: "q",
                     text: "view or post messages to the rapids",
+                    weight: 1000,
                     action: () => (0, queue_1.queue)(organization.id),
                 }, {
                     long: "key",
                     short: "k",
                     text: "add or edit api-keys for the organization",
+                    weight: 400,
                     action: () => (0, apikey_1.key)(organization.id),
                 }, {
                     long: "event",
                     short: "v",
                     text: "allow or disallow events through api-keys for the organization",
+                    weight: 300,
                     action: () => (0, event_1.event)(organization.id),
-                }, {
-                    long: "role",
-                    short: "o",
-                    text: "add or assign roles to users in the organization",
-                    action: () => (0, role_1.role)(organization.id),
                 });
             }
             else if (organization === undefined) {
                 options.push({
                     long: "start",
                     text: "start for new user or new device",
+                    weight: 900,
                     action: () => (0, register_1.register)(),
                 }, {
                     long: "org",
                     short: "o",
                     text: "manage or checkout organizations",
+                    weight: 500,
                     action: () => (0, org_1.orgAction)(),
                 });
             }
+            options.sort((a, b) => b.weight - a.weight);
             return (0, prompt_1.choice)("What would you like to do?", options);
         }
         catch (e) {

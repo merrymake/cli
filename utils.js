@@ -139,17 +139,17 @@ function saveCache(cache) {
 exports.saveCache = saveCache;
 function fetchOrgRaw() {
     if (fs_1.default.existsSync(path_1.default.join(".merrymake", "conf.json"))) {
-        let org = JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(".merrymake", "conf.json")));
+        const org = JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(".merrymake", "conf.json")));
         return { org, serviceGroup: null, pathToRoot: "." + path_1.default.sep };
     }
-    let cwd = process.cwd().split(/\/|\\/);
+    const cwd = process.cwd().split(/\/|\\/);
     let out = "";
     let folder = path_1.default.sep;
     let serviceGroup = null;
     for (let i = cwd.length - 1; i >= 0; i--) {
         if (fs_1.default.existsSync(out + path_1.default.join("..", ".merrymake", "conf.json"))) {
             serviceGroup = cwd[i];
-            let org = (JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(`${out}..`, `.merrymake`, `conf.json`))));
+            const org = (JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(`${out}..`, `.merrymake`, `conf.json`))));
             return { org, serviceGroup, pathToRoot: out + ".." + path_1.default.sep };
         }
         folder = path_1.default.sep + cwd[i] + folder;
@@ -159,7 +159,7 @@ function fetchOrgRaw() {
 }
 exports.fetchOrgRaw = fetchOrgRaw;
 function fetchOrg() {
-    let res = fetchOrgRaw();
+    const res = fetchOrgRaw();
     if (res.org === null)
         throw "Not inside a Merrymake organization";
     return res;
@@ -174,8 +174,8 @@ function output2(str) {
 }
 exports.output2 = output2;
 function versionIsOlder(old, new_) {
-    let os = old.split(".");
-    let ns = new_.split(".");
+    const os = old.split(".");
+    const ns = new_.split(".");
     if (+os[0] < +ns[0])
         return true;
     else if (+os[0] > +ns[0])
@@ -191,7 +191,7 @@ function versionIsOlder(old, new_) {
 function execPromise(cmd, cwd) {
     return new Promise((resolve, reject) => {
         (0, child_process_1.exec)(cmd, { cwd }, (error, stdout, stderr) => {
-            let err = (error === null || error === void 0 ? void 0 : error.message) || stderr;
+            const err = (error === null || error === void 0 ? void 0 : error.message) || stderr;
             if (err) {
                 reject(stderr || stdout);
             }
@@ -209,13 +209,13 @@ function checkVersion() {
     return __awaiter(this, void 0, void 0, function* () {
         if (!fs_1.default.existsSync(historyFolder))
             fs_1.default.mkdirSync(historyFolder);
-        let lastCheck = fs_1.default.existsSync(historyFolder + updateFile)
+        const lastCheck = fs_1.default.existsSync(historyFolder + updateFile)
             ? +fs_1.default.readFileSync(historyFolder + updateFile).toString()
             : 0;
         if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
             try {
-                let call = yield execPromise("npm show @merrymake/cli dist-tags --json");
-                let version = JSON.parse(call);
+                const call = yield execPromise("npm show @merrymake/cli dist-tags --json");
+                const version = JSON.parse(call);
                 if (versionIsOlder(conf.version, version.latest)) {
                     addExitMessage(`
 New version of merrymake-cli available, ${process.env["UPDATE_MESSAGE"]}`);
@@ -233,8 +233,8 @@ function typedKeys(o) {
 exports.typedKeys = typedKeys;
 function execStreamPromise(full, onData, cwd) {
     return new Promise((resolve, reject) => {
-        let [cmd, ...args] = full.split(" ");
-        let p = (0, child_process_1.spawn)(cmd, args, { cwd, shell: "sh" });
+        const [cmd, ...args] = full.split(" ");
+        const p = (0, child_process_1.spawn)(cmd, args, { cwd, shell: "sh" });
         p.stdout.on("data", (data) => {
             onData(data.toString());
         });
@@ -257,7 +257,7 @@ function sshReq(...cmd) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             (0, prompt_1.spinner_start)();
-            let result = yield sshReqInternal(cmd
+            const result = yield sshReqInternal(cmd
                 .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
                 .join(" "));
             (0, prompt_1.spinner_stop)();
@@ -270,7 +270,7 @@ function sshReq(...cmd) {
 }
 exports.sshReq = sshReq;
 function partition(str, radix) {
-    let index = str.indexOf(radix);
+    const index = str.indexOf(radix);
     if (index < 0)
         return [str, ""];
     return [str.substring(0, index), str.substring(index + radix.length)];
@@ -278,17 +278,17 @@ function partition(str, radix) {
 exports.partition = partition;
 function urlReq(url, method = "GET", data, contentType = "application/json") {
     return new Promise((resolve, reject) => {
-        let [protocol, fullPath] = url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
-        let [base, path] = partition(fullPath, "/");
-        let [host, port] = partition(base, ":");
+        const [protocol, fullPath] = url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
+        const [base, path] = partition(fullPath, "/");
+        const [host, port] = partition(base, ":");
         let headers;
         if (data !== undefined)
             headers = {
                 "Content-Type": contentType,
                 "Content-Length": data.length,
             };
-        let sender = protocol === "http" ? http_1.default : https_1.default;
-        let req = sender.request({
+        const sender = protocol === "http" ? http_1.default : https_1.default;
+        const req = sender.request({
             host,
             port,
             path: "/" + path,

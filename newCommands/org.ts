@@ -17,9 +17,9 @@ export async function do_createOrganization(
   displayName: string
 ) {
   try {
-    let reply = await sshReq(`organization-create`, displayName);
+    const reply = await sshReq(`organization-create`, displayName);
     if (reply.length !== 8) throw reply;
-    let organizationId = new OrganizationId(reply);
+    const organizationId = new OrganizationId(reply);
     await do_clone({}, folderName, displayName, organizationId);
     return organizationId;
   } catch (e) {
@@ -59,15 +59,18 @@ export function generateOrgName() {
 
 export async function org() {
   try {
-    let orgName = generateOrgName();
-    let displayName = await shortText(
+    const orgName = generateOrgName();
+    const displayName = await shortText(
       "Organization name",
       "Used when collaborating with others.",
       orgName
     ).then();
     const folderName = toFolderName(displayName);
     const organizationId = await do_createOrganization(folderName, displayName);
-    return group(new PathToOrganization(folderName), organizationId);
+    return group({
+      pathTo: new PathToOrganization(folderName),
+      id: organizationId,
+    });
   } catch (e) {
     throw e;
   }
@@ -89,7 +92,7 @@ function join_org(name: string) {
 
 async function join() {
   try {
-    let name = await shortText(
+    const name = await shortText(
       "Organization to join",
       "Name of the organization you wish to request access to.",
       null
@@ -103,7 +106,7 @@ async function join() {
 let orgListCache: { name: string; id: string }[] | undefined;
 export async function listOrgs() {
   if (orgListCache === undefined) {
-    let resp = await sshReq(`organization-list`);
+    const resp = await sshReq(`organization-list`);
     if (!resp.startsWith("[")) throw resp;
     orgListCache = JSON.parse(resp);
   }
@@ -112,8 +115,8 @@ export async function listOrgs() {
 
 export async function orgAction() {
   try {
-    let orgs = await listOrgs();
-    let options: Option[] = [];
+    const orgs = await listOrgs();
+    const options: Option[] = [];
     if (orgs.length > 0) {
       options.push({
         long: orgs[0].id,

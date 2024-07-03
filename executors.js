@@ -12,23 +12,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_delete_org = exports.do_delete_group = exports.do_spending = exports.do_help = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_build = exports.SPECIAL_FOLDERS = void 0;
-const fs_1 = __importDefault(require("fs"));
-const utils_1 = require("./utils");
+exports.do_delete_org = exports.do_delete_group = exports.do_spending = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_build = void 0;
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const child_process_1 = require("child_process");
-const prompt_1 = require("./prompt");
-const args_1 = require("./args");
+const fs_1 = __importDefault(require("fs"));
 const process_1 = require("process");
-exports.SPECIAL_FOLDERS = ["event-catalogue", "public"];
+const args_1 = require("./args");
+const utils_1 = require("./utils");
 function spawnPromise(str) {
     return new Promise((resolve, reject) => {
-        let [cmd, ...args] = str.split(" ");
+        const [cmd, ...args] = str.split(" ");
         const options = {
             cwd: ".",
             shell: "sh",
         };
-        let ls = (0, child_process_1.spawn)(cmd, args, options);
+        const ls = (0, child_process_1.spawn)(cmd, args, options);
         ls.stdout.on("data", (data) => {
             (0, utils_1.output2)(data.toString());
         });
@@ -46,11 +44,11 @@ function spawnPromise(str) {
 function do_build() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let projectType = (0, detect_project_type_1.detectProjectType)(".");
+            const projectType = (0, detect_project_type_1.detectProjectType)(".");
             (0, utils_1.output2)(`Building ${projectType} project...`);
-            let buildCommands = detect_project_type_1.BUILD_SCRIPT_MAKERS[projectType](".");
+            const buildCommands = detect_project_type_1.BUILD_SCRIPT_MAKERS[projectType](".");
             for (let i = 0; i < buildCommands.length; i++) {
-                let x = buildCommands[i];
+                const x = buildCommands[i];
                 yield spawnPromise(x);
             }
         }
@@ -75,17 +73,17 @@ exports.alignLeft = alignLeft;
 function printTableHeader(prefix, widths) {
     if ((0, args_1.getArgs)().length > 0)
         return "";
-    let totalWidth = process_1.stdout.getWindowSize()[0] - prefix.length;
-    let vals = Object.values(widths);
-    let rest = totalWidth -
+    const totalWidth = process_1.stdout.getWindowSize()[0] - prefix.length;
+    const vals = Object.values(widths);
+    const rest = totalWidth -
         vals.reduce((acc, x) => acc + Math.max(x, 0)) -
         3 * (vals.length - 1);
-    let header = prefix +
+    const header = prefix +
         Object.keys(widths)
             .map((k) => k.trim().padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
             .join(" │ ");
     let result = header + "\n";
-    let divider = prefix +
+    const divider = prefix +
         Object.keys(widths)
             .map((k) => "─".repeat(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
             .join("─┼─");
@@ -93,48 +91,46 @@ function printTableHeader(prefix, widths) {
     return result;
 }
 exports.printTableHeader = printTableHeader;
-function do_help() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            yield (0, utils_1.urlReq)("https://google.com");
-        }
-        catch (e) {
-            (0, utils_1.output2)(`${prompt_1.RED}No internet connection.${prompt_1.NORMAL_COLOR}`);
-            return;
-        }
-        let whoami = JSON.parse(yield (0, utils_1.sshReq)("me-whoami"));
-        if (whoami === undefined || whoami.length === 0) {
-            let cache = (0, utils_1.getCache)();
-            if (!cache.registered) {
-                (0, utils_1.output2)(`${prompt_1.YELLOW}No key registered with ${process.env["COMMAND"]}.${prompt_1.NORMAL_COLOR}`);
-            }
-            (0, utils_1.output2)(`${prompt_1.RED}No verified email.${prompt_1.NORMAL_COLOR}`);
-        }
-        else {
-            (0, utils_1.output2)(`${prompt_1.GREEN}Logged in as: ${whoami.join(", ")}.${prompt_1.NORMAL_COLOR}`);
-        }
-        let rawStruct = (0, utils_1.fetchOrgRaw)();
-        if (rawStruct.org === null) {
-            (0, utils_1.output2)(`${prompt_1.YELLOW}Not inside organization.${prompt_1.NORMAL_COLOR}`);
-        }
-        else {
-            (0, utils_1.output2)(`${prompt_1.GREEN}Inside organization: ${rawStruct.org.name}${prompt_1.NORMAL_COLOR}`);
-        }
-        if (rawStruct.serviceGroup === null) {
-            (0, utils_1.output2)(`${prompt_1.YELLOW}Not inside service group.${prompt_1.NORMAL_COLOR}`);
-        }
-        else {
-            (0, utils_1.output2)(`${prompt_1.GREEN}Inside service group: ${rawStruct.serviceGroup}${prompt_1.NORMAL_COLOR}`);
-        }
-        if (!fs_1.default.existsSync("merrymake.json")) {
-            (0, utils_1.output2)(`${prompt_1.YELLOW}Not inside service repo.${prompt_1.NORMAL_COLOR}`);
-        }
-        else {
-            (0, utils_1.output2)(`${prompt_1.GREEN}Inside service repo.${prompt_1.NORMAL_COLOR}`);
-        }
-    });
-}
-exports.do_help = do_help;
+// export async function do_help() {
+//   try {
+//     await urlReq("https://google.com");
+//   } catch (e) {
+//     output2(`${RED}No internet connection.${NORMAL_COLOR}`);
+//     return;
+//   }
+//   const whoami = JSON.parse(await sshReq("me-whoami"));
+//   if (whoami === undefined || whoami.length === 0) {
+//     const cache = getCache();
+//     if (!cache.registered) {
+//       output2(
+//         `${YELLOW}No key registered with ${process.env["COMMAND"]}.${NORMAL_COLOR}`
+//       );
+//     }
+//     output2(`${RED}No verified email.${NORMAL_COLOR}`);
+//   } else {
+//     output2(`${GREEN}Logged in as: ${whoami.join(", ")}.${NORMAL_COLOR}`);
+//   }
+//   const rawStruct = fetchOrgRaw();
+//   if (rawStruct.org === null) {
+//     output2(`${YELLOW}Not inside organization.${NORMAL_COLOR}`);
+//   } else {
+//     output2(
+//       `${GREEN}Inside organization: ${rawStruct.org.name}${NORMAL_COLOR}`
+//     );
+//   }
+//   if (rawStruct.serviceGroup === null) {
+//     output2(`${YELLOW}Not inside service group.${NORMAL_COLOR}`);
+//   } else {
+//     output2(
+//       `${GREEN}Inside service group: ${rawStruct.serviceGroup}${NORMAL_COLOR}`
+//     );
+//   }
+//   if (!fs.existsSync("merrymake.json")) {
+//     output2(`${YELLOW}Not inside service repo.${NORMAL_COLOR}`);
+//   } else {
+//     output2(`${GREEN}Inside service repo.${NORMAL_COLOR}`);
+//   }
+// }
 const MONTHS = [
     "January",
     "February",
@@ -152,14 +148,14 @@ const MONTHS = [
 function do_spending(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let rows = JSON.parse(yield (0, utils_1.sshReq)(`spending`, `--org`, org));
+            const rows = JSON.parse(yield (0, utils_1.sshReq)(`spending`, `--org`, org));
             let mth = 0;
             let grp = "";
             let srv = "";
             rows.forEach((x) => {
                 if (x.mth === null)
                     return;
-                let nmth = +x.mth;
+                const nmth = +x.mth;
                 if (mth !== nmth) {
                     if (mth !== 0)
                         (0, utils_1.output2)("");
@@ -174,9 +170,9 @@ function do_spending(org) {
                         "Est. Cost": 9,
                     });
                 }
-                let group = x.grp === null ? "= Total" : x.grp === grp ? "" : x.grp;
+                const group = x.grp === null ? "= Total" : x.grp === grp ? "" : x.grp;
                 grp = x.grp;
-                let service = x.grp === null
+                const service = x.grp === null
                     ? ""
                     : x.srv === null
                         ? "= Total"
@@ -224,7 +220,7 @@ function do_spending(org) {
                     }
                     time_str = time.toFixed(1);
                 }
-                let hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
+                const hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
                 (0, utils_1.output2)(`${alignLeft(group, 11)} │ ${alignLeft(service, 11)} │ ${alignLeft(hook, 20)} │ ${alignRight("" + count_str + " " + count_unit, 7)} │ ${alignRight("" + time_str + " " + time_unit, 7)} │ € ${alignRight(x.cost_eur, 7)}`);
             });
         }

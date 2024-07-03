@@ -13,6 +13,7 @@ exports.role = exports.listRoles = exports.do_remove_auto_approve = exports.do_a
 const prompt_1 = require("../prompt");
 const types_1 = require("../types");
 const utils_1 = require("../utils");
+const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 function do_attach_role(user, accessId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -62,7 +63,7 @@ let roleListCache;
 function listRoles(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         if (roleListCache === undefined) {
-            let resp = yield (0, utils_1.sshReq)(`role-list`, organizationId.toString());
+            const resp = yield (0, utils_1.sshReq)(`role-list`, organizationId.toString());
             if (!resp.startsWith("["))
                 throw resp;
             roleListCache = JSON.parse(resp);
@@ -74,8 +75,10 @@ exports.listRoles = listRoles;
 function role_user_attach(organizationId, user) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let roles = yield listRoles(organizationId);
-            let options = roles.map((role) => {
+            const roles = yield listRoles(organizationId);
+            const options = roles
+                .filter((role) => !SPECIAL_ROLES.includes(role.name))
+                .map((role) => {
                 return {
                     long: role.id,
                     text: `assign ${role.name} (${role.id})`,
@@ -92,9 +95,9 @@ function role_user_attach(organizationId, user) {
 function role_user(organizationId, user) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let roles = yield listRoles(organizationId);
+            const roles = yield listRoles(organizationId);
             const pendingId = roles.find((x) => x.name === "Pending").id;
-            let options = [];
+            const options = [];
             options.push({
                 long: `assign`,
                 short: `a`,
@@ -117,8 +120,10 @@ function role_user(organizationId, user) {
 function role_auto_new_domain(organizationId, domain) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let roles = yield listRoles(organizationId);
-            let options = roles.map((role) => {
+            const roles = yield listRoles(organizationId);
+            const options = roles
+                .filter((role) => !SPECIAL_ROLES.includes(role.name))
+                .map((role) => {
                 return {
                     long: role.id,
                     text: `auto assign ${role.name} (${role.id})`,
@@ -135,7 +140,7 @@ function role_auto_new_domain(organizationId, domain) {
 function role_auto_new(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let domain = yield (0, prompt_1.shortText)("Domain", "Email domain to auto approve.", `@example.com`).then();
+            const domain = yield (0, prompt_1.shortText)("Domain", "Email domain to auto approve.", `@example.com`).then();
             return role_auto_new_domain(organizationId, domain);
         }
         catch (e) {
@@ -146,15 +151,15 @@ function role_auto_new(organizationId) {
 function role_auto(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let resp = yield (0, utils_1.sshReq)(`preapprove-list`, organizationId.toString());
-            let domains = JSON.parse(resp);
-            let doms = {};
+            const resp = yield (0, utils_1.sshReq)(`preapprove-list`, organizationId.toString());
+            const domains = JSON.parse(resp);
+            const doms = {};
             domains.forEach((x) => {
                 if (doms[x.domain] === undefined)
                     doms[x.domain] = [];
                 doms[x.domain].push(x.access);
             });
-            let options = Object.keys(doms).map((domain) => {
+            const options = Object.keys(doms).map((domain) => {
                 return {
                     long: domain,
                     text: `remove ${domain} (${doms[domain].join(", ")})`,
@@ -177,9 +182,9 @@ function role_auto(organizationId) {
 function role(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let resp = yield (0, utils_1.sshReq)(`user-list`, organizationId.toString());
-            let users = JSON.parse(resp);
-            let options = users.map((user) => {
+            const resp = yield (0, utils_1.sshReq)(`user-list`, organizationId.toString());
+            const users = JSON.parse(resp);
+            const options = users.map((user) => {
                 return {
                     long: user.email,
                     text: `${user.email}: ${user.roles}`,

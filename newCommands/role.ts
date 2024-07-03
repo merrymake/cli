@@ -1,7 +1,9 @@
+import { getArgs } from "../args";
 import { Option, choice, shortText } from "../prompt";
 import { AccessId, OrganizationId } from "../types";
 import { addToExecuteQueue, finish, output2, sshReq } from "../utils";
 
+const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 export async function do_attach_role(user: string, accessId: AccessId) {
   try {
     output2(
@@ -58,7 +60,7 @@ function role_auto_remove(organizationId: OrganizationId, domain: string) {
 let roleListCache: { name: string; id: string }[] | undefined;
 export async function listRoles(organizationId: OrganizationId) {
   if (roleListCache === undefined) {
-    let resp = await sshReq(`role-list`, organizationId.toString());
+    const resp = await sshReq(`role-list`, organizationId.toString());
     if (!resp.startsWith("[")) throw resp;
     roleListCache = JSON.parse(resp);
   }
@@ -67,14 +69,16 @@ export async function listRoles(organizationId: OrganizationId) {
 
 async function role_user_attach(organizationId: OrganizationId, user: string) {
   try {
-    let roles = await listRoles(organizationId);
-    let options: Option[] = roles.map((role) => {
-      return {
-        long: role.id,
-        text: `assign ${role.name} (${role.id})`,
-        action: () => role_user_attach_role(user, new AccessId(role.id)),
-      };
-    });
+    const roles = await listRoles(organizationId);
+    const options: Option[] = roles
+      .filter((role) => !SPECIAL_ROLES.includes(role.name))
+      .map((role) => {
+        return {
+          long: role.id,
+          text: `assign ${role.name} (${role.id})`,
+          action: () => role_user_attach_role(user, new AccessId(role.id)),
+        };
+      });
     return await choice("Which role would you like to assign?", options).then(
       (x) => x
     );
@@ -85,9 +89,9 @@ async function role_user_attach(organizationId: OrganizationId, user: string) {
 
 async function role_user(organizationId: OrganizationId, user: string) {
   try {
-    let roles = await listRoles(organizationId);
+    const roles = await listRoles(organizationId);
     const pendingId = roles.find((x) => x.name === "Pending")!.id;
-    let options: Option[] = [];
+    const options: Option[] = [];
     options.push({
       long: `assign`,
       short: `a`,
@@ -111,14 +115,16 @@ async function role_auto_new_domain(
   domain: string
 ) {
   try {
-    let roles = await listRoles(organizationId);
-    let options: Option[] = roles.map((role) => {
-      return {
-        long: role.id,
-        text: `auto assign ${role.name} (${role.id})`,
-        action: () => role_auto_domain_role(domain, new AccessId(role.id)),
-      };
-    });
+    const roles = await listRoles(organizationId);
+    const options: Option[] = roles
+      .filter((role) => !SPECIAL_ROLES.includes(role.name))
+      .map((role) => {
+        return {
+          long: role.id,
+          text: `auto assign ${role.name} (${role.id})`,
+          action: () => role_auto_domain_role(domain, new AccessId(role.id)),
+        };
+      });
     return await choice("Which role should new users get?", options).then(
       (x) => x
     );
@@ -129,7 +135,7 @@ async function role_auto_new_domain(
 
 async function role_auto_new(organizationId: OrganizationId) {
   try {
-    let domain = await shortText(
+    const domain = await shortText(
       "Domain",
       "Email domain to auto approve.",
       `@example.com`
@@ -142,14 +148,14 @@ async function role_auto_new(organizationId: OrganizationId) {
 
 async function role_auto(organizationId: OrganizationId) {
   try {
-    let resp = await sshReq(`preapprove-list`, organizationId.toString());
-    let domains: { domain: string; access: string }[] = JSON.parse(resp);
-    let doms: { [domain: string]: string[] } = {};
+    const resp = await sshReq(`preapprove-list`, organizationId.toString());
+    const domains: { domain: string; access: string }[] = JSON.parse(resp);
+    const doms: { [domain: string]: string[] } = {};
     domains.forEach((x) => {
       if (doms[x.domain] === undefined) doms[x.domain] = [];
       doms[x.domain].push(x.access);
     });
-    let options: Option[] = Object.keys(doms).map((domain) => {
+    const options: Option[] = Object.keys(doms).map((domain) => {
       return {
         long: domain,
         text: `remove ${domain} (${doms[domain].join(", ")})`,
@@ -170,10 +176,10 @@ async function role_auto(organizationId: OrganizationId) {
 
 export async function role(organizationId: OrganizationId) {
   try {
-    let resp = await sshReq(`user-list`, organizationId.toString());
-    let users: { email: string; id: string; roles: string }[] =
+    const resp = await sshReq(`user-list`, organizationId.toString());
+    const users: { email: string; id: string; roles: string }[] =
       JSON.parse(resp);
-    let options: Option[] = users.map((user) => {
+    const options: Option[] = users.map((user) => {
       return {
         long: user.email,
         text: `${user.email}: ${user.roles}`,

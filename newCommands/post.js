@@ -35,7 +35,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.post = exports.do_post_file = exports.do_post = void 0;
 const ext2mime_1 = require("@merrymake/ext2mime");
 const fs_1 = __importStar(require("fs"));
-const args_1 = require("../args");
 const config_1 = require("../config");
 const prompt_1 = require("../prompt");
 const utils_1 = require("../utils");
@@ -43,7 +42,7 @@ const apikey_1 = require("./apikey");
 function do_post(eventType, key, contentType, payload) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let resp = yield (0, utils_1.urlReq)(`${config_1.RAPIDS_HOST}/${key}/${eventType}`, "POST", payload, contentType);
+            const resp = yield (0, utils_1.urlReq)(`${config_1.RAPIDS_HOST}/${key}/${eventType}`, "POST", payload, contentType);
             (0, utils_1.output2)(resp.body);
         }
         catch (e) {
@@ -55,11 +54,11 @@ exports.do_post = do_post;
 function do_post_file(eventType, key, filename) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let content = fs_1.default.readFileSync(filename).toString();
-            let type = (0, ext2mime_1.optimisticMimeTypeOf)(filename.substring(filename.lastIndexOf(".") + 1));
+            const content = fs_1.default.readFileSync(filename).toString();
+            const type = (0, ext2mime_1.optimisticMimeTypeOf)(filename.substring(filename.lastIndexOf(".") + 1));
             if (type === null)
                 throw "Could not determine content type";
-            let resp = yield (0, utils_1.urlReq)(`${config_1.RAPIDS_HOST}/${key}/${eventType}`, "POST", content, type.toString());
+            const resp = yield (0, utils_1.urlReq)(`${config_1.RAPIDS_HOST}/${key}/${eventType}`, "POST", content, type.toString());
             (0, utils_1.output2)(resp.body);
         }
         catch (e) {
@@ -75,14 +74,10 @@ function post_event_payload_key(foo) {
 function post_key(organizationId, foo) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            if ((0, args_1.getArgs)().length > 0 && (0, args_1.getArgs)()[0] !== "_") {
-                let key = (0, args_1.getArgs)().splice(0, 1)[0];
-                return yield post_event_payload_key(() => foo(key));
-            }
-            let resp = yield (0, utils_1.sshReq)(`apikey-list`, organizationId.toString());
-            let keys = JSON.parse(resp);
-            let options = keys.map((x) => {
-                let n = x.name ? ` (${x.name})` : "";
+            const resp = yield (0, utils_1.sshReq)(`apikey-list`, organizationId.toString());
+            const keys = JSON.parse(resp);
+            const options = keys.map((x) => {
+                const n = x.name ? ` (${x.name})` : "";
                 return {
                     long: x.id,
                     text: `${x.id}${n}`,
@@ -105,7 +100,7 @@ function post_key(organizationId, foo) {
 function post_event_payload_type(organizationId, eventType, contentType) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let payload = yield (0, prompt_1.shortText)("Payload", "The data to be attached to the request", "").then();
+            const payload = yield (0, prompt_1.shortText)("Payload", "The data to be attached to the request", "").then();
             return post_key(organizationId, (key) => do_post(eventType, key, contentType, payload));
         }
         catch (e) {
@@ -116,8 +111,8 @@ function post_event_payload_type(organizationId, eventType, contentType) {
 function post_event_payload_file(organizationId, eventType) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let files = (0, fs_1.readdirSync)(".", { withFileTypes: true }).flatMap((x) => x.isDirectory() ? [] : [x.name]);
-            let options = files.map((x) => {
+            const files = (0, fs_1.readdirSync)(".", { withFileTypes: true }).flatMap((x) => x.isDirectory() ? [] : [x.name]);
+            const options = files.map((x) => {
                 return {
                     long: x,
                     text: x,
@@ -162,7 +157,7 @@ function post_event(organizationId, eventType) {
 function post(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let eventType = yield (0, prompt_1.shortText)("Event type", "The type of event to post", "hello").then();
+            const eventType = yield (0, prompt_1.shortText)("Event type", "The type of event to post", "hello").then();
             return post_event(organizationId, eventType);
         }
         catch (e) {

@@ -1,8 +1,15 @@
 import { stdout } from "process";
 import { alignLeft, printTableHeader } from "../executors";
-import { NORMAL_COLOR, Option, RED, choice, shortText } from "../prompt";
-import { finish, output2, sshReq } from "../utils";
+import {
+  NORMAL_COLOR,
+  Option,
+  RED,
+  choice,
+  output,
+  shortText,
+} from "../prompt";
 import { OrganizationId } from "../types";
+import { finish, output2, sshReq } from "../utils";
 
 export async function do_key_create(
   organizationId: OrganizationId,
@@ -10,14 +17,14 @@ export async function do_key_create(
   duration: string
 ) {
   try {
-    let cmd = [
+    const cmd = [
       `apikey-create`,
       duration,
       `--organizationId`,
       organizationId.toString(),
     ];
     if (description !== "") cmd.push(`--description`, description);
-    let reply = await sshReq(...cmd);
+    const reply = await sshReq(...cmd);
     if (reply.length !== 8) throw reply;
     const apikeyId = reply;
     return apikeyId;
@@ -32,7 +39,7 @@ export async function do_key_modify(
   duration: string
 ) {
   try {
-    let cmd = [`apikey-modify`, `--duration`, duration, apikeyId];
+    const cmd = [`apikey-modify`, `--duration`, duration, apikeyId];
     if (description !== "") cmd.push(`--description`, description);
     await sshReq(...cmd);
     output2(`Updated key.`);
@@ -46,7 +53,7 @@ async function key_key_name(
   continuation: (description: string, duration: string) => Promise<never>
 ) {
   try {
-    let duration = await shortText(
+    const duration = await shortText(
       "Duration",
       "How long should the key be active? Ex. 1 hour",
       "14 days"
@@ -62,7 +69,7 @@ async function key_key(
   continuation: (description: string, duration: string) => Promise<never>
 ) {
   try {
-    let description = await shortText(
+    const description = await shortText(
       "Human readable description",
       "Used to identify this key",
       currentName
@@ -87,7 +94,7 @@ export async function key_create(
   continuation: (apikeyId: string) => Promise<never>
 ) {
   try {
-    let description = await shortText(
+    const description = await shortText(
       "Human readable description",
       "Used to identify this key",
       ""
@@ -105,16 +112,16 @@ export async function key_create(
 
 export async function key(organizationId: OrganizationId) {
   try {
-    let resp = await sshReq(`apikey-list`, organizationId.toString());
-    let keys: { name: string; id: string; expiresOn: Date }[] =
+    const resp = await sshReq(`apikey-list`, organizationId.toString());
+    const keys: { name: string; id: string; expiresOn: Date }[] =
       JSON.parse(resp);
-    let options: Option[] = keys.map((x) => {
-      let d = new Date(x.expiresOn);
-      let ds =
+    const options: Option[] = keys.map((x) => {
+      const d = new Date(x.expiresOn);
+      const ds =
         d.getTime() < Date.now()
           ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
           : d.toLocaleString();
-      let n = x.name || "";
+      const n = x.name || "";
       return {
         long: x.id,
         text: `${x.id} │ ${alignLeft(

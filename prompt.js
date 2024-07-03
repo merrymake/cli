@@ -35,7 +35,7 @@ let xOffset = 0;
 let yOffset = 0;
 let maxYOffset = 0;
 function output(str) {
-    let cleanStr = str.replace(new RegExp(exports.INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join("|"), "gi"), "");
+    const cleanStr = str.replace(new RegExp(exports.INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join("|"), "gi"), "");
     node_process_1.stdout.write(node_process_1.stdout.isTTY ? str : cleanStr);
     if (!node_process_1.stdout.isTTY)
         return;
@@ -54,7 +54,7 @@ function output(str) {
         xOffset = line.length % node_process_1.stdout.getWindowSize()[0];
     }
     // stdout.moveCursor(-xOffset, -yOffset);
-    // let pos = "" + xOffset + "," + yOffset;
+    // const pos = "" + xOffset + "," + yOffset;
     // stdout.write(pos);
     // stdout.moveCursor(xOffset - pos.length, yOffset);
 }
@@ -121,7 +121,9 @@ function choice(heading, options, opts) {
             process.exit(1);
         }
         if (options.length === 1 && (opts === null || opts === void 0 ? void 0 : opts.disableAutoPick) !== true) {
-            if ((0, args_1.getArgs)().length > 0)
+            if ((0, args_1.getArgs)().length > 0 &&
+                ((0, args_1.getArgs)()[0] === options[0].long ||
+                    (0, args_1.getArgs)()[0] === `-${options[0].short}`))
                 (0, args_1.getArgs)().splice(0, 1);
             resolve(((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) === true
                 ? makeSelection(options[0])
@@ -134,8 +136,8 @@ function choice(heading, options, opts) {
             text: "exit",
             action: () => (0, utils_1.abort)(),
         });
-        let quick = {};
-        let str = [heading + "\n"];
+        const quick = {};
+        const str = [heading + "\n"];
         for (let i = 0; i < options.length; i++) {
             const o = options[i];
             if ((0, args_1.getArgs)()[0] === o.long || (0, args_1.getArgs)()[0] === `-${o.short}`) {
@@ -162,7 +164,7 @@ function choice(heading, options, opts) {
         }
         let pos = (opts === null || opts === void 0 ? void 0 : opts.def) || 0;
         if ((0, args_1.getArgs)().length > 0) {
-            let arg = (0, args_1.getArgs)().splice(0, 1)[0];
+            const arg = (0, args_1.getArgs)().splice(0, 1)[0];
             if (arg === "_") {
                 resolve(((_c = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _c === void 0 ? void 0 : _c.cmd) === true
                     ? makeSelection(options[pos])
@@ -172,9 +174,10 @@ function choice(heading, options, opts) {
             else if (contexts_1.CONTEXTS[arg] !== undefined)
                 output(contexts_1.CONTEXTS[arg](arg) + "\n");
             else
-                output(`Invalid argument in the current context: ${arg}\n`);
+                output(`${exports.RED}Invalid argument in the current context: ${arg}${exports.NORMAL_COLOR}\n`);
             (0, args_1.getArgs)().splice(0, (0, args_1.getArgs)().length);
         }
+        output(" \n");
         output(exports.HIDE_CURSOR);
         output(str.join(""));
         if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
@@ -188,7 +191,7 @@ function choice(heading, options, opts) {
         // on any data into stdin
         node_process_1.stdin.on("data", (listener = (key) => {
             var _a;
-            let k = key.toString();
+            const k = key.toString();
             // moveCursor(0, options.length - pos);
             // //let l = JSON.stringify(key);
             // //output(l);
@@ -239,19 +242,19 @@ function multiSelect(selection, after, errorMessage) {
         //   text: "exit",
         //   action: () => abort(),
         // });
-        let keys = Object.keys(selection);
+        const keys = Object.keys(selection);
         if (keys.length === 0) {
             console.log(errorMessage);
             process.exit(1);
         }
         if ((0, args_1.getArgs)().length > 0) {
-            let arg = (0, args_1.getArgs)()[0];
-            let es = arg.split(",");
-            let result = {};
+            const arg = (0, args_1.getArgs)()[0];
+            const es = arg.split(",");
+            const result = {};
             keys.forEach((e) => (result[e] = false));
-            let illegal = es.filter((e) => !keys.includes(e));
+            const illegal = es.filter((e) => !keys.includes(e));
             if (illegal.length > 0) {
-                output(`Invalid arguments in the current context: ${illegal.join(", ")}\n`);
+                output(`${exports.RED}Invalid arguments in the current context: ${illegal.join(", ")}${exports.NORMAL_COLOR}\n`);
             }
             else {
                 es.forEach((e) => (result[e] = true));
@@ -260,7 +263,7 @@ function multiSelect(selection, after, errorMessage) {
             resolve(makeSelectionSuperInternal(() => after(selection)));
             return;
         }
-        let str = [];
+        const str = [];
         for (let i = 0; i < keys.length; i++) {
             str.push("  ");
             str.push(selection[keys[i]] === true ? SELECTED_MARK : NOT_SELECTED_MARK);
@@ -271,6 +274,7 @@ function multiSelect(selection, after, errorMessage) {
         // Add submit and exit
         str.push(`  [s] submit\n`);
         str.push(`  [x] exit\n`);
+        output(" \n");
         output(exports.HIDE_CURSOR);
         output(str.join(""));
         if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
@@ -284,7 +288,7 @@ function multiSelect(selection, after, errorMessage) {
         moveCursor(-1, 0);
         // on any data into stdin
         node_process_1.stdin.on("data", (listener = (key) => {
-            let k = key.toString();
+            const k = key.toString();
             // moveCursor(0, options.length - pos);
             // //let l = JSON.stringify(key);
             // //output(l);
@@ -293,7 +297,9 @@ function multiSelect(selection, after, errorMessage) {
             if (k === exports.ENTER) {
                 if (pos === keys.length) {
                     // Submit
-                    let selected = keys.filter((x) => selection[x] === true).join(",");
+                    const selected = keys
+                        .filter((x) => selection[x] === true)
+                        .join(",");
                     resolve(makeSelectionSuperInternal(() => after(selection), () => {
                         output("\n");
                         output((command +=
@@ -314,7 +320,7 @@ function multiSelect(selection, after, errorMessage) {
                     }));
                 }
                 else {
-                    let sel = (selection[keys[pos]] = !selection[keys[pos]]);
+                    const sel = (selection[keys[pos]] = !selection[keys[pos]]);
                     moveCursor(2, 0);
                     output(exports.NORMAL_COLOR);
                     output(sel ? SELECTED_MARK : NOT_SELECTED_MARK);
@@ -352,7 +358,7 @@ function multiSelect(selection, after, errorMessage) {
                 });
             }
             else if (k === "s") {
-                let selected = keys.filter((x) => selection[x] === true).join(",");
+                const selected = keys.filter((x) => selection[x] === true).join(",");
                 resolve(makeSelectionSuperInternal(() => after(selection), () => {
                     output("\n");
                     output((command +=
@@ -398,10 +404,16 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
     return new Promise((resolve) => {
         if (hide === Visibility.Secret)
             hasSecret = true;
-        let defaultValue = defaultValueArg === null ? "" : defaultValueArg;
+        const defaultValue = defaultValueArg === null ? "" : defaultValueArg;
         if ((0, args_1.getArgs)()[0] !== undefined) {
-            let result = (0, args_1.getArgs)()[0] === "_" ? defaultValue : (0, args_1.getArgs)()[0];
-            command += " " + (result.includes(" ") ? `'${result}'` : result);
+            const result = (0, args_1.getArgs)()[0] === "_" ? defaultValue : (0, args_1.getArgs)()[0];
+            command +=
+                " " +
+                    (result.includes(" ")
+                        ? `'${result}'`
+                        : result.length === 0
+                            ? "_"
+                            : result);
             (0, args_1.getArgs)().splice(0, 1);
             moveToBottom();
             cleanup();
@@ -414,10 +426,11 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
         if (defaultValue === "")
             str += ` (${exports.YELLOW}optional${exports.NORMAL_COLOR})`;
         else
-            str += ` (default: ${exports.YELLOW}${defaultValue}${exports.NORMAL_COLOR})`;
+            str += ` (suggestion: ${exports.YELLOW}${defaultValue}${exports.NORMAL_COLOR})`;
         str += ": ";
+        output(" \n");
         output(str);
-        let [prevX, prevY] = getCursorPosition();
+        const [prevX, prevY] = getCursorPosition();
         output("\n");
         moveCursorTo(prevX, prevY);
         if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
@@ -428,9 +441,9 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
         let afterCursor = "";
         // on any data into stdin
         node_process_1.stdin.on("data", (listener = (key) => {
-            let k = key.toString();
+            const k = key.toString();
             // moveCursor(-str.length, 0);
-            // let l = JSON.stringify(key);
+            // const l = JSON.stringify(key);
             // output(l);
             // output("" + afterCursor.length);
             // moveCursor(str.length - l.length, 0);
@@ -438,8 +451,8 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
             if (k === exports.ENTER) {
                 moveToBottom();
                 cleanup();
-                let combinedStr = beforeCursor + afterCursor;
-                let result = combinedStr.length === 0 ? defaultValue : combinedStr;
+                const combinedStr = beforeCursor + afterCursor;
+                const result = combinedStr.length === 0 ? defaultValue : combinedStr;
                 if (hasSecret === false) {
                     output("\n");
                     output((command +=
@@ -459,7 +472,7 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
             else if (k === exports.UP || k === exports.DOWN) {
             }
             else if (k === exports.ESCAPE) {
-                let [prevX, prevY] = getCursorPosition();
+                const [prevX, prevY] = getCursorPosition();
                 moveCursor(-str.length - beforeCursor.length, 1);
                 output(description);
                 moveCursorTo(prevX, prevY);

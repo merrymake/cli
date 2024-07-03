@@ -47,7 +47,7 @@ if (stdin.isTTY) {
   stdin.setEncoding("utf8");
   // You can always exit with crtl-c
   stdin.on("data", (key) => {
-    let k = key.toString();
+    const k = key.toString();
     if (k === CTRL_C) {
       abort();
     }
@@ -59,7 +59,7 @@ if (stdin.isTTY) {
 
 (async () => {
   checkVersion();
-  let token: never = await index();
+  const token: never = await index();
 })().catch((e) => {
   exit();
   if (("" + e).includes("Permission denied")) {

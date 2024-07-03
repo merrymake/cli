@@ -18,8 +18,8 @@ const post_1 = require("../newCommands/post");
 function do_queue_time(org, time) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let resp = yield (0, utils_1.sshReq)(`queue`, `--org`, org, `--time`, "" + time);
-            let queue = JSON.parse(resp);
+            const resp = yield (0, utils_1.sshReq)(`queue`, `--org`, org, `--time`, "" + time);
+            const queue = JSON.parse(resp);
             (0, utils_1.output2)((0, executors_1.printTableHeader)("", {
                 Id: 6,
                 River: 12,
@@ -38,8 +38,8 @@ exports.do_queue_time = do_queue_time;
 function queue_event(id, river) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let res = JSON.parse(yield (0, utils_1.sshReq)(`rapids-inspect`, id, `--river`, river));
-            let resout = res.output;
+            const res = JSON.parse(yield (0, utils_1.sshReq)(`rapids-inspect`, id, `--river`, river));
+            const resout = res.output;
             delete res.output;
             console.log(res);
             (0, utils_1.output2)("Output:");
@@ -64,7 +64,7 @@ function queue_event(id, river) {
 }
 let cache_queue;
 function queue_id(id) {
-    let tableHeader = (0, executors_1.printTableHeader)("      ", {
+    const tableHeader = (0, executors_1.printTableHeader)("      ", {
         River: 12,
         Event: 12,
         Status: 7,
@@ -101,32 +101,31 @@ const QUEUE_COUNT = 15;
 function queue(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let options = [];
-            options.push({
-                long: "post",
-                short: "p",
-                text: "post message to Rapids using an api-key",
-                action: () => (0, post_1.post)(organizationId),
-            });
-            let resp = yield (0, utils_1.sshReq)(`rapids-view`, organizationId.toString());
+            const options = [];
+            const resp = yield (0, utils_1.sshReq)(`rapids-view`, organizationId.toString());
             cache_queue = JSON.parse(resp);
-            let tableHeader = "\n" +
+            const tableHeader = "\n" +
                 (0, executors_1.printTableHeader)("      ", {
-                    Id: 6,
-                    River: 12,
-                    Event: 12,
-                    Status: 7,
+                    Id: 21,
+                    "River/Event": 19,
+                    Stat: 4,
                     "Queue time": 20,
                 });
             options.push(...cache_queue.map((x) => ({
                 long: x.id,
-                text: `${x.id} │ ${(0, executors_1.alignRight)(x.r, 12)} │ ${(0, executors_1.alignLeft)(x.e, 12)} │ ${(0, executors_1.alignLeft)(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`,
+                text: `${x.id} │ ${(0, executors_1.alignLeft)(x.r + "/" + x.e, 19)} │ ${(0, executors_1.alignLeft)(x.s.substring(0, 4), 4)} │ ${new Date(x.q).toLocaleString()}`,
                 action: () => {
                     if ((0, args_1.getArgs)().length === 0)
                         (0, args_1.initializeArgs)([x.r]);
                     return queue_id(x.id);
                 },
             })));
+            options.push({
+                long: "post",
+                short: "p",
+                text: "post message to rapids using an api-key",
+                action: () => (0, post_1.post)(organizationId),
+            });
             return yield (0, prompt_1.choice)("Which event would you like to inspect?" + tableHeader, options, {
                 invertedQuiet: { cmd: false, select: false },
             }).then();

@@ -1,13 +1,13 @@
 import fs from "fs";
 import { shortText } from "../prompt";
-import { Path, sshReq, toFolderName } from "../utils";
-import { repo_create } from "./repo";
 import {
+  Organization,
   OrganizationId,
-  PathToOrganization,
   PathToServiceGroup,
   ServiceGroupId,
 } from "../types";
+import { sshReq, toFolderName } from "../utils";
+import { repo_create } from "./repo";
 
 export async function do_createServiceGroup(
   path: PathToServiceGroup,
@@ -15,8 +15,7 @@ export async function do_createServiceGroup(
   displayName: string
 ) {
   try {
-    console.log("Creating service group...");
-    fs.mkdirSync(path.toString(), { recursive: true });
+    console.log(`Creating service group '${displayName}'...`);
     const reply = await sshReq(
       `group-create`,
       displayName,
@@ -24,6 +23,7 @@ export async function do_createServiceGroup(
       organizationId.toString()
     );
     if (reply.length !== 8) throw reply;
+    fs.mkdirSync(path.toString(), { recursive: true });
     const serviceGroupId = new ServiceGroupId(reply);
     fs.writeFileSync(
       path.with(".group-id").toString(),
@@ -35,25 +35,29 @@ export async function do_createServiceGroup(
   }
 }
 
-export async function group(
-  path: PathToOrganization,
-  organizationId: OrganizationId
-) {
+export async function group(organization: Organization) {
   try {
     let num = 1;
-    while (fs.existsSync(path.with("service-group-" + num).toString())) num++;
-    let displayName = await shortText(
+    while (
+      fs.existsSync(organization.pathTo.with("service-group-" + num).toString())
+    )
+      num++;
+    const displayName = await shortText(
       "Service group name",
       "Used to share envvars.",
       "service-group-" + num
     ).then();
     const folderName = toFolderName(displayName);
+    const pathToServiceGroup = organization.pathTo.with(folderName);
     const serviceGroupId = await do_createServiceGroup(
-      path.with(folderName),
-      organizationId,
+      pathToServiceGroup,
+      organization.id,
       displayName
     );
-    return repo_create(path.with(folderName), organizationId, serviceGroupId);
+    return repo_create(organization, {
+      pathTo: pathToServiceGroup,
+      id: serviceGroupId,
+    });
   } catch (e) {
     throw e;
   }

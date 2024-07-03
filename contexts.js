@@ -9,10 +9,10 @@ const prompt_1 = require("./prompt");
 const utils_1 = require("./utils");
 const path_1 = __importDefault(require("path"));
 function downOrg(cmd) {
-    let folders = fs_1.default.readdirSync(".");
+    const folders = fs_1.default.readdirSync(".");
     let org = undefined;
     for (let i = 0; i < folders.length; i++) {
-        let folder = folders[i];
+        const folder = folders[i];
         if (fs_1.default.existsSync(path_1.default.join(folder, ".merrymake"))) {
             org = folder;
             break;
@@ -28,7 +28,7 @@ function downOrg(cmd) {
     return hint;
 }
 function upOrg(cmd) {
-    let struct = (0, utils_1.fetchOrgRaw)();
+    const struct = (0, utils_1.fetchOrgRaw)();
     if (struct.org === null)
         return downOrg(cmd);
     else {
@@ -39,9 +39,9 @@ function upOrg(cmd) {
 }
 const SERVICE_CONTEXT = (cmd) => {
     let hint = `You can only run '${cmd}' from inside a service folder.`;
-    let bfs = ["."];
+    const bfs = ["."];
     while (bfs.length !== 0) {
-        let cur = bfs.shift();
+        const cur = bfs.shift();
         if (fs_1.default.existsSync(path_1.default.join(cur, "merrymake.json"))) {
             hint += `\nUse '${prompt_1.GREEN}cd ${cur.replace(/\\/g, "\\\\")}${prompt_1.NORMAL_COLOR}' or one of these:`;
             break;
@@ -62,8 +62,8 @@ const NOT_SERVICE_CONTEXT = (cmd) => {
     return hint;
 };
 const SERVICE_GROUP_CONTEXT = (cmd) => {
-    let struct = (0, utils_1.fetchOrgRaw)();
-    let serviceGroups = (0, utils_1.directoryNames)(new utils_1.Path(struct.pathToRoot), [
+    const struct = (0, utils_1.fetchOrgRaw)();
+    const serviceGroups = (0, utils_1.directoryNames)(new utils_1.Path(struct.pathToRoot), [
         "event-catalogue",
         "public",
     ]);
@@ -76,7 +76,7 @@ const SERVICE_GROUP_CONTEXT = (cmd) => {
 const NOT_SERVICE_GROUP_CONTEXT = upOrg;
 const ORGANIZATION_CONTEXT = downOrg;
 const NOT_ORGANIZATION_CONTEXT = (cmd) => {
-    let struct = (0, utils_1.fetchOrgRaw)();
+    const struct = (0, utils_1.fetchOrgRaw)();
     let hint = `You can only run '${cmd}' from outside an organization.`;
     hint += `\nUse '${prompt_1.GREEN}cd ${struct.pathToRoot.replace(/\\/g, "\\\\")}..${prompt_1.NORMAL_COLOR}' or one of these:`;
     return hint;

@@ -4,10 +4,10 @@ import { Path, directoryNames, fetchOrg, fetchOrgRaw } from "./utils";
 import path from "path";
 
 function downOrg(cmd: string) {
-  let folders = fs.readdirSync(".");
+  const folders = fs.readdirSync(".");
   let org = undefined;
   for (let i = 0; i < folders.length; i++) {
-    let folder = folders[i];
+    const folder = folders[i];
     if (fs.existsSync(path.join(folder, ".merrymake"))) {
       org = folder;
       break;
@@ -22,7 +22,7 @@ function downOrg(cmd: string) {
   return hint;
 }
 function upOrg(cmd: string) {
-  let struct = fetchOrgRaw();
+  const struct = fetchOrgRaw();
   if (struct.org === null) return downOrg(cmd);
   else {
     let hint = `You can only run '${cmd}' from the organization root folder.`;
@@ -36,9 +36,9 @@ function upOrg(cmd: string) {
 
 const SERVICE_CONTEXT = (cmd: string) => {
   let hint = `You can only run '${cmd}' from inside a service folder.`;
-  let bfs = ["."];
+  const bfs = ["."];
   while (bfs.length !== 0) {
-    let cur = bfs.shift()!;
+    const cur = bfs.shift()!;
     if (fs.existsSync(path.join(cur, "merrymake.json"))) {
       hint += `\nUse '${GREEN}cd ${cur.replace(
         /\\/g,
@@ -60,8 +60,8 @@ const NOT_SERVICE_CONTEXT = (cmd: string) => {
   return hint;
 };
 const SERVICE_GROUP_CONTEXT = (cmd: string) => {
-  let struct = fetchOrgRaw();
-  let serviceGroups = directoryNames(new Path(struct.pathToRoot!), [
+  const struct = fetchOrgRaw();
+  const serviceGroups = directoryNames(new Path(struct.pathToRoot!), [
     "event-catalogue",
     "public",
   ]);
@@ -74,7 +74,7 @@ const SERVICE_GROUP_CONTEXT = (cmd: string) => {
 const NOT_SERVICE_GROUP_CONTEXT = upOrg;
 const ORGANIZATION_CONTEXT = downOrg;
 const NOT_ORGANIZATION_CONTEXT = (cmd: string) => {
-  let struct = fetchOrgRaw();
+  const struct = fetchOrgRaw();
   let hint = `You can only run '${cmd}' from outside an organization.`;
   hint += `\nUse '${GREEN}cd ${struct.pathToRoot!.replace(
     /\\/g,

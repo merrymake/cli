@@ -31,7 +31,7 @@ function saveSSHConfig(path) {
             .split("\n");
         let inHost = false;
         for (let i = 0; i < lines.length; i++) {
-            let line = lines[i];
+            const line = lines[i];
             if ((line.startsWith("\t") || line.startsWith(" ")) && inHost) {
                 if (line.includes("User ") && !line.includes(`User ${config_1.SSH_USER}`)) {
                     lines[i] =
@@ -104,28 +104,28 @@ exports.generateNewKey = generateNewKey;
 function addKnownHost() {
     let isKnownHost = false;
     if (fs_1.default.existsSync(`${os_1.default.homedir()}/.ssh/known_hosts`)) {
-        let lines = ("" + fs_1.default.readFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`)).split("\n");
-        isKnownHost = lines.some((x) => x.includes(`${config_1.API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO`));
+        const lines = ("" + fs_1.default.readFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`)).split("\n");
+        isKnownHost = lines.some((x) => x.includes(`${config_1.API_URL} ssh-ed25519 ${config_1.FINGERPRINT}`));
     }
     if (!isKnownHost) {
         (0, prompt_1.output)("Adding fingerprint...\n");
         if (!fs_1.default.existsSync(os_1.default.homedir() + "/.ssh"))
             fs_1.default.mkdirSync(os_1.default.homedir() + "/.ssh");
-        fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, `\n${config_1.API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n`);
+        fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, `\n${config_1.API_URL} ssh-ed25519 ${config_1.FINGERPRINT}\n`);
     }
 }
 exports.addKnownHost = addKnownHost;
 function do_register(keyAction, email) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let { key, keyFile } = yield keyAction();
-            (0, prompt_1.output)("Registering...\n");
+            const { key, keyFile } = yield keyAction();
+            (0, prompt_1.output)(`Registering ${email === "" ? "anonymous account" : email}...\n`);
             addKnownHost();
             if (email === "") {
                 (0, utils_1.addExitMessage)(`Notice: Anonymous accounts are automatically deleted permanently after ~2 weeks, without warning. To add an email and avoid automatic deletion, run the command:
   ${prompt_1.YELLOW}${process.env["COMMAND"]} register ${keyFile}${prompt_1.NORMAL_COLOR}`);
             }
-            let result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", JSON.stringify({
+            const result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", JSON.stringify({
                 email,
                 key,
             }));
@@ -145,7 +145,7 @@ exports.do_register = do_register;
 function register_key(keyAction) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let email = yield (0, prompt_1.shortText)("Email", "By attaching an email you'll be notified in case of changes for your organizations.", "").then();
+            const email = yield (0, prompt_1.shortText)("Email", "By attaching an email you'll be notified in case of changes for your organizations.", "").then();
             return do_register(keyAction, email);
         }
         catch (e) {
@@ -156,7 +156,7 @@ function register_key(keyAction) {
 function register_manual() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let key = yield (0, prompt_1.shortText)("Public key", "", "ssh-rsa ...").then();
+            const key = yield (0, prompt_1.shortText)("Public key", "", "ssh-rsa ...").then();
             return register_key(() => Promise.resolve({
                 key,
                 keyFile: `add "${key}"`,
@@ -170,9 +170,9 @@ function register_manual() {
 function register() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let keyfiles = (0, utils_1.getFiles)(new utils_1.Path(`${os_1.default.homedir()}/.ssh`)).filter((x) => x.endsWith(".pub"));
-            let keys = keyfiles.map((x) => {
-                let f = x.substring(0, x.length - ".pub".length);
+            const keyfiles = (0, utils_1.getFiles)(new utils_1.Path(`${os_1.default.homedir()}/.ssh`)).filter((x) => x.endsWith(".pub"));
+            const keys = keyfiles.map((x) => {
+                const f = x.substring(0, x.length - ".pub".length);
                 return {
                     long: f,
                     text: `use key ${f}`,

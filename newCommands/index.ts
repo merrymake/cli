@@ -1,37 +1,37 @@
+import fs from "fs";
 import path from "path";
 import { Option, choice } from "../prompt";
 import {
+  Organization,
   OrganizationId,
   PathToOrganization,
   PathToRepository,
   PathToServiceGroup,
+  Repository,
   RepositoryId,
+  ServiceGroup,
   ServiceGroupId,
 } from "../types";
 import { OrgFile, execPromise } from "../utils";
-import { queue } from "./queue";
-import { register } from "./register";
-import { role } from "./role";
-import fs from "fs";
-import { org, orgAction } from "./org";
 import { key } from "./apikey";
-import { event } from "./event";
-import { group } from "./group";
-import { repo } from "./repo";
-import { fetch } from "./fetch";
 import { deploy } from "./deploy";
 import { envvar } from "./envvar";
+import { event } from "./event";
+import { fetch } from "./fetch";
+import { group } from "./group";
+import { BITBUCKET_FILE, hosting } from "./hosting";
+import { orgAction } from "./org";
+import { queue } from "./queue";
+import { register } from "./register";
+import { repo } from "./repo";
+import { role } from "./role";
 
 async function getContext() {
-  let repository: { id: RepositoryId; pathTo: PathToRepository } | undefined;
-  let serviceGroup:
-    | { id: ServiceGroupId; pathTo: PathToServiceGroup }
-    | undefined;
-  let organization:
-    | { id: OrganizationId; pathTo: PathToOrganization }
-    | undefined;
-  let cwd = process.cwd().split(/\/|\\/);
-  let out = "";
+  let repository: Repository | undefined;
+  let serviceGroup: ServiceGroup | undefined;
+  let organization: Organization | undefined;
+  const cwd = process.cwd().split(/\/|\\/);
+  let out = ".";
   for (let i = cwd.length - 1; i >= 0; i--) {
     if (fs.existsSync(path.join(out, "merrymake.json"))) {
       if (fs.existsSync(path.join(out, ".git"))) {
@@ -73,30 +73,24 @@ async function getContext() {
 
 export async function index() {
   try {
-    const options: Option[] = [];
+    const options: (Option & { weight: number })[] = [];
     const { repository, serviceGroup, organization } = await getContext();
-    if (repository !== undefined) {
+    if (fs.existsSync(`.git`)) {
       options.push({
         long: "deploy",
         short: "d",
         text: "deploy service to the cloud",
+        weight: 900,
         action: () => deploy(),
       });
     }
     if (serviceGroup !== undefined) {
-      if (repository === undefined) {
-        options.push({
-          long: "fetch",
-          short: "f",
-          text: "fetch updates to service groups and repos",
-          action: () => fetch(organization!.pathTo, organization!.id),
-        });
-      }
       options.push(
         {
           long: "envvar",
           short: "e",
           text: "add or edit envvar for service group",
+          weight: 800,
           action: () =>
             envvar(organization!.pathTo, organization!.id, serviceGroup.id),
         },
@@ -104,44 +98,69 @@ export async function index() {
           long: "repo",
           short: "r",
           text: "add or edit repository",
-          action: () =>
-            repo(serviceGroup.pathTo, organization!.id, serviceGroup.id),
+          weight: 700,
+          action: () => repo(organization!, serviceGroup),
         }
       );
     }
     if (organization !== undefined) {
       if (serviceGroup === undefined) {
-        options.push({
-          long: "group",
-          short: "g",
-          text: "create a service group",
-          action: () => group(organization.pathTo, organization.id),
-        });
+        if (
+          !fs.existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())
+        ) {
+          options.push({
+            long: "fetch",
+            short: "f",
+            text: "fetch updates to service groups and repos",
+            weight: 600,
+            action: () => fetch(organization),
+          });
+          options.push({
+            long: "hosting",
+            short: "h",
+            text: "configure git hosting with bitbucket",
+            weight: 100,
+            action: () => hosting(organization),
+          });
+        }
+        options.push(
+          {
+            long: "group",
+            short: "g",
+            text: "create a service group",
+            weight: 500,
+            action: () => group(organization),
+          },
+          {
+            long: "role",
+            short: "o",
+            text: "add or assign roles to users in the organization",
+            weight: 200,
+            action: () => role(organization.id),
+          }
+        );
       }
       options.push(
         {
           long: "rapids",
           short: "q",
           text: "view or post messages to the rapids",
+          weight: 1000,
           action: () => queue(organization.id),
         },
         {
           long: "key",
           short: "k",
           text: "add or edit api-keys for the organization",
+          weight: 400,
           action: () => key(organization.id),
         },
         {
           long: "event",
           short: "v",
           text: "allow or disallow events through api-keys for the organization",
+          weight: 300,
           action: () => event(organization.id),
-        },
-        {
-          long: "role",
-          short: "o",
-          text: "add or assign roles to users in the organization",
-          action: () => role(organization.id),
         }
       );
     } else if (organization === undefined) {
@@ -149,16 +168,19 @@ export async function index() {
         {
           long: "start",
           text: "start for new user or new device",
+          weight: 900,
           action: () => register(),
         },
         {
           long: "org",
           short: "o",
           text: "manage or checkout organizations",
+          weight: 500,
           action: () => orgAction(),
         }
       );
     }
+    options.sort((a, b) => b.weight - a.weight);
     return choice("What would you like to do?", options);
   } catch (e) {
     throw e;

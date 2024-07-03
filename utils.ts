@@ -35,11 +35,11 @@ export class Path {
   }
 }
 
-export function getFiles(path: Path): string[] {
+export function getFiles(path: PathTo): string[] {
   return getFiles_internal(path, "");
 }
 
-function getFiles_internal(path: Path, prefix: string): string[] {
+function getFiles_internal(path: PathTo, prefix: string): string[] {
   if (!fs.existsSync(path.toString())) return [];
   return readdirSync(path.toString(), { withFileTypes: true }).flatMap((x) =>
     x.isDirectory()
@@ -109,20 +109,20 @@ export function saveCache(cache: CacheFile) {
 
 export function fetchOrgRaw() {
   if (fs.existsSync(path.join(".merrymake", "conf.json"))) {
-    let org: OrgFile = JSON.parse(
+    const org: OrgFile = JSON.parse(
       "" + fs.readFileSync(path.join(".merrymake", "conf.json"))
     );
     return { org, serviceGroup: null, pathToRoot: "." + path.sep };
   }
 
-  let cwd = process.cwd().split(/\/|\\/);
+  const cwd = process.cwd().split(/\/|\\/);
   let out = "";
   let folder = path.sep;
   let serviceGroup: string | null = null;
   for (let i = cwd.length - 1; i >= 0; i--) {
     if (fs.existsSync(out + path.join("..", ".merrymake", "conf.json"))) {
       serviceGroup = cwd[i];
-      let org = <OrgFile>(
+      const org = <OrgFile>(
         JSON.parse(
           "" + fs.readFileSync(path.join(`${out}..`, `.merrymake`, `conf.json`))
         )
@@ -135,7 +135,7 @@ export function fetchOrgRaw() {
   return { org: null, serviceGroup: null, pathToRoot: null };
 }
 export function fetchOrg() {
-  let res = fetchOrgRaw();
+  const res = fetchOrgRaw();
   if (res.org === null) throw "Not inside a Merrymake organization";
   return res;
 }
@@ -150,8 +150,8 @@ export function output2(str: string) {
 }
 
 function versionIsOlder(old: string, new_: string) {
-  let os = old.split(".");
-  let ns = new_.split(".");
+  const os = old.split(".");
+  const ns = new_.split(".");
   if (+os[0] < +ns[0]) return true;
   else if (+os[0] > +ns[0]) return false;
   else if (+os[1] < +ns[1]) return true;
@@ -163,7 +163,7 @@ function versionIsOlder(old: string, new_: string) {
 export function execPromise(cmd: string, cwd?: string) {
   return new Promise<string>((resolve, reject) => {
     exec(cmd, { cwd }, (error, stdout, stderr) => {
-      let err = error?.message || stderr;
+      const err = error?.message || stderr;
       if (err) {
         reject(stderr || stdout);
       } else {
@@ -178,13 +178,15 @@ const historyFile = "history";
 const updateFile = "last_update_check";
 export async function checkVersion() {
   if (!fs.existsSync(historyFolder)) fs.mkdirSync(historyFolder);
-  let lastCheck = fs.existsSync(historyFolder + updateFile)
+  const lastCheck = fs.existsSync(historyFolder + updateFile)
     ? +fs.readFileSync(historyFolder + updateFile).toString()
     : 0;
   if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
     try {
-      let call = await execPromise("npm show @merrymake/cli dist-tags --json");
-      let version: { latest: string } = JSON.parse(call);
+      const call = await execPromise(
+        "npm show @merrymake/cli dist-tags --json"
+      );
+      const version: { latest: string } = JSON.parse(call);
       if (versionIsOlder(conf.version, version.latest)) {
         addExitMessage(`
 New version of merrymake-cli available, ${process.env["UPDATE_MESSAGE"]}`);
@@ -204,8 +206,8 @@ export function execStreamPromise(
   cwd?: string
 ) {
   return new Promise<void>((resolve, reject) => {
-    let [cmd, ...args] = full.split(" ");
-    let p = spawn(cmd, args, { cwd, shell: "sh" });
+    const [cmd, ...args] = full.split(" ");
+    const p = spawn(cmd, args, { cwd, shell: "sh" });
     p.stdout.on("data", (data) => {
       onData(data.toString());
     });
@@ -225,7 +227,7 @@ function sshReqInternal(cmd: string) {
 export async function sshReq(...cmd: string[]) {
   try {
     spinner_start();
-    let result = await sshReqInternal(
+    const result = await sshReqInternal(
       cmd
         .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
         .join(" ")
@@ -238,7 +240,7 @@ export async function sshReq(...cmd: string[]) {
 }
 
 export function partition(str: string, radix: string) {
-  let index = str.indexOf(radix);
+  const index = str.indexOf(radix);
   if (index < 0) return [str, ""];
   return [str.substring(0, index), str.substring(index + radix.length)];
 }
@@ -251,18 +253,18 @@ export function urlReq(
 ) {
   return new Promise<{ body: string; code: number | undefined }>(
     (resolve, reject) => {
-      let [protocol, fullPath] =
+      const [protocol, fullPath] =
         url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
-      let [base, path] = partition(fullPath, "/");
-      let [host, port] = partition(base, ":");
+      const [base, path] = partition(fullPath, "/");
+      const [host, port] = partition(base, ":");
       let headers;
       if (data !== undefined)
         headers = {
           "Content-Type": contentType,
           "Content-Length": data.length,
         };
-      let sender = protocol === "http" ? http : https;
-      let req = sender.request(
+      const sender = protocol === "http" ? http : https;
+      const req = sender.request(
         {
           host,
           port,

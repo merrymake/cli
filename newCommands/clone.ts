@@ -13,7 +13,7 @@ import {
 } from "../utils";
 import { ToBeStructure, ensureGroupStructure } from "./fetch";
 import { listOrgs } from "./org";
-import { OrganizationId } from "../types";
+import { OrganizationId, PathToOrganization } from "../types";
 
 export async function do_clone(
   struct: ToBeStructure,
@@ -24,26 +24,35 @@ export async function do_clone(
   try {
     output2(`Cloning ${displayName}...`);
     fs.mkdirSync(`${folderName}/.merrymake`, { recursive: true });
-    let orgFile: OrgFile = { organizationId: organizationId.toString() };
+    const orgFile: OrgFile = { organizationId: organizationId.toString() };
     fs.writeFileSync(
       `${folderName}/.merrymake/conf.json`,
       JSON.stringify(orgFile)
     );
-    let eventsDir = `${folderName}/event-catalogue`;
+    const eventsDir = `${folderName}/event-catalogue`;
     fs.mkdirSync(eventsDir, { recursive: true });
     await execPromise(`git init --initial-branch=main`, eventsDir);
     await execPromise(
       `git remote add origin "${GIT_HOST}/o${organizationId}/event-catalogue"`,
       eventsDir
     );
-    let publicDir = `${folderName}/public`;
+    fs.writeFileSync(eventsDir + "/api.json", "{}");
+    fs.writeFileSync(eventsDir + "/cron.json", "{}");
+    const publicDir = `${folderName}/public`;
     fs.mkdirSync(publicDir, { recursive: true });
     await execPromise(`git init --initial-branch=main`, publicDir);
     await execPromise(
       `git remote add origin "${GIT_HOST}/o${organizationId}/public"`,
       publicDir
     );
-    ensureGroupStructure(new Path(folderName), organizationId, struct);
+    fs.writeFileSync(
+      publicDir + "/index.html",
+      "<html><body>Hello, World!</body></html>"
+    );
+    ensureGroupStructure(
+      { pathTo: new PathToOrganization(folderName), id: organizationId },
+      struct
+    );
   } catch (e) {
     throw e;
   }
@@ -54,9 +63,9 @@ export async function do_fetch_clone(
   organizationId: OrganizationId
 ) {
   try {
-    let reply = await sshReq(`organization-fetch`, organizationId.toString());
+    const reply = await sshReq(`organization-fetch`, organizationId.toString());
     if (!reply.startsWith("{")) throw reply;
-    let structure = JSON.parse(reply);
+    const structure = JSON.parse(reply);
     const folderName = toFolderName(displayName);
     await do_clone(structure, folderName, displayName, organizationId);
   } catch (e) {
@@ -74,7 +83,7 @@ export function checkout_org(
 
 export async function checkout() {
   try {
-    let orgs = await listOrgs();
+    const orgs = await listOrgs();
     return choice(
       "Which organization would you like to clone?",
       orgs.map((org) => ({

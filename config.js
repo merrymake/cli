@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GIT_HOST = exports.SSH_USER = exports.SSH_HOST = exports.HTTP_HOST = exports.RAPIDS_HOST = exports.API_URL = exports.MERRYMAKE_IO = void 0;
-exports.MERRYMAKE_IO = `mftd5j9yrugj7a6zmvydmjke.merrymake.io`;
+exports.SPECIAL_FOLDERS = exports.GIT_HOST = exports.SSH_USER = exports.SSH_HOST = exports.HTTP_HOST = exports.RAPIDS_HOST = exports.API_URL = exports.MERRYMAKE_IO = exports.FINGERPRINT = void 0;
+exports.FINGERPRINT = `AAAAC3NzaC1lZDI1NTE5AAAAIPLSjAn8YwNclgEEk8fgyNb1pbhn9X7bMKwFUweaoPzn`;
+exports.MERRYMAKE_IO = `merrymake.io`;
 exports.API_URL = `api.${exports.MERRYMAKE_IO}`;
 exports.RAPIDS_HOST = `https://rapids.${exports.MERRYMAKE_IO}`;
 exports.HTTP_HOST = `https://${exports.API_URL}`;
 exports.SSH_HOST = `${exports.API_URL}`;
 exports.SSH_USER = `mist`;
-exports.GIT_HOST = `ssh://mist@${exports.API_URL}`;
+exports.GIT_HOST = `ssh://${exports.SSH_USER}@${exports.API_URL}`;
+exports.SPECIAL_FOLDERS = ["event-catalogue", "public"];

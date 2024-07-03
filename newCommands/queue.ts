@@ -7,8 +7,8 @@ import { OrganizationId } from "../types";
 
 export async function do_queue_time(org: string, time: number) {
   try {
-    let resp = await sshReq(`queue`, `--org`, org, `--time`, "" + time);
-    let queue: {
+    const resp = await sshReq(`queue`, `--org`, org, `--time`, "" + time);
+    const queue: {
       id: string;
       q: string;
       e: string;
@@ -39,8 +39,10 @@ export async function do_queue_time(org: string, time: number) {
 
 async function queue_event(id: string, river: string) {
   try {
-    let res = JSON.parse(await sshReq(`rapids-inspect`, id, `--river`, river));
-    let resout = res.output;
+    const res = JSON.parse(
+      await sshReq(`rapids-inspect`, id, `--river`, river)
+    );
+    const resout = res.output;
     delete res.output;
     console.log(res);
     output2("Output:");
@@ -71,7 +73,7 @@ let cache_queue: {
 }[];
 
 function queue_id(id: string) {
-  let tableHeader = printTableHeader("      ", {
+  const tableHeader = printTableHeader("      ", {
     River: 12,
     Event: 12,
     Status: 7,
@@ -126,37 +128,36 @@ async function queue_time(org: string) {
 const QUEUE_COUNT = 15;
 export async function queue(organizationId: OrganizationId) {
   try {
-    let options: Option[] = [];
-    options.push({
-      long: "post",
-      short: "p",
-      text: "post message to Rapids using an api-key",
-      action: () => post(organizationId),
-    });
-    let resp = await sshReq(`rapids-view`, organizationId.toString());
+    const options: Option[] = [];
+    const resp = await sshReq(`rapids-view`, organizationId.toString());
     cache_queue = JSON.parse(resp);
-    let tableHeader =
+    const tableHeader =
       "\n" +
       printTableHeader("      ", {
-        Id: 6,
-        River: 12,
-        Event: 12,
-        Status: 7,
+        Id: 21,
+        "River/Event": 19,
+        Stat: 4,
         "Queue time": 20,
       });
     options.push(
       ...cache_queue.map((x) => ({
         long: x.id,
-        text: `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(
-          x.e,
-          12
-        )} │ ${alignLeft(x.s, 7)} │ ${new Date(x.q).toLocaleString()}`,
+        text: `${x.id} │ ${alignLeft(x.r + "/" + x.e, 19)} │ ${alignLeft(
+          x.s.substring(0, 4),
+          4
+        )} │ ${new Date(x.q).toLocaleString()}`,
         action: () => {
           if (getArgs().length === 0) initializeArgs([x.r]);
           return queue_id(x.id);
         },
       }))
     );
+    options.push({
+      long: "post",
+      short: "p",
+      text: "post message to rapids using an api-key",
+      action: () => post(organizationId),
+    });
     return await choice(
       "Which event would you like to inspect?" + tableHeader,
       options,

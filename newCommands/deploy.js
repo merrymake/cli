@@ -32,9 +32,9 @@ function do_deploy_internal(commit) {
 function do_deploy(pathToService) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let before = process.cwd();
+            const before = process.cwd();
             process.chdir(pathToService.toString());
-            const output = yield do_deploy_internal("(git diff-index --quiet HEAD || git commit -m 'Deploy')");
+            const output = yield do_deploy_internal("(git diff-index --quiet HEAD 2>/dev/null || git commit -m 'Deploy')");
             process.chdir(before);
             return !output.startsWith("Everything up-to-date");
         }

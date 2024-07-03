@@ -1,11 +1,10 @@
 import { choice } from "../prompt";
 import { PathToRepository } from "../types";
 import {
-  output2,
   addToExecuteQueue,
-  finish,
-  Path,
   execStreamPromise,
+  finish,
+  output2,
 } from "../utils";
 
 async function do_deploy_internal(commit: string) {
@@ -27,10 +26,10 @@ async function do_deploy_internal(commit: string) {
 
 export async function do_deploy(pathToService: PathToRepository) {
   try {
-    let before = process.cwd();
+    const before = process.cwd();
     process.chdir(pathToService.toString());
     const output = await do_deploy_internal(
-      "(git diff-index --quiet HEAD || git commit -m 'Deploy')"
+      "(git diff-index --quiet HEAD 2>/dev/null || git commit -m 'Deploy')"
     );
     process.chdir(before);
     return !output.startsWith("Everything up-to-date");

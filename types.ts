@@ -25,6 +25,7 @@ export class AccessId {
   }
 }
 export interface PathTo {
+  with(folder: string): PathTo;
   toString(): string;
 }
 export class PathToOrganization implements PathTo {
@@ -40,6 +41,11 @@ export class PathToServiceGroup implements PathTo {
   constructor(private readonly pathToServiceGroup: string) {}
   with(folder: string) {
     return new PathToRepository(path.join(this.pathToServiceGroup, folder));
+  }
+  last() {
+    return this.pathToServiceGroup.substring(
+      this.pathToServiceGroup.lastIndexOf("/")
+    );
   }
   toString() {
     return this.pathToServiceGroup;
@@ -62,4 +68,16 @@ export class Path implements PathTo {
   toString() {
     return this.path;
   }
+}
+export interface Organization {
+  id: OrganizationId;
+  pathTo: PathToOrganization;
+}
+export interface ServiceGroup {
+  id: ServiceGroupId;
+  pathTo: PathToServiceGroup;
+}
+export interface Repository {
+  id: RepositoryId;
+  pathTo: PathToRepository;
 }

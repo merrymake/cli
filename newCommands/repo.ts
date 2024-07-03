@@ -3,20 +3,30 @@ import fs from "fs";
 import { GIT_HOST } from "../config";
 import { Option, choice, shortText } from "../prompt";
 import { languages, templates } from "../templates";
-import { Path, TODO, execPromise, sshReq, toFolderName } from "../utils";
+import {
+  Path,
+  TODO,
+  execPromise,
+  finish,
+  sshReq,
+  toFolderName,
+} from "../utils";
 import { do_deploy } from "./deploy";
 import { post } from "./post";
 import {
+  Organization,
   OrganizationId,
   PathToRepository,
   PathToServiceGroup,
   RepositoryId,
+  ServiceGroup,
   ServiceGroupId,
 } from "../types";
+import { BITBUCKET_FILE, bitbucketStep } from "./hosting";
 
 async function do_pull(pth: PathToRepository, repo: string) {
   try {
-    let before = process.cwd();
+    const before = process.cwd();
     process.chdir(pth.toString());
     if (fs.existsSync(".git")) await execPromise(`git pull -q "${repo}"`);
     else {
@@ -34,7 +44,7 @@ export function do_fetch_template(
   template: string,
   projectType: string
 ) {
-  console.log("Fetching template...");
+  console.log(`Fetching ${projectType} template...`);
   return do_pull(
     pth,
     `https://github.com/merrymake/${projectType}-${template}-template`
@@ -47,7 +57,7 @@ export function do_duplicate(
   groupId: ServiceGroupId,
   repositoryId: RepositoryId
 ) {
-  console.log("Duplicating service...");
+  console.log(`Duplicating ${"local folder"} service...`);
   return do_pull(
     pth,
     `${GIT_HOST}/o${organizationId}/g${groupId}/r${repositoryId}`
@@ -69,65 +79,52 @@ async function service_template_language(
 }
 
 export async function do_createService(
-  pth: PathToServiceGroup,
-  organizationId: OrganizationId,
-  serviceGroupId: ServiceGroupId,
+  organization: Organization,
+  serviceGroup: ServiceGroup,
   folderName: string,
   displayName: string
 ) {
   try {
-    let before = process.cwd();
-    process.chdir(pth.toString());
-    console.log("Creating service...");
+    const repositoryPath = serviceGroup.pathTo.with(folderName);
+    console.log(`Creating service '${displayName}'...`);
     const reply = await sshReq(
       `repository-create`,
       displayName,
       `--serviceGroupId`,
-      serviceGroupId.toString()
+      serviceGroup.id.toString()
     );
     if (reply.length !== 8) throw reply;
     const repositoryId = new RepositoryId(reply);
-    // if (fs.existsSync(pathToRoot + BITBUCKET_FILE)) {
-    //   fs.mkdirSync(folderName);
-    //   fs.appendFileSync(
-    //     pathToRoot + BITBUCKET_FILE,
-    //     "\n" + bitbucketStep(group + "/" + displayName)
-    //   );
-    //   addExitMessage(
-    //     `Use '${GREEN}cd ${pth
-    //       .with(displayName)
-    //       .toString()
-    //       .replace(
-    //         /\\/g,
-    //         "\\\\"
-    //       )}${NORMAL_COLOR}' to go to the new service. \nAutomatic deployment added to BitBucket pipeline.`
-    //   );
-    // } else {
-    let repoBase = `${GIT_HOST}/o${organizationId}/g${serviceGroupId}/r${repositoryId}`;
-    try {
-      await execPromise(`git clone -q "${repoBase}" ${folderName}`);
-    } catch (e) {
-      if (
-        ("" + e).startsWith(
-          "warning: You appear to have cloned an empty repository."
-        )
-      ) {
-      } else throw e;
+    const repoBase = `g${serviceGroup.id.toString()}/r${repositoryId}`;
+    if (fs.existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())) {
+      fs.mkdirSync(repositoryPath.toString(), { recursive: true });
+      fs.appendFileSync(
+        organization.pathTo.with(BITBUCKET_FILE).toString(),
+        "\n" +
+          bitbucketStep(
+            new Path(serviceGroup.pathTo.last()).with(folderName),
+            repoBase
+          )
+      );
+    } else {
+      try {
+        await execPromise(
+          `git clone -q "${GIT_HOST}/o${organization.id.toString()}/${repoBase}" ${folderName}`,
+          serviceGroup.pathTo.toString()
+        );
+      } catch (e) {
+        if (
+          ("" + e).startsWith(
+            "warning: You appear to have cloned an empty repository."
+          )
+        ) {
+        } else throw e;
+      }
+      await execPromise(
+        `git symbolic-ref HEAD refs/heads/main`,
+        repositoryPath.toString()
+      );
     }
-    await execPromise(`git symbolic-ref HEAD refs/heads/main`, folderName);
-    // addExitMessage(
-    //   `Use '${GREEN}cd ${pth
-    //     .with(folderName)
-    //     .toString()
-    //     .replace(
-    //       /\\/g,
-    //       "\\\\"
-    //     )}${NORMAL_COLOR}' to go to the new service. \nThen use '${GREEN}${
-    //     process.env["COMMAND"]
-    //   } deploy${NORMAL_COLOR}' to deploy it.`
-    // );
-    // }
-    process.chdir(before);
     return repositoryId;
   } catch (e) {
     throw e;
@@ -140,7 +137,7 @@ export async function service_template(
   template: string
 ) {
   try {
-    let langs = await Promise.all(
+    const langs = await Promise.all(
       templates[template].languages.map((x, i) =>
         (async () => ({
           ...languages[x],
@@ -181,7 +178,6 @@ async function after_service_deploy(
 ) {
   try {
     await do_deploy(pathToService);
-    // TODO would you like to call it
     return choice(
       "Would you like to post and event to the Rapids? (Trigger the service)",
       [
@@ -236,7 +232,7 @@ async function duplicate(
   serviceGroupId: ServiceGroupId
 ) {
   try {
-    let repos = await listRepos(serviceGroupId);
+    const repos = await listRepos(serviceGroupId);
     return await choice(
       "Which service would you like to duplicate?",
       repos.map((x) => ({
@@ -259,7 +255,7 @@ async function duplicate(
 let repoListCache: { name: string; id: string }[] | undefined;
 export async function listRepos(serviceGroupId: ServiceGroupId) {
   if (repoListCache === undefined) {
-    let resp = await sshReq(`repository-list`, serviceGroupId.toString());
+    const resp = await sshReq(`repository-list`, serviceGroupId.toString());
     if (!resp.startsWith("[")) throw resp;
     repoListCache = JSON.parse(resp);
   }
@@ -267,29 +263,28 @@ export async function listRepos(serviceGroupId: ServiceGroupId) {
 }
 
 export async function repo_create(
-  pathToGroup: PathToServiceGroup,
-  organizationId: OrganizationId,
-  serviceGroupId: ServiceGroupId
+  organization: Organization,
+  serviceGroup: ServiceGroup
 ) {
   try {
     let num = 1;
-    while (fs.existsSync(pathToGroup.with("repo-" + num).toString())) num++;
-    let displayName = await shortText(
+    while (fs.existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
+      num++;
+    const displayName = await shortText(
       "Repository name",
       "This is where the code lives.",
       "repo-" + num
     ).then();
     const folderName = toFolderName(displayName);
-    const pathToRepository = pathToGroup.with(folderName);
+    const pathToRepository = serviceGroup.pathTo.with(folderName);
     const repositoryId = await do_createService(
-      pathToGroup,
-      organizationId,
-      serviceGroupId,
+      organization,
+      serviceGroup,
       folderName,
       displayName
     );
-    let options: Option[] = [];
-    // let repositories = await listRepos(serviceGroupId);
+    const options: Option[] = [];
+    // const repositories = await listRepos(serviceGroupId);
     // if (repositories.length > 0) {
     //   options.push({
     //     long: "duplicate",
@@ -303,9 +298,15 @@ export async function repo_create(
         long: templates[x].long,
         short: templates[x].short,
         text: templates[x].text,
-        action: () => service_template(pathToRepository, organizationId, x),
+        action: () => service_template(pathToRepository, organization.id, x),
       })
     );
+    options.push({
+      long: "empty",
+      short: "e",
+      text: "nothing, just an empty repo",
+      action: () => finish(),
+    });
     return await choice(
       "What would you like the new repository to contain?",
       options
@@ -321,7 +322,7 @@ async function repo_edit(
   repositoryId: string
 ) {
   try {
-    let options: Option[] = [
+    const options: Option[] = [
       {
         long: "rename",
         text: `rename repository`,
@@ -342,23 +343,22 @@ async function repo_edit(
 }
 
 export async function repo(
-  pathToGroup: PathToServiceGroup,
-  organizationId: OrganizationId,
-  serviceGroupId: ServiceGroupId
+  organization: Organization,
+  serviceGroup: ServiceGroup
 ) {
   try {
-    let repos = await listRepos(serviceGroupId);
-    let options: Option[] = [];
+    const repos = await listRepos(serviceGroup.id);
+    const options: Option[] = [];
     options.push({
       long: "create",
       text: `create new repository`,
-      action: () => repo_create(pathToGroup, organizationId, serviceGroupId),
+      action: () => repo_create(organization, serviceGroup),
     });
     repos.forEach((x) => {
       options.push({
         long: x.id,
         text: `edit ${x.name} (${x.id})`,
-        action: () => repo_edit(pathToGroup, x.name, x.id),
+        action: () => repo_edit(serviceGroup.pathTo, x.name, x.id),
       });
     });
     return await choice(

@@ -1,19 +1,18 @@
-import { output2, sshReq, addToExecuteQueue, finish } from "../utils";
-import { choice, Option, multiSelect } from "../prompt";
-import { alignLeft, printTableHeader } from "../executors";
 import { stdout } from "process";
-import { key_create } from "./apikey";
+import { alignLeft, printTableHeader } from "../executors";
+import { Option, choice, multiSelect } from "../prompt";
 import { OrganizationId } from "../types";
+import { addToExecuteQueue, finish, output2, sshReq } from "../utils";
+import { key_create } from "./apikey";
 
 export async function do_event(
   apikeyId: string,
   events: { [event: string]: boolean }
 ) {
   try {
-    let selected = Object.keys(events).filter((x) => events[x]);
-    output2(
-      await sshReq(`events-allow`, apikeyId, `--events`, selected.join(","))
-    );
+    const selected = Object.keys(events).filter((x) => events[x]);
+    await sshReq(`events-allow`, apikeyId, `--events`, selected.join(","));
+    output2(`Allowed events ${selected.join(", ")} on key ${apikeyId}.`);
   } catch (e) {
     throw e;
   }
@@ -29,7 +28,7 @@ function event_key_events(
 
 async function event_key(apikeyId: string) {
   try {
-    const resp = await sshReq(`list-events`, apikeyId);
+    const resp = await sshReq(`events-list`, apikeyId);
     const parsed: { event: string; allowed: boolean }[] = JSON.parse(resp);
     const events: { [keyt: string]: boolean } = {};
     parsed.forEach((x) => (events[x.event] = x.allowed));
@@ -45,14 +44,14 @@ async function event_key(apikeyId: string) {
 
 export async function event(organizationId: OrganizationId) {
   try {
-    let resp = await sshReq(`apikey-list`, organizationId.toString());
-    let keys: { name: string; key: string }[] = JSON.parse(resp);
-    let options: Option[] = keys.map((x) => {
-      let n = x.name || "";
+    const resp = await sshReq(`apikey-list`, organizationId.toString());
+    const keys: { name: string; id: string }[] = JSON.parse(resp);
+    const options: Option[] = keys.map((x) => {
+      const n = x.name || "";
       return {
-        long: x.key,
-        text: `${x.key} │ ${alignLeft(n, stdout.getWindowSize()[0] - 36 - 9)}`,
-        action: () => event_key(x.key),
+        long: x.id,
+        text: x.name === null ? x.id : `${x.name} (${x.id})`,
+        action: () => event_key(x.id),
       };
     });
     options.push({
@@ -61,13 +60,7 @@ export async function event(organizationId: OrganizationId) {
       text: `add a new apikey`,
       action: () => key_create(organizationId, event_key),
     });
-    let tableHeader = "";
-    if (options.length > 1)
-      tableHeader = "\n" + printTableHeader("      ", { Key: 36, Name: -12 });
-    return await choice(
-      "Which key to allow events through?" + tableHeader,
-      options
-    ).then();
+    return await choice("Which key to allow events through?", options).then();
   } catch (e) {
     throw e;
   }

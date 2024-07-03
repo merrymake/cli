@@ -1,26 +1,26 @@
 import fs from "fs";
+import { GIT_HOST } from "../config";
 import {
-  Path,
+  Organization,
+  OrganizationId,
+  PathToOrganization,
+  Repository,
+  RepositoryId,
+  ServiceGroup,
+  ServiceGroupId,
+} from "../types";
+import {
   addToExecuteQueue,
   directoryNames,
   execPromise,
-  fetchOrg,
   finish,
   output2,
   sshReq,
   toFolderName,
 } from "../utils";
-import { GIT_HOST } from "../config";
-import {
-  OrganizationId,
-  PathToOrganization,
-  PathToRepository,
-  PathToServiceGroup,
-  RepositoryId,
-  ServiceGroupId,
-} from "../types";
 
-type RepositoryStructure = { [repositoryId: string]: string };
+type DisplayName = string;
+type RepositoryStructure = { [repositoryId: string]: DisplayName };
 
 type AsIsStructure = {
   [groupId: string]: {
@@ -31,86 +31,88 @@ type AsIsStructure = {
 
 export type ToBeStructure = {
   [groupId: string]: {
-    displayName: string;
+    displayName: DisplayName;
     repositories: RepositoryStructure;
   };
 };
 
-function getCurrentStructure(pathToOrganization: PathToOrganization) {
+async function getCurrentStructure(pathToOrganization: PathToOrganization) {
   const folders = directoryNames(pathToOrganization, [
     "event-catalogue",
     "public",
   ]);
   const groups: AsIsStructure = {};
-  folders.forEach((f) => {
-    const pathToGroup = pathToOrganization.with(f.name);
-    if (fs.existsSync(pathToGroup.with(".group-id").toString())) {
-      const groupId = fs
-        .readFileSync(pathToGroup.with(".group-id").toString())
-        .toString();
-      const repositories: { [repositoryId: string]: string } = {};
-      groups[groupId] = { name: f.name, repositories };
-      const folders = directoryNames(pathToGroup, []);
-      folders.forEach(async (f) => {
-        if (fs.existsSync(pathToGroup.with(f.name).with(".git").toString())) {
-          const repositoryUrl = await execPromise(
-            `git ls-remote --get-url origin`
-          );
-          const repositoryId = repositoryUrl.substring(
-            repositoryUrl.lastIndexOf("/")
-          );
-          repositories[repositoryId] = f.name;
-        } else {
-          // TODO Get from bitbucket file?
-        }
-      });
-    }
-  });
+  await Promise.all(
+    folders.map((f) => {
+      const pathToGroup = pathToOrganization.with(f.name);
+      if (fs.existsSync(pathToGroup.with(".group-id").toString())) {
+        const groupId = fs
+          .readFileSync(pathToGroup.with(".group-id").toString())
+          .toString();
+        const repositories: RepositoryStructure = {};
+        groups[groupId] = { name: f.name, repositories };
+        const folders = directoryNames(pathToGroup, []);
+        return Promise.all(
+          folders.map(async (f) => {
+            if (
+              fs.existsSync(pathToGroup.with(f.name).with(".git").toString())
+            ) {
+              const repositoryUrl = await execPromise(
+                `git ls-remote --get-url origin`,
+                pathToGroup.with(f.name).toString()
+              );
+              const repositoryId = repositoryUrl
+                .trim()
+                .substring(repositoryUrl.lastIndexOf("/") + "/r".length);
+              repositories[repositoryId] = f.name;
+            }
+          })
+        );
+      }
+    })
+  );
   return groups;
 }
 
 function ensureRepositoryStructure(
-  pathToGroup: PathToServiceGroup,
   organizationId: OrganizationId,
-  serviceGroupId: ServiceGroupId,
+  serviceGroup: ServiceGroup,
   toBe: RepositoryStructure,
   asIs: RepositoryStructure
 ) {
   Object.keys(toBe).forEach((repositoryId) => {
     const repositoryDisplayName = toBe[repositoryId];
     const folderName = toFolderName(repositoryDisplayName);
-    const pathToRepository = pathToGroup.with(folderName);
-    if (asIs[repositoryId] !== folderName) {
+    const pathToRepository = serviceGroup.pathTo.with(folderName);
+    if (asIs[repositoryId] === undefined) {
+      createServiceFolder(organizationId, serviceGroup.id, {
+        pathTo: pathToRepository,
+        id: new RepositoryId(repositoryId),
+      });
+    } else if (asIs[repositoryId] !== folderName) {
       fs.renameSync(
-        pathToGroup.with(asIs[repositoryId]).toString(),
+        serviceGroup.pathTo.with(asIs[repositoryId]).toString(),
         pathToRepository.toString()
       );
     }
-    createServiceFolder(
-      pathToRepository,
-      organizationId,
-      serviceGroupId,
-      new RepositoryId(repositoryId)
-    );
     delete asIs[repositoryId];
   });
   Object.keys(asIs).forEach((repositoryId) => {
     const folderName = asIs[repositoryId];
     // TODO Delete
-    console.log("Delete", pathToGroup.with(folderName).toString());
+    console.log("Delete", serviceGroup.pathTo.with(folderName).toString());
   });
 }
 
-export function ensureGroupStructure(
-  pathToOrganization: PathToOrganization,
-  organizationId: OrganizationId,
+export async function ensureGroupStructure(
+  organization: Organization,
   toBe: ToBeStructure
 ) {
-  const asIs = getCurrentStructure(pathToOrganization);
+  const asIs = await getCurrentStructure(organization.pathTo);
   Object.keys(toBe).forEach((serviceGroupId) => {
     const group = toBe[serviceGroupId];
     const folderName = toFolderName(group.displayName);
-    const pathToGroup = pathToOrganization.with(folderName);
+    const pathToGroup = organization.pathTo.with(folderName);
     let asIsRepos: { [repositoryId: string]: string };
     if (asIs[serviceGroupId] === undefined) {
       fs.mkdirSync(pathToGroup.toString(), { recursive: true });
@@ -122,16 +124,15 @@ export function ensureGroupStructure(
     } else {
       if (asIs[serviceGroupId].name !== folderName) {
         fs.renameSync(
-          pathToOrganization.with(asIs[serviceGroupId].name).toString(),
+          organization.pathTo.with(asIs[serviceGroupId].name).toString(),
           pathToGroup.toString()
         );
       }
       asIsRepos = asIs[serviceGroupId].repositories;
     }
     ensureRepositoryStructure(
-      pathToGroup,
-      organizationId,
-      new ServiceGroupId(serviceGroupId),
+      organization.id,
+      { pathTo: pathToGroup, id: new ServiceGroupId(serviceGroupId) },
       group.repositories,
       asIsRepos
     );
@@ -141,18 +142,17 @@ export function ensureGroupStructure(
     const group = asIs[groupId];
     const folderName = group.name;
     // TODO Delete
-    console.log("Delete", pathToOrganization.with(folderName).toString());
+    console.log("Delete", organization.pathTo.with(folderName).toString());
   });
 }
 
 async function createServiceFolder(
-  path: PathToRepository,
   organizationId: OrganizationId,
   groupId: ServiceGroupId,
-  repositoryId: RepositoryId
+  repository: Repository
 ) {
-  const dir = path.toString();
-  let repo = `"${GIT_HOST}/o${organizationId}/g${groupId}/r${repositoryId}"`;
+  const dir = repository.pathTo.toString();
+  const repo = `"${GIT_HOST}/o${organizationId}/g${groupId}/r${repository.id}"`;
   try {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -185,25 +185,23 @@ rm fetch.bat fetch.sh`,
   }
 }
 
-async function do_fetch(
-  pathToOrganization: PathToOrganization,
-  organizationId: OrganizationId
-) {
+async function do_fetch(organization: Organization) {
   try {
-    let reply = await sshReq(`organization-fetch`, organizationId.toString());
-    if (!reply.startsWith("{")) throw reply;
     output2(`Fetching...`);
-    let structure = JSON.parse(reply);
-    ensureGroupStructure(pathToOrganization, organizationId, structure);
+    const reply = await sshReq(
+      `organization-fetch`,
+      organization.id.toString()
+    );
+    if (!reply.startsWith("{")) throw reply;
+    const structure: ToBeStructure = JSON.parse(reply);
+    output2(`Consolidating...`);
+    await ensureGroupStructure(organization, structure);
   } catch (e) {
     throw e;
   }
 }
 
-export function fetch(
-  pathToOrganization: PathToOrganization,
-  organizationId: OrganizationId
-) {
-  addToExecuteQueue(() => do_fetch(pathToOrganization, organizationId));
+export function fetch(organization: Organization) {
+  addToExecuteQueue(() => do_fetch(organization));
   return finish();
 }

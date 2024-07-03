@@ -13,20 +13,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.envvar = void 0;
-const fs_1 = __importDefault(require("fs"));
-const utils_1 = require("../utils");
-const config_1 = require("../config");
-const path_1 = __importDefault(require("path"));
 const secret_lib_1 = require("@merrymake/secret-lib");
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
+const config_1 = require("../config");
 const prompt_1 = require("../prompt");
+const utils_1 = require("../utils");
 function do_envvar(pathToOrganization, organizationId, serviceGroupId, key, value, access, encrypted) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let val;
             if (encrypted === true) {
-                let repoBase = `${config_1.GIT_HOST}/o${organizationId.toString()}/g${serviceGroupId.toString()}/.key`;
+                const repoBase = `${config_1.GIT_HOST}/o${organizationId.toString()}/g${serviceGroupId.toString()}/.key`;
                 yield (0, utils_1.execPromise)(`git clone -q "${repoBase}"`, pathToOrganization.with(".merrymake").toString());
-                let key = fs_1.default.readFileSync(pathToOrganization
+                const key = fs_1.default.readFileSync(pathToOrganization
                     .with(".merrymake")
                     .with(".key")
                     .with("merrymake.key")
@@ -80,7 +80,7 @@ function envvar_key_visible_value(pathToOrganization, organizationId, serviceGro
 function envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, secret) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let value = yield (0, prompt_1.shortText)("Value", "The value...", "", secret === true ? prompt_1.Visibility.Secret : prompt_1.Visibility.Public).then();
+            const value = yield (0, prompt_1.shortText)("Value", "The value...", "", secret === true ? prompt_1.Visibility.Secret : prompt_1.Visibility.Public).then();
             if (value !== "")
                 return envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, value, secret);
             else
@@ -116,7 +116,7 @@ function envvar_key(pathToOrganization, organizationId, serviceGroupId, key) {
 function envvar_new(pathToOrganization, organizationId, serviceGroupId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let key = yield (0, prompt_1.shortText)("Key", "Key for the key-value pair", "key").then();
+            const key = yield (0, prompt_1.shortText)("Key", "Key for the key-value pair", "key").then();
             return envvar_key(pathToOrganization, organizationId, serviceGroupId, key);
         }
         catch (e) {
@@ -127,9 +127,9 @@ function envvar_new(pathToOrganization, organizationId, serviceGroupId) {
 function envvar(pathToOrganization, organizationId, serviceGroupId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let resp = yield (0, utils_1.sshReq)(`envvar-list`, serviceGroupId.toString());
-            let orgs = JSON.parse(resp);
-            let options = orgs.map((x) => ({
+            const resp = yield (0, utils_1.sshReq)(`envvar-list`, serviceGroupId.toString());
+            const orgs = JSON.parse(resp);
+            const options = orgs.map((x) => ({
                 long: x.k,
                 text: `[${x.i ? "I" : " "}${x.p ? "P" : " "}] ${x.k}: ${x.v}`,
                 action: () => envvar_key(pathToOrganization, organizationId, serviceGroupId, x.k),

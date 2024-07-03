@@ -11,7 +11,7 @@ import {
   Path,
   execPromise,
 } from "../utils";
-import { API_URL, HTTP_HOST, SSH_USER } from "../config";
+import { API_URL, FINGERPRINT, HTTP_HOST, SSH_USER } from "../config";
 import {
   YELLOW,
   NORMAL_COLOR,
@@ -34,7 +34,7 @@ function saveSSHConfig(path: string) {
       .split("\n");
     let inHost = false;
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i];
+      const line = lines[i];
       if ((line.startsWith("\t") || line.startsWith(" ")) && inHost) {
         if (line.includes("User ") && !line.includes(`User ${SSH_USER}`)) {
           lines[i] =
@@ -108,13 +108,11 @@ export async function generateNewKey() {
 export function addKnownHost() {
   let isKnownHost = false;
   if (fs.existsSync(`${os.homedir()}/.ssh/known_hosts`)) {
-    let lines = (
+    const lines = (
       "" + fs.readFileSync(`${os.homedir()}/.ssh/known_hosts`)
     ).split("\n");
     isKnownHost = lines.some((x) =>
-      x.includes(
-        `${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO`
-      )
+      x.includes(`${API_URL} ssh-ed25519 ${FINGERPRINT}`)
     );
   }
   if (!isKnownHost) {
@@ -123,7 +121,7 @@ export function addKnownHost() {
       fs.mkdirSync(os.homedir() + "/.ssh");
     fs.appendFileSync(
       `${os.homedir()}/.ssh/known_hosts`,
-      `\n${API_URL} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOW2dgo+0nuahOzHD7XVnSdrCwhkK9wMnAZyr6XOKotO\n`
+      `\n${API_URL} ssh-ed25519 ${FINGERPRINT}\n`
     );
   }
 }
@@ -131,14 +129,14 @@ export function addKnownHost() {
 export type KeyAction = () => Promise<{ key: string; keyFile: string }>;
 export async function do_register(keyAction: KeyAction, email: string) {
   try {
-    let { key, keyFile } = await keyAction();
-    output("Registering...\n");
+    const { key, keyFile } = await keyAction();
+    output(`Registering ${email === "" ? "anonymous account" : email}...\n`);
     addKnownHost();
     if (email === "") {
       addExitMessage(`Notice: Anonymous accounts are automatically deleted permanently after ~2 weeks, without warning. To add an email and avoid automatic deletion, run the command:
   ${YELLOW}${process.env["COMMAND"]} register ${keyFile}${NORMAL_COLOR}`);
     }
-    let result = await urlReq(
+    const result = await urlReq(
       `${HTTP_HOST}/admin/user`,
       "POST",
       JSON.stringify({
@@ -158,7 +156,7 @@ export async function do_register(keyAction: KeyAction, email: string) {
 
 async function register_key(keyAction: KeyAction) {
   try {
-    let email = await shortText(
+    const email = await shortText(
       "Email",
       "By attaching an email you'll be notified in case of changes for your organizations.",
       ""
@@ -171,7 +169,7 @@ async function register_key(keyAction: KeyAction) {
 
 async function register_manual() {
   try {
-    let key = await shortText("Public key", "", "ssh-rsa ...").then();
+    const key = await shortText("Public key", "", "ssh-rsa ...").then();
     return register_key(() =>
       Promise.resolve({
         key,
@@ -185,11 +183,11 @@ async function register_manual() {
 
 export async function register() {
   try {
-    let keyfiles = getFiles(new Path(`${os.homedir()}/.ssh`)).filter((x) =>
+    const keyfiles = getFiles(new Path(`${os.homedir()}/.ssh`)).filter((x) =>
       x.endsWith(".pub")
     );
-    let keys = keyfiles.map<Option>((x) => {
-      let f = x.substring(0, x.length - ".pub".length);
+    const keys = keyfiles.map<Option>((x) => {
+      const f = x.substring(0, x.length - ".pub".length);
       return {
         long: f,
         text: `use key ${f}`,

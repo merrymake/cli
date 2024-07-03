@@ -17,7 +17,7 @@ const utils_1 = require("../utils");
 function do_key_create(organizationId, description, duration) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let cmd = [
+            const cmd = [
                 `apikey-create`,
                 duration,
                 `--organizationId`,
@@ -25,7 +25,7 @@ function do_key_create(organizationId, description, duration) {
             ];
             if (description !== "")
                 cmd.push(`--description`, description);
-            let reply = yield (0, utils_1.sshReq)(...cmd);
+            const reply = yield (0, utils_1.sshReq)(...cmd);
             if (reply.length !== 8)
                 throw reply;
             const apikeyId = reply;
@@ -40,7 +40,7 @@ exports.do_key_create = do_key_create;
 function do_key_modify(apikeyId, description, duration) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let cmd = [`apikey-modify`, `--duration`, duration, apikeyId];
+            const cmd = [`apikey-modify`, `--duration`, duration, apikeyId];
             if (description !== "")
                 cmd.push(`--description`, description);
             yield (0, utils_1.sshReq)(...cmd);
@@ -55,7 +55,7 @@ exports.do_key_modify = do_key_modify;
 function key_key_name(description, continuation) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let duration = yield (0, prompt_1.shortText)("Duration", "How long should the key be active? Ex. 1 hour", "14 days");
+            const duration = yield (0, prompt_1.shortText)("Duration", "How long should the key be active? Ex. 1 hour", "14 days");
             return continuation(description, duration);
         }
         catch (e) {
@@ -66,7 +66,7 @@ function key_key_name(description, continuation) {
 function key_key(currentName, continuation) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let description = yield (0, prompt_1.shortText)("Human readable description", "Used to identify this key", currentName);
+            const description = yield (0, prompt_1.shortText)("Human readable description", "Used to identify this key", currentName);
             return key_key_name(description, continuation);
         }
         catch (e) {
@@ -88,7 +88,7 @@ function composeAwait(f, g) {
 function key_create(organizationId, continuation) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let description = yield (0, prompt_1.shortText)("Human readable description", "Used to identify this key", "");
+            const description = yield (0, prompt_1.shortText)("Human readable description", "Used to identify this key", "");
             return key_key_name(description, (description, duration) => composeAwait(continuation, do_key_create(organizationId, description, duration)));
         }
         catch (e) {
@@ -100,14 +100,14 @@ exports.key_create = key_create;
 function key(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let resp = yield (0, utils_1.sshReq)(`apikey-list`, organizationId.toString());
-            let keys = JSON.parse(resp);
-            let options = keys.map((x) => {
-                let d = new Date(x.expiresOn);
-                let ds = d.getTime() < Date.now()
+            const resp = yield (0, utils_1.sshReq)(`apikey-list`, organizationId.toString());
+            const keys = JSON.parse(resp);
+            const options = keys.map((x) => {
+                const d = new Date(x.expiresOn);
+                const ds = d.getTime() < Date.now()
                     ? `${prompt_1.RED}${d.toLocaleString()}${prompt_1.NORMAL_COLOR}`
                     : d.toLocaleString();
-                let n = x.name || "";
+                const n = x.name || "";
                 return {
                     long: x.id,
                     text: `${x.id} │ ${(0, executors_1.alignLeft)(n, Math.max(process_1.stdout.getWindowSize()[0] -

@@ -49,7 +49,7 @@ if (node_process_1.stdin.isTTY) {
     node_process_1.stdin.setEncoding("utf8");
     // You can always exit with crtl-c
     node_process_1.stdin.on("data", (key) => {
-        let k = key.toString();
+        const k = key.toString();
         if (k === prompt_1.CTRL_C) {
             (0, utils_1.abort)();
         }
@@ -59,7 +59,7 @@ if (node_process_1.stdin.isTTY) {
 // TODO roles
 (() => __awaiter(void 0, void 0, void 0, function* () {
     (0, utils_1.checkVersion)();
-    let token = yield (0, newCommands_1.index)();
+    const token = yield (0, newCommands_1.index)();
 }))().catch((e) => {
     (0, prompt_1.exit)();
     if (("" + e).includes("Permission denied")) {
