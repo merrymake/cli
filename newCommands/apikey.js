@@ -28,6 +28,7 @@ function do_key_create(organizationId, description, duration) {
             const reply = yield (0, utils_1.sshReq)(...cmd);
             if (reply.length !== 8)
                 throw reply;
+            (0, prompt_1.output)(`Created apikey ${description !== "" ? `'${description}'` : ""}: ${prompt_1.YELLOW}${reply}${prompt_1.NORMAL_COLOR}\n`);
             const apikeyId = reply;
             return apikeyId;
         }
@@ -111,7 +112,7 @@ function key(organizationId) {
                 return {
                     long: x.id,
                     text: `${x.id} │ ${(0, executors_1.alignLeft)(n, Math.max(process_1.stdout.getWindowSize()[0] -
-                        36 -
+                        8 -
                         23 -
                         "─┼──┼─".length -
                         "      ".length, 12))} │ ${ds}`,
@@ -129,7 +130,7 @@ function key(organizationId) {
                 tableHeader =
                     "\n" +
                         (0, executors_1.printTableHeader)("      ", {
-                            Key: 36,
+                            Key: 8,
                             Description: -12,
                             "Expiry time": 23,
                         });

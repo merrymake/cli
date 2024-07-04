@@ -130,7 +130,7 @@ function after_service_deploy(pathToService, organizationId) {
             return (0, prompt_1.choice)("Would you like to post and event to the Rapids? (Trigger the service)", [
                 {
                     long: "post",
-                    text: "post an event to the Rapids",
+                    text: "post an event to the rapids",
                     action: () => (0, post_1.post)(organizationId),
                 },
             ], { disableAutoPick: true });

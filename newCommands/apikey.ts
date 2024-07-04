@@ -4,6 +4,7 @@ import {
   NORMAL_COLOR,
   Option,
   RED,
+  YELLOW,
   choice,
   output,
   shortText,
@@ -26,6 +27,11 @@ export async function do_key_create(
     if (description !== "") cmd.push(`--description`, description);
     const reply = await sshReq(...cmd);
     if (reply.length !== 8) throw reply;
+    output(
+      `Created apikey ${
+        description !== "" ? `'${description}'` : ""
+      }: ${YELLOW}${reply}${NORMAL_COLOR}\n`
+    );
     const apikeyId = reply;
     return apikeyId;
   } catch (e) {
@@ -128,7 +134,7 @@ export async function key(organizationId: OrganizationId) {
           n,
           Math.max(
             stdout.getWindowSize()[0] -
-              36 -
+              8 -
               23 -
               "─┼──┼─".length -
               "      ".length,
@@ -152,7 +158,7 @@ export async function key(organizationId: OrganizationId) {
       tableHeader =
         "\n" +
         printTableHeader("      ", {
-          Key: 36,
+          Key: 8,
           Description: -12,
           "Expiry time": 23,
         });

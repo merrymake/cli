@@ -60,7 +60,7 @@ function envvar_key_visible_value(pathToOrganization, organizationId, serviceGro
         {
             long: "both",
             short: "b",
-            text: "accessible in both prod and smoke test",
+            text: "accessible in both prod and init run",
             action: () => envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, value, ["--inProduction", "--inInitRun"], secret),
         },
         {

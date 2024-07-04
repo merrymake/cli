@@ -6,6 +6,17 @@
 ## Fixes and improvements
 -
 
+# 4.0.1
+## Fixes and improvements
+- `key` command column width fixed
+- Show newly created API keys
+- "smoke test" => "init run" in `envvar` command
+- "Rapids" => "rapids" in `repo` command
+
+# 4.0.0
+## Breaking changes
+- Reworked everything to fit with Merrymake 2.0
+
 # 3.4.0
 ## Added features
 - Add timezone to `cron`

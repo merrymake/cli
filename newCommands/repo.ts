@@ -183,7 +183,7 @@ async function after_service_deploy(
       [
         {
           long: "post",
-          text: "post an event to the Rapids",
+          text: "post an event to the rapids",
           action: () => post(organizationId),
         },
       ],
