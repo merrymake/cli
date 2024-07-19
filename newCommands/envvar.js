@@ -15,22 +15,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.envvar = void 0;
 const secret_lib_1 = require("@merrymake/secret-lib");
 const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
 const config_1 = require("../config");
 const prompt_1 = require("../prompt");
 const utils_1 = require("../utils");
 function do_envvar(pathToOrganization, organizationId, serviceGroupId, key, value, access, encrypted) {
     return __awaiter(this, void 0, void 0, function* () {
+        const keyFolder = pathToOrganization.with(".merrymake").with(".key");
         try {
             let val;
             if (encrypted === true) {
                 const repoBase = `${config_1.GIT_HOST}/o${organizationId.toString()}/g${serviceGroupId.toString()}/.key`;
+                fs_1.default.rmSync(keyFolder.toString(), { force: true, recursive: true });
                 yield (0, utils_1.execPromise)(`git clone -q "${repoBase}"`, pathToOrganization.with(".merrymake").toString());
-                const key = fs_1.default.readFileSync(pathToOrganization
-                    .with(".merrymake")
-                    .with(".key")
-                    .with("merrymake.key")
-                    .toString());
+                const key = fs_1.default.readFileSync(keyFolder.with("merrymake.key").toString());
                 val = new secret_lib_1.MerrymakeCrypto()
                     .encrypt(Buffer.from(value), key)
                     .toString("base64");
@@ -39,15 +36,15 @@ function do_envvar(pathToOrganization, organizationId, serviceGroupId, key, valu
                 val = value;
             }
             (0, utils_1.output2)(yield (0, utils_1.sshReq)(`envvar-set`, key, ...access, `--serviceGroupId`, serviceGroupId.toString(), `--value`, val, ...(encrypted ? ["--encrypted"] : [])));
-            if (encrypted === true) {
-                fs_1.default.rmSync(path_1.default.join(pathToOrganization.with(".merrymake").with(".key").toString()), {
-                    force: true,
-                    recursive: true,
-                });
-            }
         }
         catch (e) {
             throw e;
+        }
+        finally {
+            fs_1.default.rmSync(keyFolder.toString(), {
+                force: true,
+                recursive: true,
+            });
         }
     });
 }

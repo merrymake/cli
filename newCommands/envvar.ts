@@ -21,21 +21,17 @@ async function do_envvar(
   access: ("--inInitRun" | "--inProduction")[],
   encrypted: boolean
 ) {
+  const keyFolder = pathToOrganization.with(".merrymake").with(".key");
   try {
     let val: string;
     if (encrypted === true) {
       const repoBase = `${GIT_HOST}/o${organizationId.toString()}/g${serviceGroupId.toString()}/.key`;
+      fs.rmSync(keyFolder.toString(), { force: true, recursive: true });
       await execPromise(
         `git clone -q "${repoBase}"`,
         pathToOrganization.with(".merrymake").toString()
       );
-      const key = fs.readFileSync(
-        pathToOrganization
-          .with(".merrymake")
-          .with(".key")
-          .with("merrymake.key")
-          .toString()
-      );
+      const key = fs.readFileSync(keyFolder.with("merrymake.key").toString());
       val = new MerrymakeCrypto()
         .encrypt(Buffer.from(value), key)
         .toString("base64");
@@ -54,19 +50,13 @@ async function do_envvar(
         ...(encrypted ? ["--encrypted"] : [])
       )
     );
-    if (encrypted === true) {
-      fs.rmSync(
-        path.join(
-          pathToOrganization.with(".merrymake").with(".key").toString()
-        ),
-        {
-          force: true,
-          recursive: true,
-        }
-      );
-    }
   } catch (e) {
     throw e;
+  } finally {
+    fs.rmSync(keyFolder.toString(), {
+      force: true,
+      recursive: true,
+    });
   }
 }
 

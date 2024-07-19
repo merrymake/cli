@@ -48,14 +48,34 @@ export function output(str: string) {
   const lines = cleanStr.split("\n");
   const newXOffset = xOffset + lines[0].length;
   // TODO handle (split on) \r
-  xOffset = newXOffset % stdout.getWindowSize()[0];
-  yOffset += ~~(newXOffset / stdout.getWindowSize()[0]);
+  xOffset =
+    newXOffset %
+    (typeof stdout.getWindowSize !== "function"
+      ? 80
+      : stdout.getWindowSize()[0]);
+  yOffset += ~~(
+    newXOffset /
+    (typeof stdout.getWindowSize !== "function"
+      ? 80
+      : stdout.getWindowSize()[0])
+  );
   if (maxYOffset < yOffset) maxYOffset = yOffset;
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
-    yOffset += 1 + ~~(line.length / stdout.getWindowSize()[0]);
+    yOffset +=
+      1 +
+      ~~(
+        line.length /
+        (typeof stdout.getWindowSize !== "function"
+          ? 80
+          : stdout.getWindowSize()[0])
+      );
     if (maxYOffset < yOffset) maxYOffset = yOffset;
-    xOffset = line.length % stdout.getWindowSize()[0];
+    xOffset =
+      line.length %
+      (typeof stdout.getWindowSize !== "function"
+        ? 80
+        : stdout.getWindowSize()[0]);
   }
   // stdout.moveCursor(-xOffset, -yOffset);
   // const pos = "" + xOffset + "," + yOffset;

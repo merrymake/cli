@@ -73,7 +73,9 @@ exports.alignLeft = alignLeft;
 function printTableHeader(prefix, widths) {
     if ((0, args_1.getArgs)().length > 0)
         return "";
-    const totalWidth = process_1.stdout.getWindowSize()[0] - prefix.length;
+    const totalWidth = (typeof process_1.stdout.getWindowSize !== "function"
+        ? 80
+        : process_1.stdout.getWindowSize()[0]) - prefix.length;
     const vals = Object.values(widths);
     const rest = totalWidth -
         vals.reduce((acc, x) => acc + Math.max(x, 0)) -

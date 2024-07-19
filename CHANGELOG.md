@@ -6,6 +6,12 @@
 ## Fixes and improvements
 -
 
+# 4.0.2
+## Fixes and improvements
+- Fixed issue with `rapids` inspecting events starting with -
+- Stop an error with some terminals failing
+- Fix issue that would persist key for too long
+
 # 4.0.1
 ## Fixes and improvements
 - `key` command column width fixed

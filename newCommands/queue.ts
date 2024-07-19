@@ -40,7 +40,7 @@ export async function do_queue_time(org: string, time: number) {
 async function queue_event(id: string, river: string) {
   try {
     const res = JSON.parse(
-      await sshReq(`rapids-inspect`, id, `--river`, river)
+      await sshReq(`rapids-inspect`, `\\"${id}\\"`, `--river`, river)
     );
     const resout = res.output;
     delete res.output;

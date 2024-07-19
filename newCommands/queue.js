@@ -38,7 +38,7 @@ exports.do_queue_time = do_queue_time;
 function queue_event(id, river) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const res = JSON.parse(yield (0, utils_1.sshReq)(`rapids-inspect`, id, `--river`, river));
+            const res = JSON.parse(yield (0, utils_1.sshReq)(`rapids-inspect`, `\\"${id}\\"`, `--river`, river));
             const resout = res.output;
             delete res.output;
             console.log(res);

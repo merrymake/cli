@@ -111,7 +111,9 @@ function key(organizationId) {
                 const n = x.name || "";
                 return {
                     long: x.id,
-                    text: `${x.id} │ ${(0, executors_1.alignLeft)(n, Math.max(process_1.stdout.getWindowSize()[0] -
+                    text: `${x.id} │ ${(0, executors_1.alignLeft)(n, Math.max((typeof process_1.stdout.getWindowSize !== "function"
+                        ? 80
+                        : process_1.stdout.getWindowSize()[0]) -
                         8 -
                         23 -
                         "─┼──┼─".length -

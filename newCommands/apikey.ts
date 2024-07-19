@@ -133,7 +133,9 @@ export async function key(organizationId: OrganizationId) {
         text: `${x.id} │ ${alignLeft(
           n,
           Math.max(
-            stdout.getWindowSize()[0] -
+            (typeof stdout.getWindowSize !== "function"
+              ? 80
+              : stdout.getWindowSize()[0]) -
               8 -
               23 -
               "─┼──┼─".length -

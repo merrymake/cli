@@ -61,7 +61,10 @@ export function printTableHeader(
   widths: { [key: string]: number }
 ) {
   if (getArgs().length > 0) return "";
-  const totalWidth = stdout.getWindowSize()[0] - prefix.length;
+  const totalWidth =
+    (typeof stdout.getWindowSize !== "function"
+      ? 80
+      : stdout.getWindowSize()[0]) - prefix.length;
   const vals = Object.values(widths);
   const rest =
     totalWidth -
