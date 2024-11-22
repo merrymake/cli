@@ -67,7 +67,7 @@ function key_key_name(description, continuation) {
 function key_key(currentName, continuation) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const description = yield (0, prompt_1.shortText)("Human readable description", "Used to identify this key", currentName);
+            const description = yield (0, prompt_1.shortText)("Apikey display name", "Used to identify this key", currentName);
             return key_key_name(description, continuation);
         }
         catch (e) {
@@ -89,7 +89,7 @@ function composeAwait(f, g) {
 function key_create(organizationId, continuation) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const description = yield (0, prompt_1.shortText)("Human readable description", "Used to identify this key", "");
+            const description = yield (0, prompt_1.shortText)("Apikey display name", "Used to identify this key", "");
             return key_key_name(description, (description, duration) => composeAwait(continuation, do_key_create(organizationId, description, duration)));
         }
         catch (e) {
@@ -133,7 +133,7 @@ function key(organizationId) {
                     "\n" +
                         (0, executors_1.printTableHeader)("      ", {
                             Key: 8,
-                            Description: -12,
+                            "Display name": -12,
                             "Expiry time": 23,
                         });
             return yield (0, prompt_1.choice)("Which apikey would you like to edit?" + tableHeader, options).then();

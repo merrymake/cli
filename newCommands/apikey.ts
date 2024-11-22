@@ -76,7 +76,7 @@ async function key_key(
 ) {
   try {
     const description = await shortText(
-      "Human readable description",
+      "Apikey display name",
       "Used to identify this key",
       currentName
     );
@@ -101,7 +101,7 @@ export async function key_create(
 ) {
   try {
     const description = await shortText(
-      "Human readable description",
+      "Apikey display name",
       "Used to identify this key",
       ""
     );
@@ -161,7 +161,7 @@ export async function key(organizationId: OrganizationId) {
         "\n" +
         printTableHeader("      ", {
           Key: 8,
-          Description: -12,
+          "Display name": -12,
           "Expiry time": 23,
         });
     return await choice(

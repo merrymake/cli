@@ -131,6 +131,12 @@ function index() {
                         text: "add or assign roles to users in the organization",
                         weight: 200,
                         action: () => (0, role_1.role)(organization.id),
+                    }, {
+                        long: "rename",
+                        short: "_",
+                        text: "rename the organization",
+                        weight: 1,
+                        action: () => (0, org_1.rename)(organization.id),
                     });
                 }
                 options.push({

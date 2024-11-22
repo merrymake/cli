@@ -20,7 +20,7 @@ import { event } from "./event";
 import { fetch } from "./fetch";
 import { group } from "./group";
 import { BITBUCKET_FILE, hosting } from "./hosting";
-import { orgAction } from "./org";
+import { orgAction, rename } from "./org";
 import { queue } from "./queue";
 import { register } from "./register";
 import { repo } from "./repo";
@@ -137,6 +137,13 @@ export async function index() {
             text: "add or assign roles to users in the organization",
             weight: 200,
             action: () => role(organization.id),
+          },
+          {
+            long: "rename",
+            short: "_",
+            text: "rename the organization",
+            weight: 1,
+            action: () => rename(organization.id),
           }
         );
       }

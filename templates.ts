@@ -34,7 +34,7 @@ export const templates: {
       // "csharp",
       // "java",
       "typescript",
-      "rust",
+      // "rust",
       // "go",
       // "javascript",
     ],

@@ -535,7 +535,7 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
                     : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (/^[A-Za-z0-9@_, .\-/:;#=&*?!"'`%£$€+<>()\[\]{}\\]+$/.test(k)) {
+            else if (/^[A-Za-z0-9@_, .\-/:;#=&*?!"'`^%£$€+<>()\[\]{}\\]+$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
                 node_process_1.stdout.clearLine(1);

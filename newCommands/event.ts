@@ -12,7 +12,11 @@ export async function do_event(
   try {
     const selected = Object.keys(events).filter((x) => events[x]);
     await sshReq(`events-allow`, apikeyId, `--events`, selected.join(","));
-    output2(`Allowed events ${selected.join(", ")} on key ${apikeyId}.`);
+    output2(
+      `Allowed event${selected.length > 1 ? "s" : ""} ${selected.join(
+        ", "
+      )} on key ${apikeyId}.`
+    );
   } catch (e) {
     throw e;
   }

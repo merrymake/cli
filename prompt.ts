@@ -620,7 +620,7 @@ export function shortText(
           );
           moveCursor(-afterCursor.length, 0);
         } else if (
-          /^[A-Za-z0-9@_, .\-/:;#=&*?!"'`%£$€+<>()\[\]{}\\]+$/.test(k)
+          /^[A-Za-z0-9@_, .\-/:;#=&*?!"'`^%£$€+<>()\[\]{}\\]+$/.test(k)
         ) {
           moveCursor(-beforeCursor.length, 0);
           beforeCursor += k;

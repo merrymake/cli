@@ -20,7 +20,7 @@ exports.templates = {
             // "csharp",
             // "java",
             "typescript",
-            "rust",
+            // "rust",
             // "go",
             // "javascript",
         ],

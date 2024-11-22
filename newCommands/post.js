@@ -42,6 +42,7 @@ const apikey_1 = require("./apikey");
 function do_post(eventType, key, contentType, payload) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            (0, utils_1.output2)(`Sending POST request to ${config_1.RAPIDS_HOST}/${key}/${eventType}`);
             const resp = yield (0, utils_1.urlReq)(`${config_1.RAPIDS_HOST}/${key}/${eventType}`, "POST", payload, contentType);
             (0, utils_1.output2)(resp.body);
         }
@@ -58,6 +59,7 @@ function do_post_file(eventType, key, filename) {
             const type = (0, ext2mime_1.optimisticMimeTypeOf)(filename.substring(filename.lastIndexOf(".") + 1));
             if (type === null)
                 throw "Could not determine content type";
+            (0, utils_1.output2)(`Sending POST request to ${config_1.RAPIDS_HOST}/${key}/${eventType}`);
             const resp = yield (0, utils_1.urlReq)(`${config_1.RAPIDS_HOST}/${key}/${eventType}`, "POST", content, type.toString());
             (0, utils_1.output2)(resp.body);
         }

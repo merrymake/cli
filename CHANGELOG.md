@@ -6,6 +6,16 @@
 ## Fixes and improvements
 -
 
+# 4.1.0
+## Added features
+- `rename` an organization
+## Fixes and improvements
+- `rapids post` now prints the url, for easy reuse
+- change `apikey` 'description' to 'display name'
+- allow '^' in text input
+- `envvar` now auto-selects current setting when editing
+- `event` now only puts 's' ending for multiple events
+
 # 4.0.2
 ## Fixes and improvements
 - Fixed issue with `rapids` inspecting events starting with -

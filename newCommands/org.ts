@@ -27,6 +27,36 @@ export async function do_createOrganization(
   }
 }
 
+export async function do_renameOrganization(
+  organizationId: OrganizationId,
+  displayName: string
+) {
+  try {
+    const reply = await sshReq(
+      `organization-rename`,
+      displayName,
+      `--organizationId`,
+      organizationId.toString()
+    );
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function rename(organizationId: OrganizationId) {
+  try {
+    const displayName = await shortText(
+      "Organization name",
+      "Used when collaborating with others.",
+      "Acme Anvils"
+    ).then();
+    addToExecuteQueue(() => do_renameOrganization(organizationId, displayName));
+    return finish();
+  } catch (e) {
+    throw e;
+  }
+}
+
 const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 function generateString(length: number) {

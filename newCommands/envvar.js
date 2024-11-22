@@ -52,7 +52,7 @@ function envvar_key_value_access_visible(pathToOrganization, organizationId, ser
     (0, utils_1.addToExecuteQueue)(() => do_envvar(pathToOrganization, organizationId, serviceGroupId, key, value, access, secret));
     return (0, utils_1.finish)();
 }
-function envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, value, secret) {
+function envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, value, secret, init, prod) {
     return (0, prompt_1.choice)("Where would you like the variable to be visible?", [
         {
             long: "both",
@@ -72,14 +72,14 @@ function envvar_key_visible_value(pathToOrganization, organizationId, serviceGro
             text: "accessible in the init run",
             action: () => envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, value, ["--inInitRun"], secret),
         },
-    ]);
+    ], { def: init ? (prod ? 0 : 2) : 1 });
 }
-function envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, secret) {
+function envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, secret, init, prod) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const value = yield (0, prompt_1.shortText)("Value", "The value...", "", secret === true ? prompt_1.Visibility.Secret : prompt_1.Visibility.Public).then();
             if (value !== "")
-                return envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, value, secret);
+                return envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, value, secret, init, prod);
             else
                 return envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, value, ["--inProduction", "--inInitRun"], false);
         }
@@ -88,19 +88,19 @@ function envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, 
         }
     });
 }
-function envvar_key(pathToOrganization, organizationId, serviceGroupId, key) {
+function envvar_key(pathToOrganization, organizationId, serviceGroupId, key, secret, init, prod) {
     return (0, prompt_1.choice)("What is the visibility of the variable?", [
         {
             long: "secret",
             short: "s",
             text: "the value is secret",
-            action: () => envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, true),
+            action: () => envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, true, init, prod),
         },
         {
             long: "public",
             short: "p",
             text: "the value is public",
-            action: () => envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, false),
+            action: () => envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, false, init, prod),
         },
         {
             long: "delete",
@@ -108,13 +108,13 @@ function envvar_key(pathToOrganization, organizationId, serviceGroupId, key) {
             text: "delete the environment variable",
             action: () => envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, "", ["--inProduction", "--inInitRun"], false),
         },
-    ]);
+    ], { def: secret ? 0 : 1 });
 }
 function envvar_new(pathToOrganization, organizationId, serviceGroupId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const key = yield (0, prompt_1.shortText)("Key", "Key for the key-value pair", "key").then();
-            return envvar_key(pathToOrganization, organizationId, serviceGroupId, key);
+            return envvar_key(pathToOrganization, organizationId, serviceGroupId, key, true, true, true);
         }
         catch (e) {
             throw e;
@@ -129,7 +129,7 @@ function envvar(pathToOrganization, organizationId, serviceGroupId) {
             const options = orgs.map((x) => ({
                 long: x.k,
                 text: `[${x.i ? "I" : " "}${x.p ? "P" : " "}] ${x.k}: ${x.v}`,
-                action: () => envvar_key(pathToOrganization, organizationId, serviceGroupId, x.k),
+                action: () => envvar_key(pathToOrganization, organizationId, serviceGroupId, x.k, x.s, x.i, x.p),
             }));
             options.push({
                 long: `new`,

@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.orgAction = exports.listOrgs = exports.do_join = exports.org = exports.generateOrgName = exports.do_createOrganization = void 0;
+exports.orgAction = exports.listOrgs = exports.do_join = exports.org = exports.generateOrgName = exports.rename = exports.do_renameOrganization = exports.do_createOrganization = void 0;
 const prompt_1 = require("../prompt");
 const types_1 = require("../types");
 const utils_1 = require("../utils");
@@ -32,6 +32,30 @@ function do_createOrganization(folderName, displayName) {
     });
 }
 exports.do_createOrganization = do_createOrganization;
+function do_renameOrganization(organizationId, displayName) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const reply = yield (0, utils_1.sshReq)(`organization-rename`, displayName, `--organizationId`, organizationId.toString());
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.do_renameOrganization = do_renameOrganization;
+function rename(organizationId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const displayName = yield (0, prompt_1.shortText)("Organization name", "Used when collaborating with others.", "Acme Anvils").then();
+            (0, utils_1.addToExecuteQueue)(() => do_renameOrganization(organizationId, displayName));
+            return (0, utils_1.finish)();
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+exports.rename = rename;
 const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
 function generateString(length) {
     let result = "";

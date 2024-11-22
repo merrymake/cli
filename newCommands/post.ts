@@ -13,6 +13,7 @@ export async function do_post(
   payload: string
 ) {
   try {
+    output2(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
     const resp = await urlReq(
       `${RAPIDS_HOST}/${key}/${eventType}`,
       "POST",
@@ -36,6 +37,7 @@ export async function do_post_file(
       filename.substring(filename.lastIndexOf(".") + 1)
     );
     if (type === null) throw "Could not determine content type";
+    output2(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
     const resp = await urlReq(
       `${RAPIDS_HOST}/${key}/${eventType}`,
       "POST",

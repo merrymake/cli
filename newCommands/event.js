@@ -18,7 +18,7 @@ function do_event(apikeyId, events) {
         try {
             const selected = Object.keys(events).filter((x) => events[x]);
             yield (0, utils_1.sshReq)(`events-allow`, apikeyId, `--events`, selected.join(","));
-            (0, utils_1.output2)(`Allowed events ${selected.join(", ")} on key ${apikeyId}.`);
+            (0, utils_1.output2)(`Allowed event${selected.length > 1 ? "s" : ""} ${selected.join(", ")} on key ${apikeyId}.`);
         }
         catch (e) {
             throw e;

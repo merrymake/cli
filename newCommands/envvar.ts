@@ -89,55 +89,61 @@ function envvar_key_visible_value(
   serviceGroupId: ServiceGroupId,
   key: string,
   value: string,
-  secret: boolean
+  secret: boolean,
+  init: boolean,
+  prod: boolean
 ) {
-  return choice("Where would you like the variable to be visible?", [
-    {
-      long: "both",
-      short: "b",
-      text: "accessible in both prod and init run",
-      action: () =>
-        envvar_key_value_access_visible(
-          pathToOrganization,
-          organizationId,
-          serviceGroupId,
-          key,
-          value,
-          ["--inProduction", "--inInitRun"],
-          secret
-        ),
-    },
-    {
-      long: "prod",
-      short: "p",
-      text: "accessible in prod",
-      action: () =>
-        envvar_key_value_access_visible(
-          pathToOrganization,
-          organizationId,
-          serviceGroupId,
-          key,
-          value,
-          ["--inProduction"],
-          secret
-        ),
-    },
-    {
-      long: "init",
-      short: "i",
-      text: "accessible in the init run",
-      action: () =>
-        envvar_key_value_access_visible(
-          pathToOrganization,
-          organizationId,
-          serviceGroupId,
-          key,
-          value,
-          ["--inInitRun"],
-          secret
-        ),
-    },
-  ]);
+  return choice(
+    "Where would you like the variable to be visible?",
+    [
+      {
+        long: "both",
+        short: "b",
+        text: "accessible in both prod and init run",
+        action: () =>
+          envvar_key_value_access_visible(
+            pathToOrganization,
+            organizationId,
+            serviceGroupId,
+            key,
+            value,
+            ["--inProduction", "--inInitRun"],
+            secret
+          ),
+      },
+      {
+        long: "prod",
+        short: "p",
+        text: "accessible in prod",
+        action: () =>
+          envvar_key_value_access_visible(
+            pathToOrganization,
+            organizationId,
+            serviceGroupId,
+            key,
+            value,
+            ["--inProduction"],
+            secret
+          ),
+      },
+      {
+        long: "init",
+        short: "i",
+        text: "accessible in the init run",
+        action: () =>
+          envvar_key_value_access_visible(
+            pathToOrganization,
+            organizationId,
+            serviceGroupId,
+            key,
+            value,
+            ["--inInitRun"],
+            secret
+          ),
+      },
+    ],
+    { def: init ? (prod ? 0 : 2) : 1 }
+  );
 }
 
 async function envvar_key_visible(
@@ -145,7 +151,9 @@ async function envvar_key_visible(
   organizationId: OrganizationId,
   serviceGroupId: ServiceGroupId,
   key: string,
-  secret: boolean
+  secret: boolean,
+  init: boolean,
+  prod: boolean
 ) {
   try {
     const value = await shortText(
@@ -161,7 +169,9 @@ async function envvar_key_visible(
         serviceGroupId,
         key,
         value,
-        secret
+        secret,
+        init,
+        prod
       );
     else
       return envvar_key_value_access_visible(
@@ -182,51 +192,62 @@ function envvar_key(
   pathToOrganization: PathToOrganization,
   organizationId: OrganizationId,
   serviceGroupId: ServiceGroupId,
-  key: string
+  key: string,
+  secret: boolean,
+  init: boolean,
+  prod: boolean
 ) {
-  return choice("What is the visibility of the variable?", [
-    {
-      long: "secret",
-      short: "s",
-      text: "the value is secret",
-      action: () =>
-        envvar_key_visible(
-          pathToOrganization,
-          organizationId,
-          serviceGroupId,
-          key,
-          true
-        ),
-    },
-    {
-      long: "public",
-      short: "p",
-      text: "the value is public",
-      action: () =>
-        envvar_key_visible(
-          pathToOrganization,
-          organizationId,
-          serviceGroupId,
-          key,
-          false
-        ),
-    },
-    {
-      long: "delete",
-      short: "d",
-      text: "delete the environment variable",
-      action: () =>
-        envvar_key_value_access_visible(
-          pathToOrganization,
-          organizationId,
-          serviceGroupId,
-          key,
-          "",
-          ["--inProduction", "--inInitRun"],
-          false
-        ),
-    },
-  ]);
+  return choice(
+    "What is the visibility of the variable?",
+    [
+      {
+        long: "secret",
+        short: "s",
+        text: "the value is secret",
+        action: () =>
+          envvar_key_visible(
+            pathToOrganization,
+            organizationId,
+            serviceGroupId,
+            key,
+            true,
+            init,
+            prod
+          ),
+      },
+      {
+        long: "public",
+        short: "p",
+        text: "the value is public",
+        action: () =>
+          envvar_key_visible(
+            pathToOrganization,
+            organizationId,
+            serviceGroupId,
+            key,
+            false,
+            init,
+            prod
+          ),
+      },
+      {
+        long: "delete",
+        short: "d",
+        text: "delete the environment variable",
+        action: () =>
+          envvar_key_value_access_visible(
+            pathToOrganization,
+            organizationId,
+            serviceGroupId,
+            key,
+            "",
+            ["--inProduction", "--inInitRun"],
+            false
+          ),
+      },
+    ],
+    { def: secret ? 0 : 1 }
+  );
 }
 
 async function envvar_new(
@@ -240,7 +261,15 @@ async function envvar_new(
       "Key for the key-value pair",
       "key"
     ).then();
-    return envvar_key(pathToOrganization, organizationId, serviceGroupId, key);
+    return envvar_key(
+      pathToOrganization,
+      organizationId,
+      serviceGroupId,
+      key,
+      true,
+      true,
+      true
+    );
   } catch (e) {
     throw e;
   }
@@ -253,13 +282,21 @@ export async function envvar(
 ) {
   try {
     const resp = await sshReq(`envvar-list`, serviceGroupId.toString());
-    const orgs: { k: string; v: string; i: boolean; p: boolean }[] =
+    const orgs: { k: string; v: string; i: boolean; p: boolean; s: boolean }[] =
       JSON.parse(resp);
     const options: Option[] = orgs.map((x) => ({
       long: x.k,
       text: `[${x.i ? "I" : " "}${x.p ? "P" : " "}] ${x.k}: ${x.v}`,
       action: () =>
-        envvar_key(pathToOrganization, organizationId, serviceGroupId, x.k),
+        envvar_key(
+          pathToOrganization,
+          organizationId,
+          serviceGroupId,
+          x.k,
+          x.s,
+          x.i,
+          x.p
+        ),
     }));
     options.push({
       long: `new`,
