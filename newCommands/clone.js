@@ -38,7 +38,7 @@ function do_clone(struct, folderName, displayName, organizationId) {
             yield (0, utils_1.execPromise)(`git init --initial-branch=main`, publicDir);
             yield (0, utils_1.execPromise)(`git remote add origin "${config_1.GIT_HOST}/o${organizationId}/public"`, publicDir);
             fs_1.default.writeFileSync(publicDir + "/index.html", "<html><body>Hello, World!</body></html>");
-            (0, fetch_1.ensureGroupStructure)({ pathTo: new types_1.PathToOrganization(folderName), id: organizationId }, struct);
+            yield (0, fetch_1.ensureGroupStructure)({ pathTo: new types_1.PathToOrganization(folderName), id: organizationId }, struct);
         }
         catch (e) {
             throw e;
@@ -46,14 +46,13 @@ function do_clone(struct, folderName, displayName, organizationId) {
     });
 }
 exports.do_clone = do_clone;
-function do_fetch_clone(displayName, organizationId) {
+function do_fetch_clone(displayName, folderName, organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const reply = yield (0, utils_1.sshReq)(`organization-fetch`, organizationId.toString());
             if (!reply.startsWith("{"))
                 throw reply;
             const structure = JSON.parse(reply);
-            const folderName = (0, utils_1.toFolderName)(displayName);
             yield do_clone(structure, folderName, displayName, organizationId);
         }
         catch (e) {
@@ -63,8 +62,14 @@ function do_fetch_clone(displayName, organizationId) {
 }
 exports.do_fetch_clone = do_fetch_clone;
 function checkout_org(displayName, organizationId) {
-    (0, utils_1.addToExecuteQueue)(() => do_fetch_clone(displayName, organizationId));
-    return (0, utils_1.finish)();
+    return __awaiter(this, void 0, void 0, function* () {
+        const folderName = (0, utils_1.toFolderName)(displayName);
+        if (fs_1.default.existsSync(folderName)) {
+            throw `Folder '${folderName}' already exists.`;
+        }
+        (0, utils_1.addToExecuteQueue)(() => do_fetch_clone(displayName, folderName, organizationId));
+        return (0, utils_1.finish)();
+    });
 }
 exports.checkout_org = checkout_org;
 function checkout() {

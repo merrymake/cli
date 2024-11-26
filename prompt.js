@@ -130,7 +130,7 @@ function cleanup() {
     output(exports.SHOW_CURSOR);
 }
 function choice(heading, options, opts) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         var _a, _b, _c;
         if (options.length === 0) {
             console.log((opts === null || opts === void 0 ? void 0 : opts.errorMessage) || "There are no options.");
@@ -141,9 +141,11 @@ function choice(heading, options, opts) {
                 ((0, args_1.getArgs)()[0] === options[0].long ||
                     (0, args_1.getArgs)()[0] === `-${options[0].short}`))
                 (0, args_1.getArgs)().splice(0, 1);
-            resolve(((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) === true
+            const prom = ((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) === true
                 ? makeSelection(options[0])
-                : makeSelectionQuietly(options[0]));
+                : makeSelectionQuietly(options[0]);
+            prom.then(resolve);
+            prom.catch(reject);
             return;
         }
         options.push({
@@ -158,9 +160,11 @@ function choice(heading, options, opts) {
             const o = options[i];
             if ((0, args_1.getArgs)()[0] === o.long || (0, args_1.getArgs)()[0] === `-${o.short}`) {
                 (0, args_1.getArgs)().splice(0, 1);
-                resolve(((_b = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _b === void 0 ? void 0 : _b.cmd) === true
+                const prom = ((_b = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _b === void 0 ? void 0 : _b.cmd) === true
                     ? makeSelection(o)
-                    : makeSelectionQuietly(o));
+                    : makeSelectionQuietly(o);
+                prom.then(resolve);
+                prom.catch(reject);
                 return;
             }
             if (o.short)
@@ -182,9 +186,11 @@ function choice(heading, options, opts) {
         if ((0, args_1.getArgs)().length > 0) {
             const arg = (0, args_1.getArgs)().splice(0, 1)[0];
             if (arg === "_") {
-                resolve(((_c = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _c === void 0 ? void 0 : _c.cmd) === true
+                const prom = ((_c = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _c === void 0 ? void 0 : _c.cmd) === true
                     ? makeSelection(options[pos])
-                    : makeSelectionQuietly(options[pos]));
+                    : makeSelectionQuietly(options[pos]);
+                prom.then(resolve);
+                prom.catch(reject);
                 return;
             }
             else if (contexts_1.CONTEXTS[arg] !== undefined)
@@ -214,9 +220,11 @@ function choice(heading, options, opts) {
             // stdout.write("" + yOffset);
             // moveCursor(-("" + yOffset).length, -options.length + pos);
             if (k === exports.ENTER) {
-                resolve(((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) !== false
+                const prom = ((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) !== false
                     ? makeSelection(options[pos])
-                    : makeSelectionQuietly(options[pos]));
+                    : makeSelectionQuietly(options[pos]);
+                prom.then(resolve);
+                prom.catch(reject);
                 return;
             }
             else if (k === exports.UP && pos <= 0) {
@@ -240,7 +248,10 @@ function choice(heading, options, opts) {
                 moveCursor(-1, 0);
             }
             else if (quick[k] !== undefined) {
-                makeSelection(quick[k]);
+                const prom = makeSelection(quick[k]);
+                prom.then(resolve);
+                prom.catch(reject);
+                return;
             }
             // write the key to stdout all normal like
             // output(key);
@@ -251,7 +262,7 @@ exports.choice = choice;
 const SELECTED_MARK = "✔";
 const NOT_SELECTED_MARK = "_";
 function multiSelect(selection, after, errorMessage) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         // options.push({
         //   short: "x",
         //   long: "x",
@@ -276,7 +287,9 @@ function multiSelect(selection, after, errorMessage) {
                 es.forEach((e) => (result[e] = true));
             }
             (0, args_1.getArgs)().splice(0, (0, args_1.getArgs)().length);
-            resolve(makeSelectionSuperInternal(() => after(selection)));
+            const prom = makeSelectionSuperInternal(() => after(selection));
+            prom.then(resolve);
+            prom.catch(reject);
             return;
         }
         const str = [];
@@ -316,7 +329,7 @@ function multiSelect(selection, after, errorMessage) {
                     const selected = keys
                         .filter((x) => selection[x] === true)
                         .join(",");
-                    resolve(makeSelectionSuperInternal(() => after(selection), () => {
+                    const prom = makeSelectionSuperInternal(() => after(selection), () => {
                         output("\n");
                         output((command +=
                             " " +
@@ -324,16 +337,22 @@ function multiSelect(selection, after, errorMessage) {
                                     ? `'${selected}'`
                                     : selected)));
                         output("\n");
-                    }));
+                    });
+                    prom.then(resolve);
+                    prom.catch(reject);
+                    return;
                 }
                 else if (pos > keys.length) {
                     // Exit
-                    resolve(makeSelectionQuietly({
+                    const prom = makeSelectionQuietly({
                         short: "x",
                         long: "x",
                         text: "exit",
                         action: () => (0, utils_1.abort)(),
-                    }));
+                    });
+                    prom.then(resolve);
+                    prom.catch(reject);
+                    return;
                 }
                 else {
                     const sel = (selection[keys[pos]] = !selection[keys[pos]]);
@@ -366,16 +385,19 @@ function multiSelect(selection, after, errorMessage) {
                 moveCursor(-1, 0);
             }
             else if (k === "x") {
-                makeSelectionQuietly({
+                const prom = makeSelectionQuietly({
                     short: "x",
                     long: "x",
                     text: "exit",
                     action: () => (0, utils_1.abort)(),
                 });
+                prom.then(resolve);
+                prom.catch(reject);
+                return;
             }
             else if (k === "s") {
                 const selected = keys.filter((x) => selection[x] === true).join(",");
-                resolve(makeSelectionSuperInternal(() => after(selection), () => {
+                const prom = makeSelectionSuperInternal(() => after(selection), () => {
                     output("\n");
                     output((command +=
                         " " +
@@ -383,7 +405,10 @@ function multiSelect(selection, after, errorMessage) {
                                 ? `'${selected}'`
                                 : selected)));
                     output("\n");
-                }));
+                });
+                prom.then(resolve);
+                prom.catch(reject);
+                return;
             }
             // write the key to stdout all normal like
             // output(key);

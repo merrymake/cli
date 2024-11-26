@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.fetch = exports.ensureGroupStructure = void 0;
+exports.fetch = exports.do_fetch = exports.ensureGroupStructure = void 0;
 const fs_1 = __importDefault(require("fs"));
 const config_1 = require("../config");
 const types_1 = require("../types");
@@ -48,31 +48,32 @@ function getCurrentStructure(pathToOrganization) {
     });
 }
 function ensureRepositoryStructure(organizationId, serviceGroup, toBe, asIs) {
-    Object.keys(toBe).forEach((repositoryId) => {
-        const repositoryDisplayName = toBe[repositoryId];
-        const folderName = (0, utils_1.toFolderName)(repositoryDisplayName);
-        const pathToRepository = serviceGroup.pathTo.with(folderName);
-        if (asIs[repositoryId] === undefined) {
-            createServiceFolder(organizationId, serviceGroup.id, {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield Promise.all(Object.keys(toBe).map((repositoryId) => __awaiter(this, void 0, void 0, function* () {
+            const repositoryDisplayName = toBe[repositoryId];
+            const folderName = (0, utils_1.toFolderName)(repositoryDisplayName);
+            const pathToRepository = serviceGroup.pathTo.with(folderName);
+            if (asIs[repositoryId] !== undefined &&
+                asIs[repositoryId] !== folderName) {
+                fs_1.default.renameSync(serviceGroup.pathTo.with(asIs[repositoryId]).toString(), pathToRepository.toString());
+            }
+            yield ensureServiceFolder(organizationId, serviceGroup.id, {
                 pathTo: pathToRepository,
                 id: new types_1.RepositoryId(repositoryId),
-            });
-        }
-        else if (asIs[repositoryId] !== folderName) {
-            fs_1.default.renameSync(serviceGroup.pathTo.with(asIs[repositoryId]).toString(), pathToRepository.toString());
-        }
-        delete asIs[repositoryId];
-    });
-    Object.keys(asIs).forEach((repositoryId) => {
-        const folderName = asIs[repositoryId];
-        // TODO Delete
-        console.log("Delete", serviceGroup.pathTo.with(folderName).toString());
+            }).then();
+            delete asIs[repositoryId];
+        })));
+        yield Promise.all(Object.keys(asIs).map((repositoryId) => {
+            const folderName = asIs[repositoryId];
+            // TODO Delete
+            console.log("Delete", serviceGroup.pathTo.with(folderName).toString());
+        }));
     });
 }
 function ensureGroupStructure(organization, toBe) {
     return __awaiter(this, void 0, void 0, function* () {
         const asIs = yield getCurrentStructure(organization.pathTo);
-        Object.keys(toBe).forEach((serviceGroupId) => {
+        yield Promise.all(Object.keys(toBe).map((serviceGroupId) => __awaiter(this, void 0, void 0, function* () {
             const group = toBe[serviceGroupId];
             const folderName = (0, utils_1.toFolderName)(group.displayName);
             const pathToGroup = organization.pathTo.with(folderName);
@@ -88,20 +89,21 @@ function ensureGroupStructure(organization, toBe) {
                 }
                 asIsRepos = asIs[serviceGroupId].repositories;
             }
-            ensureRepositoryStructure(organization.id, { pathTo: pathToGroup, id: new types_1.ServiceGroupId(serviceGroupId) }, group.repositories, asIsRepos);
+            yield ensureRepositoryStructure(organization.id, { pathTo: pathToGroup, id: new types_1.ServiceGroupId(serviceGroupId) }, group.repositories, asIsRepos);
             delete asIs[serviceGroupId];
-        });
-        Object.keys(asIs).forEach((groupId) => {
+        })));
+        yield Promise.all(Object.keys(asIs).map((groupId) => {
             const group = asIs[groupId];
             const folderName = group.name;
             // TODO Delete
             console.log("Delete", organization.pathTo.with(folderName).toString());
-        });
+        }));
     });
 }
 exports.ensureGroupStructure = ensureGroupStructure;
-function createServiceFolder(organizationId, groupId, repository) {
+function ensureServiceFolder(organizationId, groupId, repository) {
     return __awaiter(this, void 0, void 0, function* () {
+        process.stdout.write(".");
         const dir = repository.pathTo.toString();
         const repo = `"${config_1.GIT_HOST}/o${organizationId}/g${groupId}/r${repository.id}"`;
         try {
@@ -139,14 +141,17 @@ function do_fetch(organization) {
             if (!reply.startsWith("{"))
                 throw reply;
             const structure = JSON.parse(reply);
-            (0, utils_1.output2)(`Consolidating...`);
+            process.stdout.write(`Consolidating`);
             yield ensureGroupStructure(organization, structure);
+            process.stdout.write("\n");
+            return structure;
         }
         catch (e) {
             throw e;
         }
     });
 }
+exports.do_fetch = do_fetch;
 function fetch(organization) {
     (0, utils_1.addToExecuteQueue)(() => do_fetch(organization));
     return (0, utils_1.finish)();

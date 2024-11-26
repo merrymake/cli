@@ -30,6 +30,7 @@ const queue_1 = require("./queue");
 const register_1 = require("./register");
 const repo_1 = require("./repo");
 const role_1 = require("./role");
+const build_1 = require("./build");
 function getContext() {
     return __awaiter(this, void 0, void 0, function* () {
         let repository;
@@ -86,6 +87,15 @@ function index() {
                     action: () => (0, deploy_1.deploy)(),
                 });
             }
+            if (repository !== undefined) {
+                options.push({
+                    long: "build",
+                    short: "b",
+                    text: "build service locally",
+                    weight: 800,
+                    action: () => (0, build_1.build)(),
+                });
+            }
             if (serviceGroup !== undefined) {
                 options.push({
                     long: "envvar",
@@ -102,23 +112,23 @@ function index() {
                 });
             }
             if (organization !== undefined) {
+                if (!fs_1.default.existsSync(organization.pathTo.with(hosting_1.BITBUCKET_FILE).toString())) {
+                    options.push({
+                        long: "fetch",
+                        short: "f",
+                        text: "fetch updates to service groups and repos",
+                        weight: 600,
+                        action: () => (0, fetch_1.fetch)(organization),
+                    });
+                    options.push({
+                        long: "hosting",
+                        short: "h",
+                        text: "configure git hosting with bitbucket",
+                        weight: 100,
+                        action: () => (0, hosting_1.hosting)(organization),
+                    });
+                }
                 if (serviceGroup === undefined) {
-                    if (!fs_1.default.existsSync(organization.pathTo.with(hosting_1.BITBUCKET_FILE).toString())) {
-                        options.push({
-                            long: "fetch",
-                            short: "f",
-                            text: "fetch updates to service groups and repos",
-                            weight: 600,
-                            action: () => (0, fetch_1.fetch)(organization),
-                        });
-                        options.push({
-                            long: "hosting",
-                            short: "h",
-                            text: "configure git hosting with bitbucket",
-                            weight: 100,
-                            action: () => (0, hosting_1.hosting)(organization),
-                        });
-                    }
                     options.push({
                         long: "group",
                         short: "g",

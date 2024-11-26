@@ -49,7 +49,7 @@ export async function do_clone(
       publicDir + "/index.html",
       "<html><body>Hello, World!</body></html>"
     );
-    ensureGroupStructure(
+    await ensureGroupStructure(
       { pathTo: new PathToOrganization(folderName), id: organizationId },
       struct
     );
@@ -60,24 +60,30 @@ export async function do_clone(
 
 export async function do_fetch_clone(
   displayName: string,
+  folderName: string,
   organizationId: OrganizationId
 ) {
   try {
     const reply = await sshReq(`organization-fetch`, organizationId.toString());
     if (!reply.startsWith("{")) throw reply;
     const structure = JSON.parse(reply);
-    const folderName = toFolderName(displayName);
     await do_clone(structure, folderName, displayName, organizationId);
   } catch (e) {
     throw e;
   }
 }
 
-export function checkout_org(
+export async function checkout_org(
   displayName: string,
   organizationId: OrganizationId
 ) {
-  addToExecuteQueue(() => do_fetch_clone(displayName, organizationId));
+  const folderName = toFolderName(displayName);
+  if (fs.existsSync(folderName)) {
+    throw `Folder '${folderName}' already exists.`;
+  }
+  addToExecuteQueue(() =>
+    do_fetch_clone(displayName, folderName, organizationId)
+  );
   return finish();
 }
 

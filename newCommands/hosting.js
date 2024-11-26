@@ -48,13 +48,7 @@ exports.bitbucketStep = bitbucketStep;
 function do_bitbucket(organization, host, key) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            (0, utils_1.output2)(`Fetching...`);
-            const reply = yield (0, utils_1.sshReq)(`organization-fetch`, organization.id.toString());
-            if (!reply.startsWith("{"))
-                throw reply;
-            const structure = JSON.parse(reply);
-            (0, utils_1.output2)(`Consolidating...`);
-            (0, fetch_1.ensureGroupStructure)(organization, structure);
+            const structure = yield (0, fetch_1.do_fetch)(organization);
             fs_1.default.writeFileSync(organization.pathTo.with(".merrymake").with("deploy.sh").toString(), `set -o errexit
 chmod 600 ${key}
 eval \`ssh-agent\`

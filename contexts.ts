@@ -1,7 +1,7 @@
 import fs from "fs";
-import { GREEN, NORMAL_COLOR, YELLOW } from "./prompt";
-import { Path, directoryNames, fetchOrg, fetchOrgRaw } from "./utils";
 import path from "path";
+import { GREEN, NORMAL_COLOR } from "./prompt";
+import { Path, directoryNames, fetchOrgRaw } from "./utils";
 
 function downOrg(cmd: string) {
   const folders = fs.readdirSync(".");

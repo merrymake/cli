@@ -1,4 +1,4 @@
-import { exec, spawn } from "child_process";
+import { exec, ExecOptions, spawn } from "child_process";
 import fs from "fs";
 import http from "http";
 import https from "https";
@@ -48,14 +48,14 @@ function getFiles_internal(path: PathTo, prefix: string): string[] {
   );
 }
 
-const toExecute: (() => void)[] = [];
+const toExecute: (() => Promise<unknown>)[] = [];
 let dryrun = false;
 
 export function setDryrun() {
   output2(`${BLUE}Dryrun mode, changes will not be performed.${NORMAL_COLOR}`);
   dryrun = true;
 }
-export function addToExecuteQueue(f: () => void) {
+export function addToExecuteQueue(f: () => Promise<unknown>) {
   if (!dryrun) toExecute.push(f);
 }
 
@@ -80,6 +80,7 @@ export async function finish(): Promise<never> {
     printExitMessages();
     process.exit(0);
   } catch (e) {
+    console.log("finish");
     throw e;
   }
 }
@@ -162,7 +163,7 @@ function versionIsOlder(old: string, new_: string) {
 
 export function execPromise(cmd: string, cwd?: string) {
   return new Promise<string>((resolve, reject) => {
-    exec(cmd, { cwd }, (error, stdout, stderr) => {
+    const a = exec(cmd, { cwd }, (error, stdout, stderr) => {
       const err = error?.message || stderr;
       if (err) {
         reject(stderr || stdout);
@@ -217,6 +218,27 @@ export function execStreamPromise(
     p.on("exit", (code) => {
       if (code !== 0) reject();
       else resolve();
+    });
+  });
+}
+
+export function spawnPromise(str: string) {
+  return new Promise<void>((resolve, reject) => {
+    const [cmd, ...args] = str.split(" ");
+    const options: ExecOptions = {
+      cwd: ".",
+      shell: "sh",
+    };
+    const ls = spawn(cmd, args, options);
+    ls.stdout.on("data", (data: Buffer | string) => {
+      output2(data.toString());
+    });
+    ls.stderr.on("data", (data: Buffer | string) => {
+      output2(data.toString());
+    });
+    ls.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject();
     });
   });
 }

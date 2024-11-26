@@ -175,10 +175,7 @@ export async function orgAction() {
       text: `join an existing organization`,
       action: () => join(),
     });
-    return await choice(
-      "Which organization will you work with?",
-      options
-    ).then();
+    return choice("Which organization will you work with?", options);
   } catch (e) {
     throw e;
   }

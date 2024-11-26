@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CONTEXTS = void 0;
 const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const prompt_1 = require("./prompt");
 const utils_1 = require("./utils");
-const path_1 = __importDefault(require("path"));
 function downOrg(cmd) {
     const folders = fs_1.default.readdirSync(".");
     let org = undefined;

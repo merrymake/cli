@@ -168,7 +168,7 @@ function orgAction() {
                 text: `join an existing organization`,
                 action: () => join(),
             });
-            return yield (0, prompt_1.choice)("Which organization will you work with?", options).then();
+            return (0, prompt_1.choice)("Which organization will you work with?", options);
         }
         catch (e) {
             throw e;

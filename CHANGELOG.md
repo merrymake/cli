@@ -6,6 +6,13 @@
 ## Fixes and improvements
 -
 
+# 4.2.0
+## Added features
+- Readded `build` command
+## Fixes and improvements
+- Fix bug where repos would be empty after `fetch` or `org checkout`
+- Prevent checking out an organization into an existing folder
+
 # 4.1.0
 ## Added features
 - `rename` an organization

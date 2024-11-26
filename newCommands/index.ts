@@ -25,6 +25,7 @@ import { queue } from "./queue";
 import { register } from "./register";
 import { repo } from "./repo";
 import { role } from "./role";
+import { build } from "./build";
 
 async function getContext() {
   let repository: Repository | undefined;
@@ -84,6 +85,15 @@ export async function index() {
         action: () => deploy(),
       });
     }
+    if (repository !== undefined) {
+      options.push({
+        long: "build",
+        short: "b",
+        text: "build service locally",
+        weight: 800,
+        action: () => build(),
+      });
+    }
     if (serviceGroup !== undefined) {
       options.push(
         {
@@ -104,25 +114,23 @@ export async function index() {
       );
     }
     if (organization !== undefined) {
+      if (!fs.existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())) {
+        options.push({
+          long: "fetch",
+          short: "f",
+          text: "fetch updates to service groups and repos",
+          weight: 600,
+          action: () => fetch(organization),
+        });
+        options.push({
+          long: "hosting",
+          short: "h",
+          text: "configure git hosting with bitbucket",
+          weight: 100,
+          action: () => hosting(organization),
+        });
+      }
       if (serviceGroup === undefined) {
-        if (
-          !fs.existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())
-        ) {
-          options.push({
-            long: "fetch",
-            short: "f",
-            text: "fetch updates to service groups and repos",
-            weight: 600,
-            action: () => fetch(organization),
-          });
-          options.push({
-            long: "hosting",
-            short: "h",
-            text: "configure git hosting with bitbucket",
-            weight: 100,
-            action: () => hosting(organization),
-          });
-        }
         options.push(
           {
             long: "group",

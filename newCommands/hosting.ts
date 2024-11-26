@@ -25,7 +25,7 @@ import {
   sshReq,
   toFolderName,
 } from "../utils";
-import { ToBeStructure, ensureGroupStructure } from "./fetch";
+import { ToBeStructure, do_fetch, ensureGroupStructure } from "./fetch";
 
 export async function do_create_deployment_agent(
   organization: Organization,
@@ -59,15 +59,7 @@ export async function do_bitbucket(
   key: string
 ) {
   try {
-    output2(`Fetching...`);
-    const reply = await sshReq(
-      `organization-fetch`,
-      organization.id.toString()
-    );
-    if (!reply.startsWith("{")) throw reply;
-    const structure: ToBeStructure = JSON.parse(reply);
-    output2(`Consolidating...`);
-    ensureGroupStructure(organization, structure);
+    const structure = await do_fetch(organization);
     fs.writeFileSync(
       organization.pathTo.with(".merrymake").with("deploy.sh").toString(),
       `set -o errexit

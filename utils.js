@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toFolderName = exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
+exports.toFolderName = exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.spawnPromise = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const http_1 = __importDefault(require("http"));
@@ -115,6 +115,7 @@ function finish() {
             process.exit(0);
         }
         catch (e) {
+            console.log("finish");
             throw e;
         }
     });
@@ -190,7 +191,7 @@ function versionIsOlder(old, new_) {
 }
 function execPromise(cmd, cwd) {
     return new Promise((resolve, reject) => {
-        (0, child_process_1.exec)(cmd, { cwd }, (error, stdout, stderr) => {
+        const a = (0, child_process_1.exec)(cmd, { cwd }, (error, stdout, stderr) => {
             const err = (error === null || error === void 0 ? void 0 : error.message) || stderr;
             if (err) {
                 reject(stderr || stdout);
@@ -250,6 +251,29 @@ function execStreamPromise(full, onData, cwd) {
     });
 }
 exports.execStreamPromise = execStreamPromise;
+function spawnPromise(str) {
+    return new Promise((resolve, reject) => {
+        const [cmd, ...args] = str.split(" ");
+        const options = {
+            cwd: ".",
+            shell: "sh",
+        };
+        const ls = (0, child_process_1.spawn)(cmd, args, options);
+        ls.stdout.on("data", (data) => {
+            output2(data.toString());
+        });
+        ls.stderr.on("data", (data) => {
+            output2(data.toString());
+        });
+        ls.on("close", (code) => {
+            if (code === 0)
+                resolve();
+            else
+                reject();
+        });
+    });
+}
+exports.spawnPromise = spawnPromise;
 function sshReqInternal(cmd) {
     return execPromise(`ssh -o ConnectTimeout=10 mist@${config_1.SSH_HOST} "${cmd}"`);
 }

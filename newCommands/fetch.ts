@@ -74,34 +74,40 @@ async function getCurrentStructure(pathToOrganization: PathToOrganization) {
   return groups;
 }
 
-function ensureRepositoryStructure(
+async function ensureRepositoryStructure(
   organizationId: OrganizationId,
   serviceGroup: ServiceGroup,
   toBe: RepositoryStructure,
   asIs: RepositoryStructure
 ) {
-  Object.keys(toBe).forEach((repositoryId) => {
-    const repositoryDisplayName = toBe[repositoryId];
-    const folderName = toFolderName(repositoryDisplayName);
-    const pathToRepository = serviceGroup.pathTo.with(folderName);
-    if (asIs[repositoryId] === undefined) {
-      createServiceFolder(organizationId, serviceGroup.id, {
+  await Promise.all(
+    Object.keys(toBe).map(async (repositoryId) => {
+      const repositoryDisplayName = toBe[repositoryId];
+      const folderName = toFolderName(repositoryDisplayName);
+      const pathToRepository = serviceGroup.pathTo.with(folderName);
+      if (
+        asIs[repositoryId] !== undefined &&
+        asIs[repositoryId] !== folderName
+      ) {
+        fs.renameSync(
+          serviceGroup.pathTo.with(asIs[repositoryId]).toString(),
+          pathToRepository.toString()
+        );
+      }
+      await ensureServiceFolder(organizationId, serviceGroup.id, {
         pathTo: pathToRepository,
         id: new RepositoryId(repositoryId),
-      });
-    } else if (asIs[repositoryId] !== folderName) {
-      fs.renameSync(
-        serviceGroup.pathTo.with(asIs[repositoryId]).toString(),
-        pathToRepository.toString()
-      );
-    }
-    delete asIs[repositoryId];
-  });
-  Object.keys(asIs).forEach((repositoryId) => {
-    const folderName = asIs[repositoryId];
-    // TODO Delete
-    console.log("Delete", serviceGroup.pathTo.with(folderName).toString());
-  });
+      }).then();
+      delete asIs[repositoryId];
+    })
+  );
+  await Promise.all(
+    Object.keys(asIs).map((repositoryId) => {
+      const folderName = asIs[repositoryId];
+      // TODO Delete
+      console.log("Delete", serviceGroup.pathTo.with(folderName).toString());
+    })
+  );
 }
 
 export async function ensureGroupStructure(
@@ -109,48 +115,53 @@ export async function ensureGroupStructure(
   toBe: ToBeStructure
 ) {
   const asIs = await getCurrentStructure(organization.pathTo);
-  Object.keys(toBe).forEach((serviceGroupId) => {
-    const group = toBe[serviceGroupId];
-    const folderName = toFolderName(group.displayName);
-    const pathToGroup = organization.pathTo.with(folderName);
-    let asIsRepos: { [repositoryId: string]: string };
-    if (asIs[serviceGroupId] === undefined) {
-      fs.mkdirSync(pathToGroup.toString(), { recursive: true });
-      fs.writeFileSync(
-        pathToGroup.with(".group-id").toString(),
-        serviceGroupId
-      );
-      asIsRepos = {};
-    } else {
-      if (asIs[serviceGroupId].name !== folderName) {
-        fs.renameSync(
-          organization.pathTo.with(asIs[serviceGroupId].name).toString(),
-          pathToGroup.toString()
+  await Promise.all(
+    Object.keys(toBe).map(async (serviceGroupId) => {
+      const group = toBe[serviceGroupId];
+      const folderName = toFolderName(group.displayName);
+      const pathToGroup = organization.pathTo.with(folderName);
+      let asIsRepos: { [repositoryId: string]: string };
+      if (asIs[serviceGroupId] === undefined) {
+        fs.mkdirSync(pathToGroup.toString(), { recursive: true });
+        fs.writeFileSync(
+          pathToGroup.with(".group-id").toString(),
+          serviceGroupId
         );
+        asIsRepos = {};
+      } else {
+        if (asIs[serviceGroupId].name !== folderName) {
+          fs.renameSync(
+            organization.pathTo.with(asIs[serviceGroupId].name).toString(),
+            pathToGroup.toString()
+          );
+        }
+        asIsRepos = asIs[serviceGroupId].repositories;
       }
-      asIsRepos = asIs[serviceGroupId].repositories;
-    }
-    ensureRepositoryStructure(
-      organization.id,
-      { pathTo: pathToGroup, id: new ServiceGroupId(serviceGroupId) },
-      group.repositories,
-      asIsRepos
-    );
-    delete asIs[serviceGroupId];
-  });
-  Object.keys(asIs).forEach((groupId) => {
-    const group = asIs[groupId];
-    const folderName = group.name;
-    // TODO Delete
-    console.log("Delete", organization.pathTo.with(folderName).toString());
-  });
+      await ensureRepositoryStructure(
+        organization.id,
+        { pathTo: pathToGroup, id: new ServiceGroupId(serviceGroupId) },
+        group.repositories,
+        asIsRepos
+      );
+      delete asIs[serviceGroupId];
+    })
+  );
+  await Promise.all(
+    Object.keys(asIs).map((groupId) => {
+      const group = asIs[groupId];
+      const folderName = group.name;
+      // TODO Delete
+      console.log("Delete", organization.pathTo.with(folderName).toString());
+    })
+  );
 }
 
-async function createServiceFolder(
+async function ensureServiceFolder(
   organizationId: OrganizationId,
   groupId: ServiceGroupId,
   repository: Repository
 ) {
+  process.stdout.write(".");
   const dir = repository.pathTo.toString();
   const repo = `"${GIT_HOST}/o${organizationId}/g${groupId}/r${repository.id}"`;
   try {
@@ -185,7 +196,7 @@ rm fetch.bat fetch.sh`,
   }
 }
 
-async function do_fetch(organization: Organization) {
+export async function do_fetch(organization: Organization) {
   try {
     output2(`Fetching...`);
     const reply = await sshReq(
@@ -194,8 +205,10 @@ async function do_fetch(organization: Organization) {
     );
     if (!reply.startsWith("{")) throw reply;
     const structure: ToBeStructure = JSON.parse(reply);
-    output2(`Consolidating...`);
+    process.stdout.write(`Consolidating`);
     await ensureGroupStructure(organization, structure);
+    process.stdout.write("\n");
+    return structure;
   } catch (e) {
     throw e;
   }
