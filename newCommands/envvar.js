@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.envvar = void 0;
+exports.envvar = envvar;
 const secret_lib_1 = require("@merrymake/secret-lib");
 const fs_1 = __importDefault(require("fs"));
 const config_1 = require("../config");
@@ -144,4 +144,3 @@ function envvar(pathToOrganization, organizationId, serviceGroupId) {
         }
     });
 }
-exports.envvar = envvar;

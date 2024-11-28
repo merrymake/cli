@@ -1,6 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exit = exports.shortText = exports.Visibility = exports.spinner_stop = exports.spinner_start = exports.multiSelect = exports.choice = exports.output = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
+exports.Visibility = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
+exports.output = output;
+exports.choice = choice;
+exports.multiSelect = multiSelect;
+exports.spinner_start = spinner_start;
+exports.spinner_stop = spinner_stop;
+exports.shortText = shortText;
+exports.exit = exit;
 const node_process_1 = require("node:process");
 const args_1 = require("./args");
 const utils_1 = require("./utils");
@@ -74,7 +81,6 @@ function output(str) {
     // stdout.write(pos);
     // stdout.moveCursor(xOffset - pos.length, yOffset);
 }
-exports.output = output;
 function moveCursor(x, y) {
     if (!node_process_1.stdout.isTTY)
         return;
@@ -258,7 +264,6 @@ function choice(heading, options, opts) {
         }));
     });
 }
-exports.choice = choice;
 const SELECTED_MARK = "✔";
 const NOT_SELECTED_MARK = "_";
 function multiSelect(selection, after, errorMessage) {
@@ -415,7 +420,6 @@ function multiSelect(selection, after, errorMessage) {
         }));
     });
 }
-exports.multiSelect = multiSelect;
 let interval;
 let spinnerIndex = 0;
 const SPINNER = ["│", "/", "─", "\\"];
@@ -424,7 +428,6 @@ function spinner_start() {
         return;
     interval = setInterval(spin, 200);
 }
-exports.spinner_start = spinner_start;
 function spin() {
     output(SPINNER[(spinnerIndex = (spinnerIndex + 1) % SPINNER.length)]);
     moveCursor(-1, 0);
@@ -435,7 +438,6 @@ function spinner_stop() {
         interval = undefined;
     }
 }
-exports.spinner_stop = spinner_stop;
 var Visibility;
 (function (Visibility) {
     Visibility[Visibility["Secret"] = 0] = "Secret";
@@ -574,9 +576,7 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
         }));
     });
 }
-exports.shortText = shortText;
 function exit() {
     moveToBottom();
     cleanup();
 }
-exports.exit = exit;

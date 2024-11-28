@@ -9,7 +9,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.key = exports.key_create = exports.do_key_modify = exports.do_key_create = void 0;
+exports.do_key_create = do_key_create;
+exports.do_key_modify = do_key_modify;
+exports.key_create = key_create;
+exports.key = key;
 const process_1 = require("process");
 const executors_1 = require("../executors");
 const prompt_1 = require("../prompt");
@@ -37,7 +40,6 @@ function do_key_create(organizationId, description, duration) {
         }
     });
 }
-exports.do_key_create = do_key_create;
 function do_key_modify(apikeyId, description, duration) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -52,7 +54,6 @@ function do_key_modify(apikeyId, description, duration) {
         }
     });
 }
-exports.do_key_modify = do_key_modify;
 function key_key_name(description, continuation) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -97,7 +98,6 @@ function key_create(organizationId, continuation) {
         }
     });
 }
-exports.key_create = key_create;
 function key(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -143,4 +143,3 @@ function key(organizationId) {
         }
     });
 }
-exports.key = key;

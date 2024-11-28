@@ -1,7 +1,14 @@
 import { getArgs } from "../args";
 import { Option, choice, shortText } from "../prompt";
-import { AccessId, OrganizationId } from "../types";
-import { addToExecuteQueue, finish, output2, sshReq } from "../utils";
+import { AccessId, Organization, OrganizationId } from "../types";
+import {
+  addToExecuteQueue,
+  finish,
+  output2,
+  sshReq,
+  toFolderName,
+} from "../utils";
+import { do_create_deployment_agent } from "./hosting";
 
 const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 export async function do_attach_role(user: string, accessId: AccessId) {
@@ -174,16 +181,33 @@ async function role_auto(organizationId: OrganizationId) {
   }
 }
 
-export async function role(organizationId: OrganizationId) {
+async function service_user(organization: Organization) {
   try {
-    const resp = await sshReq(`user-list`, organizationId.toString());
+    const name = await shortText(
+      "Name",
+      "Display name for the service user",
+      `Service User`
+    ).then();
+    const file = ".merrymake/" + toFolderName(name) + ".key";
+    addToExecuteQueue(() =>
+      do_create_deployment_agent(organization, name, file)
+    );
+    return finish();
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function role(organization: Organization) {
+  try {
+    const resp = await sshReq(`user-list`, organization.toString());
     const users: { email: string; id: string; roles: string }[] =
       JSON.parse(resp);
     const options: Option[] = users.map((user) => {
       return {
         long: user.email,
         text: `${user.email}: ${user.roles}`,
-        action: () => role_user(organizationId, user.id),
+        action: () => role_user(organization.id, user.id),
       };
     });
     // options.push({
@@ -193,10 +217,16 @@ export async function role(organizationId: OrganizationId) {
     //   action: () => role_new(org),
     // });
     options.push({
+      long: `service`,
+      short: `s`,
+      text: `create a new service user`,
+      action: () => service_user(organization),
+    });
+    options.push({
       long: `auto`,
       short: `a`,
       text: `configure domain auto approval`,
-      action: () => role_auto(organizationId),
+      action: () => role_auto(organization.id),
     });
     return await choice("Which user do you want to manage?", options).then(
       (x) => x

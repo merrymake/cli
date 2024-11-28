@@ -9,10 +9,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.role = exports.listRoles = exports.do_remove_auto_approve = exports.do_auto_approve = exports.do_attach_role = void 0;
+exports.do_attach_role = do_attach_role;
+exports.do_auto_approve = do_auto_approve;
+exports.do_remove_auto_approve = do_remove_auto_approve;
+exports.listRoles = listRoles;
+exports.role = role;
 const prompt_1 = require("../prompt");
 const types_1 = require("../types");
 const utils_1 = require("../utils");
+const hosting_1 = require("./hosting");
 const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 function do_attach_role(user, accessId) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -24,7 +29,6 @@ function do_attach_role(user, accessId) {
         }
     });
 }
-exports.do_attach_role = do_attach_role;
 function do_auto_approve(domain, accessId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -35,7 +39,6 @@ function do_auto_approve(domain, accessId) {
         }
     });
 }
-exports.do_auto_approve = do_auto_approve;
 function do_remove_auto_approve(organizationId, domain) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -46,7 +49,6 @@ function do_remove_auto_approve(organizationId, domain) {
         }
     });
 }
-exports.do_remove_auto_approve = do_remove_auto_approve;
 function role_user_attach_role(user, accessId) {
     (0, utils_1.addToExecuteQueue)(() => do_attach_role(user, accessId));
     return (0, utils_1.finish)();
@@ -71,7 +73,6 @@ function listRoles(organizationId) {
         return roleListCache;
     });
 }
-exports.listRoles = listRoles;
 function role_user_attach(organizationId, user) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -179,16 +180,29 @@ function role_auto(organizationId) {
         }
     });
 }
-function role(organizationId) {
+function service_user(organization) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const resp = yield (0, utils_1.sshReq)(`user-list`, organizationId.toString());
+            const name = yield (0, prompt_1.shortText)("Name", "Display name for the service user", `Service User`).then();
+            const file = ".merrymake/" + (0, utils_1.toFolderName)(name) + ".key";
+            (0, utils_1.addToExecuteQueue)(() => (0, hosting_1.do_create_deployment_agent)(organization, name, file));
+            return (0, utils_1.finish)();
+        }
+        catch (e) {
+            throw e;
+        }
+    });
+}
+function role(organization) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const resp = yield (0, utils_1.sshReq)(`user-list`, organization.toString());
             const users = JSON.parse(resp);
             const options = users.map((user) => {
                 return {
                     long: user.email,
                     text: `${user.email}: ${user.roles}`,
-                    action: () => role_user(organizationId, user.id),
+                    action: () => role_user(organization.id, user.id),
                 };
             });
             // options.push({
@@ -198,10 +212,16 @@ function role(organizationId) {
             //   action: () => role_new(org),
             // });
             options.push({
+                long: `service`,
+                short: `s`,
+                text: `create a new service user`,
+                action: () => service_user(organization),
+            });
+            options.push({
                 long: `auto`,
                 short: `a`,
                 text: `configure domain auto approval`,
-                action: () => role_auto(organizationId),
+                action: () => role_auto(organization.id),
             });
             return yield (0, prompt_1.choice)("Which user do you want to manage?", options).then((x) => x);
         }
@@ -210,4 +230,3 @@ function role(organizationId) {
         }
     });
 }
-exports.role = role;

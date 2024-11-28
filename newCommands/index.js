@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.index = void 0;
+exports.index = index;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const prompt_1 = require("../prompt");
@@ -140,7 +140,7 @@ function index() {
                         short: "o",
                         text: "add or assign roles to users in the organization",
                         weight: 200,
-                        action: () => (0, role_1.role)(organization.id),
+                        action: () => (0, role_1.role)(organization),
                     }, {
                         long: "rename",
                         short: "_",
@@ -191,4 +191,3 @@ function index() {
         }
     });
 }
-exports.index = index;

@@ -9,7 +9,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.queue = exports.do_queue_time = void 0;
+exports.do_queue_time = do_queue_time;
+exports.queue = queue;
 const args_1 = require("../args");
 const executors_1 = require("../executors");
 const prompt_1 = require("../prompt");
@@ -34,7 +35,6 @@ function do_queue_time(org, time) {
         }
     });
 }
-exports.do_queue_time = do_queue_time;
 function queue_event(id, river) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -135,4 +135,3 @@ function queue(organizationId) {
         }
     });
 }
-exports.queue = queue;

@@ -12,7 +12,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.fetch = exports.do_fetch = exports.ensureGroupStructure = void 0;
+exports.ensureGroupStructure = ensureGroupStructure;
+exports.do_fetch = do_fetch;
+exports.fetch = fetch;
 const fs_1 = __importDefault(require("fs"));
 const config_1 = require("../config");
 const types_1 = require("../types");
@@ -100,7 +102,6 @@ function ensureGroupStructure(organization, toBe) {
         }));
     });
 }
-exports.ensureGroupStructure = ensureGroupStructure;
 function ensureServiceFolder(organizationId, groupId, repository) {
     return __awaiter(this, void 0, void 0, function* () {
         process.stdout.write(".");
@@ -151,9 +152,7 @@ function do_fetch(organization) {
         }
     });
 }
-exports.do_fetch = do_fetch;
 function fetch(organization) {
     (0, utils_1.addToExecuteQueue)(() => do_fetch(organization));
     return (0, utils_1.finish)();
 }
-exports.fetch = fetch;

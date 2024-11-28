@@ -9,7 +9,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.orgAction = exports.listOrgs = exports.do_join = exports.org = exports.generateOrgName = exports.rename = exports.do_renameOrganization = exports.do_createOrganization = void 0;
+exports.do_createOrganization = do_createOrganization;
+exports.do_renameOrganization = do_renameOrganization;
+exports.rename = rename;
+exports.generateOrgName = generateOrgName;
+exports.org = org;
+exports.do_join = do_join;
+exports.listOrgs = listOrgs;
+exports.orgAction = orgAction;
 const prompt_1 = require("../prompt");
 const types_1 = require("../types");
 const utils_1 = require("../utils");
@@ -31,7 +38,6 @@ function do_createOrganization(folderName, displayName) {
         }
     });
 }
-exports.do_createOrganization = do_createOrganization;
 function do_renameOrganization(organizationId, displayName) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -42,7 +48,6 @@ function do_renameOrganization(organizationId, displayName) {
         }
     });
 }
-exports.do_renameOrganization = do_renameOrganization;
 function rename(organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -55,7 +60,6 @@ function rename(organizationId) {
         }
     });
 }
-exports.rename = rename;
 const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
 function generateString(length) {
     let result = "";
@@ -77,7 +81,6 @@ function generateOrgName() {
             "-" +
             words_1.NOUN[~~(words_1.NOUN.length * Math.random())]);
 }
-exports.generateOrgName = generateOrgName;
 function org() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -95,7 +98,6 @@ function org() {
         }
     });
 }
-exports.org = org;
 function do_join(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -106,7 +108,6 @@ function do_join(org) {
         }
     });
 }
-exports.do_join = do_join;
 function join_org(name) {
     // TODO join, wait, then checkout
     (0, utils_1.addToExecuteQueue)(() => do_join(name));
@@ -135,7 +136,6 @@ function listOrgs() {
         return orgListCache;
     });
 }
-exports.listOrgs = listOrgs;
 function orgAction() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -175,4 +175,3 @@ function orgAction() {
         }
     });
 }
-exports.orgAction = orgAction;

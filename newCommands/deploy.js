@@ -9,7 +9,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.redeploy = exports.deploy = exports.do_redeploy = exports.do_deploy = void 0;
+exports.do_deploy = do_deploy;
+exports.do_redeploy = do_redeploy;
+exports.deploy = deploy;
+exports.redeploy = redeploy;
 const prompt_1 = require("../prompt");
 const types_1 = require("../types");
 const utils_1 = require("../utils");
@@ -43,11 +46,9 @@ function do_deploy(pathToService) {
         }
     });
 }
-exports.do_deploy = do_deploy;
 function do_redeploy() {
     return do_deploy_internal("git commit --allow-empty -m 'Redeploy'");
 }
-exports.do_redeploy = do_redeploy;
 function deploy() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -68,9 +69,7 @@ function deploy() {
         }
     });
 }
-exports.deploy = deploy;
 function redeploy() {
     (0, utils_1.addToExecuteQueue)(() => do_redeploy());
     return (0, utils_1.finish)();
 }
-exports.redeploy = redeploy;

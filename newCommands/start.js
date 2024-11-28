@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.start = void 0;
+exports.start = start;
 function start() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -19,4 +19,3 @@ function start() {
         }
     });
 }
-exports.start = start;

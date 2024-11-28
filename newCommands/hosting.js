@@ -12,7 +12,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.hosting = exports.do_bitbucket = exports.bitbucketStep = exports.BITBUCKET_FILE = exports.do_create_deployment_agent = void 0;
+exports.BITBUCKET_FILE = void 0;
+exports.do_create_deployment_agent = do_create_deployment_agent;
+exports.bitbucketStep = bitbucketStep;
+exports.do_bitbucket = do_bitbucket;
+exports.hosting = hosting;
 const fs_1 = __importDefault(require("fs"));
 const config_1 = require("../config");
 const prompt_1 = require("../prompt");
@@ -34,7 +38,6 @@ function do_create_deployment_agent(organization, name, file) {
         }
     });
 }
-exports.do_create_deployment_agent = do_create_deployment_agent;
 exports.BITBUCKET_FILE = "bitbucket-pipelines.yml";
 function bitbucketStep(group_service, repo) {
     return `          - step:
@@ -44,7 +47,6 @@ function bitbucketStep(group_service, repo) {
         .toString()
         .replace(/\\/g, "/")} ${repo}`;
 }
-exports.bitbucketStep = bitbucketStep;
 function do_bitbucket(organization, host, key) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -115,7 +117,6 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
         }
     });
 }
-exports.do_bitbucket = do_bitbucket;
 function hosting_bitbucket_key_host(organization, host, key) {
     (0, utils_1.addToExecuteQueue)(() => do_bitbucket(organization, host, key));
     return (0, utils_1.finish)();
@@ -199,4 +200,3 @@ function hosting(organization) {
         // },
     ]);
 }
-exports.hosting = hosting;

@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -35,7 +45,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toFolderName = exports.directoryNames = exports.urlReq = exports.partition = exports.sshReq = exports.spawnPromise = exports.execStreamPromise = exports.typedKeys = exports.checkVersion = exports.execPromise = exports.output2 = exports.fetchOrg = exports.fetchOrgRaw = exports.saveCache = exports.getCache = exports.TODO = exports.finish = exports.abort = exports.addExitMessage = exports.addToExecuteQueue = exports.setDryrun = exports.getFiles = exports.Path = void 0;
+exports.Path = void 0;
+exports.getFiles = getFiles;
+exports.setDryrun = setDryrun;
+exports.addToExecuteQueue = addToExecuteQueue;
+exports.addExitMessage = addExitMessage;
+exports.abort = abort;
+exports.finish = finish;
+exports.TODO = TODO;
+exports.getCache = getCache;
+exports.saveCache = saveCache;
+exports.fetchOrgRaw = fetchOrgRaw;
+exports.fetchOrg = fetchOrg;
+exports.output2 = output2;
+exports.execPromise = execPromise;
+exports.checkVersion = checkVersion;
+exports.typedKeys = typedKeys;
+exports.execStreamPromise = execStreamPromise;
+exports.spawnPromise = spawnPromise;
+exports.sshReq = sshReq;
+exports.partition = partition;
+exports.urlReq = urlReq;
+exports.directoryNames = directoryNames;
+exports.toFolderName = toFolderName;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const http_1 = __importDefault(require("http"));
@@ -70,7 +102,6 @@ exports.Path = Path;
 function getFiles(path) {
     return getFiles_internal(path, "");
 }
-exports.getFiles = getFiles;
 function getFiles_internal(path, prefix) {
     if (!fs_1.default.existsSync(path.toString()))
         return [];
@@ -84,17 +115,14 @@ function setDryrun() {
     output2(`${prompt_1.BLUE}Dryrun mode, changes will not be performed.${prompt_1.NORMAL_COLOR}`);
     dryrun = true;
 }
-exports.setDryrun = setDryrun;
 function addToExecuteQueue(f) {
     if (!dryrun)
         toExecute.push(f);
 }
-exports.addToExecuteQueue = addToExecuteQueue;
 let printOnExit = [];
 function addExitMessage(str) {
     printOnExit.push(str);
 }
-exports.addExitMessage = addExitMessage;
 function printExitMessages() {
     printOnExit.forEach((x) => (0, prompt_1.output)(x + "\n"));
 }
@@ -103,7 +131,6 @@ function abort() {
     printExitMessages();
     process.exit(0);
 }
-exports.abort = abort;
 function finish() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -120,24 +147,20 @@ function finish() {
         }
     });
 }
-exports.finish = finish;
 function TODO() {
     console.log("TODO");
     (0, prompt_1.exit)();
     process.exit(0);
 }
-exports.TODO = TODO;
 function getCache() {
     if (!fs_1.default.existsSync(`${historyFolder}cache`)) {
         return { registered: false, hasOrgs: false };
     }
     return JSON.parse(fs_1.default.readFileSync(`${historyFolder}cache`).toString());
 }
-exports.getCache = getCache;
 function saveCache(cache) {
     fs_1.default.writeFileSync(`${historyFolder}cache`, JSON.stringify(cache));
 }
-exports.saveCache = saveCache;
 function fetchOrgRaw() {
     if (fs_1.default.existsSync(path_1.default.join(".merrymake", "conf.json"))) {
         const org = JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(".merrymake", "conf.json")));
@@ -158,14 +181,12 @@ function fetchOrgRaw() {
     }
     return { org: null, serviceGroup: null, pathToRoot: null };
 }
-exports.fetchOrgRaw = fetchOrgRaw;
 function fetchOrg() {
     const res = fetchOrgRaw();
     if (res.org === null)
         throw "Not inside a Merrymake organization";
     return res;
 }
-exports.fetchOrg = fetchOrg;
 function output2(str) {
     console.log((str || "")
         .trimEnd()
@@ -173,7 +194,6 @@ function output2(str) {
         .map((x) => x.trimEnd())
         .join("\n"));
 }
-exports.output2 = output2;
 function versionIsOlder(old, new_) {
     const os = old.split(".");
     const ns = new_.split(".");
@@ -202,7 +222,6 @@ function execPromise(cmd, cwd) {
         });
     });
 }
-exports.execPromise = execPromise;
 const historyFolder = os_1.default.homedir() + "/.merrymake/";
 const historyFile = "history";
 const updateFile = "last_update_check";
@@ -227,11 +246,9 @@ New version of merrymake-cli available, ${process.env["UPDATE_MESSAGE"]}`);
         }
     });
 }
-exports.checkVersion = checkVersion;
 function typedKeys(o) {
     return Object.keys(o);
 }
-exports.typedKeys = typedKeys;
 function execStreamPromise(full, onData, cwd) {
     return new Promise((resolve, reject) => {
         const [cmd, ...args] = full.split(" ");
@@ -250,7 +267,6 @@ function execStreamPromise(full, onData, cwd) {
         });
     });
 }
-exports.execStreamPromise = execStreamPromise;
 function spawnPromise(str) {
     return new Promise((resolve, reject) => {
         const [cmd, ...args] = str.split(" ");
@@ -273,7 +289,6 @@ function spawnPromise(str) {
         });
     });
 }
-exports.spawnPromise = spawnPromise;
 function sshReqInternal(cmd) {
     return execPromise(`ssh -o ConnectTimeout=10 mist@${config_1.SSH_HOST} "${cmd}"`);
 }
@@ -292,14 +307,12 @@ function sshReq(...cmd) {
         }
     });
 }
-exports.sshReq = sshReq;
 function partition(str, radix) {
     const index = str.indexOf(radix);
     if (index < 0)
         return [str, ""];
     return [str.substring(0, index), str.substring(index + radix.length)];
 }
-exports.partition = partition;
 function urlReq(url, method = "GET", data, contentType = "application/json") {
     return new Promise((resolve, reject) => {
         const [protocol, fullPath] = url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
@@ -335,7 +348,6 @@ function urlReq(url, method = "GET", data, contentType = "application/json") {
         req.end();
     });
 }
-exports.urlReq = urlReq;
 function directoryNames(path, exclude) {
     if (!fs_1.default.existsSync(path.toString()))
         return [];
@@ -343,8 +355,6 @@ function directoryNames(path, exclude) {
         .readdirSync(path.toString(), { withFileTypes: true })
         .filter((x) => x.isDirectory() && !exclude.includes(x.name) && !x.name.startsWith("."));
 }
-exports.directoryNames = directoryNames;
 function toFolderName(str) {
     return str.toLowerCase().replace(/[^a-z0-9\-_]/g, "-");
 }
-exports.toFolderName = toFolderName;

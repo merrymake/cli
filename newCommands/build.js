@@ -9,7 +9,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.build = exports.do_build = void 0;
+exports.do_build = do_build;
+exports.build = build;
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const utils_1 = require("../utils");
 function do_build() {
@@ -28,9 +29,7 @@ function do_build() {
         }
     });
 }
-exports.do_build = do_build;
 function build() {
     (0, utils_1.addToExecuteQueue)(() => do_build());
     return (0, utils_1.finish)();
 }
-exports.build = build;

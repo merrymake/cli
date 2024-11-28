@@ -12,7 +12,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkout = exports.checkout_org = exports.do_fetch_clone = exports.do_clone = void 0;
+exports.do_clone = do_clone;
+exports.do_fetch_clone = do_fetch_clone;
+exports.checkout_org = checkout_org;
+exports.checkout = checkout;
 const fs_1 = __importDefault(require("fs"));
 const config_1 = require("../config");
 const prompt_1 = require("../prompt");
@@ -45,7 +48,6 @@ function do_clone(struct, folderName, displayName, organizationId) {
         }
     });
 }
-exports.do_clone = do_clone;
 function do_fetch_clone(displayName, folderName, organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -60,7 +62,6 @@ function do_fetch_clone(displayName, folderName, organizationId) {
         }
     });
 }
-exports.do_fetch_clone = do_fetch_clone;
 function checkout_org(displayName, organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         const folderName = (0, utils_1.toFolderName)(displayName);
@@ -71,7 +72,6 @@ function checkout_org(displayName, organizationId) {
         return (0, utils_1.finish)();
     });
 }
-exports.checkout_org = checkout_org;
 function checkout() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -87,4 +87,3 @@ function checkout() {
         }
     });
 }
-exports.checkout = checkout;

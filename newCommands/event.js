@@ -9,7 +9,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.event = exports.do_event = void 0;
+exports.do_event = do_event;
+exports.event = event;
 const prompt_1 = require("../prompt");
 const utils_1 = require("../utils");
 const apikey_1 = require("./apikey");
@@ -25,7 +26,6 @@ function do_event(apikeyId, events) {
         }
     });
 }
-exports.do_event = do_event;
 function event_key_events(apikeyId, events) {
     (0, utils_1.addToExecuteQueue)(() => do_event(apikeyId, events));
     return (0, utils_1.finish)();
@@ -70,4 +70,3 @@ function event(organizationId) {
         }
     });
 }
-exports.event = event;

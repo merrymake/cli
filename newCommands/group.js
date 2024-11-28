@@ -12,7 +12,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.group = exports.do_createServiceGroup = void 0;
+exports.do_createServiceGroup = do_createServiceGroup;
+exports.group = group;
 const fs_1 = __importDefault(require("fs"));
 const prompt_1 = require("../prompt");
 const types_1 = require("../types");
@@ -35,7 +36,6 @@ function do_createServiceGroup(path, organizationId, displayName) {
         }
     });
 }
-exports.do_createServiceGroup = do_createServiceGroup;
 function group(organization) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -56,4 +56,3 @@ function group(organization) {
         }
     });
 }
-exports.group = group;

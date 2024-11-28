@@ -12,7 +12,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_delete_org = exports.do_delete_group = exports.do_spending = exports.printTableHeader = exports.alignLeft = exports.alignRight = exports.do_build = void 0;
+exports.do_build = do_build;
+exports.alignRight = alignRight;
+exports.alignLeft = alignLeft;
+exports.printTableHeader = printTableHeader;
+exports.do_spending = do_spending;
+exports.do_delete_group = do_delete_group;
+exports.do_delete_org = do_delete_org;
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
@@ -57,19 +63,16 @@ function do_build() {
         }
     });
 }
-exports.do_build = do_build;
 function alignRight(str, width) {
     return str.length > width
         ? str.substring(0, width - 3) + "..."
         : str.padStart(width, " ");
 }
-exports.alignRight = alignRight;
 function alignLeft(str, width) {
     return str.length > width
         ? str.substring(0, width - 3) + "..."
         : str.padEnd(width, " ");
 }
-exports.alignLeft = alignLeft;
 function printTableHeader(prefix, widths) {
     if ((0, args_1.getArgs)().length > 0)
         return "";
@@ -92,7 +95,6 @@ function printTableHeader(prefix, widths) {
     result += divider;
     return result;
 }
-exports.printTableHeader = printTableHeader;
 // export async function do_help() {
 //   try {
 //     await urlReq("https://google.com");
@@ -231,7 +233,6 @@ function do_spending(org) {
         }
     });
 }
-exports.do_spending = do_spending;
 function do_delete_group(org, group) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -244,7 +245,6 @@ function do_delete_group(org, group) {
         }
     });
 }
-exports.do_delete_group = do_delete_group;
 function do_delete_org(org) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -257,4 +257,3 @@ function do_delete_org(org) {
         }
     });
 }
-exports.do_delete_org = do_delete_org;

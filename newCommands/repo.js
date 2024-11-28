@@ -12,7 +12,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.repo = exports.repo_create = exports.listRepos = exports.service_template = exports.do_createService = exports.do_duplicate = exports.do_fetch_template = void 0;
+exports.do_fetch_template = do_fetch_template;
+exports.do_duplicate = do_duplicate;
+exports.do_createService = do_createService;
+exports.service_template = service_template;
+exports.listRepos = listRepos;
+exports.repo_create = repo_create;
+exports.repo = repo;
 const detect_project_type_1 = require("@merrymake/detect-project-type");
 const fs_1 = __importDefault(require("fs"));
 const config_1 = require("../config");
@@ -45,12 +51,10 @@ function do_fetch_template(pth, template, projectType) {
     console.log(`Fetching ${projectType} template...`);
     return do_pull(pth, `https://github.com/merrymake/${projectType}-${template}-template`);
 }
-exports.do_fetch_template = do_fetch_template;
 function do_duplicate(pth, organizationId, groupId, repositoryId) {
     console.log(`Duplicating ${"local folder"} service...`);
     return do_pull(pth, `${config_1.GIT_HOST}/o${organizationId}/g${groupId}/r${repositoryId}`);
 }
-exports.do_duplicate = do_duplicate;
 function service_template_language(pathToService, organizationId, template, projectType) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -96,7 +100,6 @@ function do_createService(organization, serviceGroup, folderName, displayName) {
         }
     });
 }
-exports.do_createService = do_createService;
 function service_template(pathToService, organizationId, template) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -122,7 +125,6 @@ function service_template(pathToService, organizationId, template) {
         }
     });
 }
-exports.service_template = service_template;
 function after_service_deploy(pathToService, organizationId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -188,7 +190,6 @@ function listRepos(serviceGroupId) {
         return repoListCache;
     });
 }
-exports.listRepos = listRepos;
 function repo_create(organization, serviceGroup) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -228,7 +229,6 @@ function repo_create(organization, serviceGroup) {
         }
     });
 }
-exports.repo_create = repo_create;
 function repo_edit(pathToGroup, displayName, repositoryId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -275,4 +275,3 @@ function repo(organization, serviceGroup) {
         }
     });
 }
-exports.repo = repo;

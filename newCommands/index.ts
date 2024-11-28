@@ -144,7 +144,7 @@ export async function index() {
             short: "o",
             text: "add or assign roles to users in the organization",
             weight: 200,
-            action: () => role(organization.id),
+            action: () => role(organization),
           },
           {
             long: "rename",

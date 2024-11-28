@@ -12,7 +12,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.register = exports.do_register = exports.addKnownHost = exports.generateNewKey = exports.useExistingKey = void 0;
+exports.useExistingKey = useExistingKey;
+exports.generateNewKey = generateNewKey;
+exports.addKnownHost = addKnownHost;
+exports.do_register = do_register;
+exports.register = register;
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const utils_1 = require("../utils");
@@ -81,7 +85,6 @@ function useExistingKey(path) {
         }
     });
 }
-exports.useExistingKey = useExistingKey;
 function generateNewKey() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -100,7 +103,6 @@ function generateNewKey() {
         }
     });
 }
-exports.generateNewKey = generateNewKey;
 function addKnownHost() {
     let isKnownHost = false;
     if (fs_1.default.existsSync(`${os_1.default.homedir()}/.ssh/known_hosts`)) {
@@ -114,7 +116,6 @@ function addKnownHost() {
         fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, `\n${config_1.API_URL} ssh-ed25519 ${config_1.FINGERPRINT}\n`);
     }
 }
-exports.addKnownHost = addKnownHost;
 function do_register(keyAction, email) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -141,7 +142,6 @@ function do_register(keyAction, email) {
         }
     });
 }
-exports.do_register = do_register;
 function register_key(keyAction) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -205,4 +205,3 @@ function register() {
         }
     });
 }
-exports.register = register;

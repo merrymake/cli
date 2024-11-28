@@ -6,6 +6,14 @@
 ## Fixes and improvements
 -
 
+# NEXT:
+## Breaking changes
+-
+## Added features
+- Can crete service user with `role`
+## Fixes and improvements
+- `build` skips library install if up-to-date
+
 # 4.2.0
 ## Added features
 - Readded `build` command
