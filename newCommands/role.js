@@ -196,7 +196,7 @@ function service_user(organization) {
 function role(organization) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const resp = yield (0, utils_1.sshReq)(`user-list`, organization.toString());
+            const resp = yield (0, utils_1.sshReq)(`user-list`, organization.id.toString());
             const users = JSON.parse(resp);
             const options = users.map((user) => {
                 return {

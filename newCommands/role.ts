@@ -200,7 +200,7 @@ async function service_user(organization: Organization) {
 
 export async function role(organization: Organization) {
   try {
-    const resp = await sshReq(`user-list`, organization.toString());
+    const resp = await sshReq(`user-list`, organization.id.toString());
     const users: { email: string; id: string; roles: string }[] =
       JSON.parse(resp);
     const options: Option[] = users.map((user) => {
