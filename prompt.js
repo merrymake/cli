@@ -1,63 +1,86 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Visibility = exports.INVISIBLE = exports.YELLOW = exports.GREEN = exports.BLUE = exports.RED = exports.NORMAL_COLOR = exports.SHOW_CURSOR = exports.HIDE_CURSOR = exports.RIGHT = exports.LEFT = exports.DOWN = exports.UP = exports.ENTER = exports.DELETE = exports.ESCAPE = exports.BACKSPACE = exports.CTRL_C = void 0;
-exports.output = output;
-exports.choice = choice;
-exports.multiSelect = multiSelect;
-exports.spinner_start = spinner_start;
-exports.spinner_stop = spinner_stop;
-exports.shortText = shortText;
-exports.exit = exit;
-const node_process_1 = require("node:process");
-const args_1 = require("./args");
-const utils_1 = require("./utils");
-const contexts_1 = require("./contexts");
-exports.CTRL_C = "\u0003";
+import { stdin, stdout } from "node:process";
+import { getArgs } from "./args.js";
+import { CONTEXTS } from "./contexts.js";
+import { abort } from "./utils.js";
+export const CTRL_C = "\u0003";
 // const CR = "\u000D";
-exports.BACKSPACE = "\b";
-exports.ESCAPE = "\u001b";
-exports.DELETE = "\u001b[3~";
-exports.ENTER = "\r";
-exports.UP = "\u001b[A";
-exports.DOWN = "\u001b[B";
-exports.LEFT = "\u001b[D";
-exports.RIGHT = "\u001b[C";
-exports.HIDE_CURSOR = "\u001B[?25l";
-exports.SHOW_CURSOR = "\u001B[?25h";
-exports.NORMAL_COLOR = "\u001B[0m";
-exports.RED = "\u001B[0;31m";
-exports.BLUE = "\u001B[0;34m";
-exports.GREEN = "\u001B[0;32m";
-exports.YELLOW = "\u001B[0;93m";
-exports.INVISIBLE = [
-    exports.HIDE_CURSOR,
-    exports.SHOW_CURSOR,
-    exports.NORMAL_COLOR,
-    exports.RED,
-    exports.BLUE,
-    exports.GREEN,
-    exports.YELLOW,
+export const BACKSPACE = "\b";
+export const ESCAPE = "\u001b";
+export const DELETE = "\u001b[3~";
+export const ENTER = "\r";
+export const UP = "\u001b[A";
+export const DOWN = "\u001b[B";
+export const LEFT = "\u001b[D";
+export const RIGHT = "\u001b[C";
+export const HIDE_CURSOR = "\u001B[?25l";
+export const SHOW_CURSOR = "\u001B[?25h";
+export const NORMAL_COLOR = "\u001B[0m";
+export const BLACK = "\x1b[30m";
+export const RED = "\x1b[31m";
+export const GREEN = "\x1b[32m";
+export const YELLOW = "\x1b[33m";
+export const BLUE = "\x1b[34m";
+export const PURPLE = "\x1b[35m";
+export const CYAN = "\x1b[36m";
+export const WHITE = "\x1b[37m";
+export const GRAY = "\x1b[90m";
+export const BgBlack = "\x1b[40m";
+export const BgRed = "\x1b[41m";
+export const BgGreen = "\x1b[42m";
+export const BgYellow = "\x1b[43m";
+export const BgBlue = "\x1b[44m";
+export const BgPurple = "\x1b[45m";
+export const BgCyan = "\x1b[46m";
+export const BgWhite = "\x1b[47m";
+export const BgGray = "\x1b[100m";
+export const STRIKE = "\x1b[9m";
+export const NOSTRIKE = "\x1b[29m";
+export const INVISIBLE = [
+    HIDE_CURSOR,
+    SHOW_CURSOR,
+    NORMAL_COLOR,
+    BLACK,
+    RED,
+    GREEN,
+    YELLOW,
+    BLUE,
+    PURPLE,
+    CYAN,
+    WHITE,
+    GRAY,
+    BgBlack,
+    BgRed,
+    BgGreen,
+    BgYellow,
+    BgBlue,
+    BgPurple,
+    BgCyan,
+    BgWhite,
+    BgGray,
+    STRIKE,
+    NOSTRIKE,
 ];
+export const REMOVE_INVISIBLE = new RegExp(INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join("|"), "gi");
 let xOffset = 0;
 let yOffset = 0;
 let maxYOffset = 0;
-function output(str) {
-    const cleanStr = str.replace(new RegExp(exports.INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join("|"), "gi"), "");
-    node_process_1.stdout.write(node_process_1.stdout.isTTY ? str : cleanStr);
-    if (!node_process_1.stdout.isTTY)
+export function output(str) {
+    const cleanStr = str.replace(REMOVE_INVISIBLE, "");
+    stdout.write(stdout.isTTY ? str : cleanStr);
+    if (!stdout.isTTY)
         return;
     const lines = cleanStr.split("\n");
     const newXOffset = xOffset + lines[0].length;
     // TODO handle (split on) \r
     xOffset =
         newXOffset %
-            (typeof node_process_1.stdout.getWindowSize !== "function"
+            (typeof stdout.getWindowSize !== "function"
                 ? 80
-                : node_process_1.stdout.getWindowSize()[0]);
+                : stdout.getWindowSize()[0]);
     yOffset += ~~(newXOffset /
-        (typeof node_process_1.stdout.getWindowSize !== "function"
+        (typeof stdout.getWindowSize !== "function"
             ? 80
-            : node_process_1.stdout.getWindowSize()[0]));
+            : stdout.getWindowSize()[0]));
     if (maxYOffset < yOffset)
         maxYOffset = yOffset;
     for (let i = 1; i < lines.length; i++) {
@@ -65,16 +88,16 @@ function output(str) {
         yOffset +=
             1 +
                 ~~(line.length /
-                    (typeof node_process_1.stdout.getWindowSize !== "function"
+                    (typeof stdout.getWindowSize !== "function"
                         ? 80
-                        : node_process_1.stdout.getWindowSize()[0]));
+                        : stdout.getWindowSize()[0]));
         if (maxYOffset < yOffset)
             maxYOffset = yOffset;
         xOffset =
             line.length %
-                (typeof node_process_1.stdout.getWindowSize !== "function"
+                (typeof stdout.getWindowSize !== "function"
                     ? 80
-                    : node_process_1.stdout.getWindowSize()[0]);
+                    : stdout.getWindowSize()[0]);
     }
     // stdout.moveCursor(-xOffset, -yOffset);
     // const pos = "" + xOffset + "," + yOffset;
@@ -82,13 +105,13 @@ function output(str) {
     // stdout.moveCursor(xOffset - pos.length, yOffset);
 }
 function moveCursor(x, y) {
-    if (!node_process_1.stdout.isTTY)
+    if (!stdout.isTTY)
         return;
     xOffset += x;
     yOffset += y;
     if (maxYOffset < yOffset)
         maxYOffset = yOffset;
-    node_process_1.stdout.moveCursor(x, y);
+    stdout.moveCursor(x, y);
 }
 function moveCursorTo(x, y) {
     moveCursor(x - xOffset, y - yOffset);
@@ -106,7 +129,7 @@ function makeSelectionSuperInternal(action, extra = () => { }) {
     cleanup();
     extra();
     if (listener !== undefined)
-        node_process_1.stdin.removeListener("data", listener);
+        stdin.removeListener("data", listener);
     return action();
 }
 function makeSelectionInternal(option, extra) {
@@ -132,22 +155,21 @@ function makeSelectionQuietly(option) {
 }
 let listener;
 function cleanup() {
-    output(exports.NORMAL_COLOR);
-    output(exports.SHOW_CURSOR);
+    output(NORMAL_COLOR);
+    output(SHOW_CURSOR);
 }
-function choice(heading, options, opts) {
+export function choice(heading, options, opts) {
     return new Promise((resolve, reject) => {
-        var _a, _b, _c;
         if (options.length === 0) {
-            console.log((opts === null || opts === void 0 ? void 0 : opts.errorMessage) || "There are no options.");
+            console.log(opts?.errorMessage || "There are no options.");
             process.exit(1);
         }
-        if (options.length === 1 && (opts === null || opts === void 0 ? void 0 : opts.disableAutoPick) !== true) {
-            if ((0, args_1.getArgs)().length > 0 &&
-                ((0, args_1.getArgs)()[0] === options[0].long ||
-                    (0, args_1.getArgs)()[0] === `-${options[0].short}`))
-                (0, args_1.getArgs)().splice(0, 1);
-            const prom = ((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) === true
+        if (options.length === 1 && opts?.disableAutoPick !== true) {
+            if (getArgs().length > 0 &&
+                (getArgs()[0] === options[0].long ||
+                    getArgs()[0] === `-${options[0].short}`))
+                getArgs().splice(0, 1);
+            const prom = opts?.invertedQuiet?.cmd === true
                 ? makeSelection(options[0])
                 : makeSelectionQuietly(options[0]);
             prom.then(resolve);
@@ -158,15 +180,15 @@ function choice(heading, options, opts) {
             short: "x",
             long: "x",
             text: "exit",
-            action: () => (0, utils_1.abort)(),
+            action: () => abort(),
         });
         const quick = {};
         const str = [heading + "\n"];
         for (let i = 0; i < options.length; i++) {
             const o = options[i];
-            if ((0, args_1.getArgs)()[0] === o.long || (0, args_1.getArgs)()[0] === `-${o.short}`) {
-                (0, args_1.getArgs)().splice(0, 1);
-                const prom = ((_b = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _b === void 0 ? void 0 : _b.cmd) === true
+            if (getArgs()[0] === o.long || getArgs()[0] === `-${o.short}`) {
+                getArgs().splice(0, 1);
+                const prom = opts?.invertedQuiet?.cmd === true
                     ? makeSelection(o)
                     : makeSelectionQuietly(o);
                 prom.then(resolve);
@@ -182,71 +204,70 @@ function choice(heading, options, opts) {
             const before = o.text.substring(0, index);
             const after = o.text.substring(index + o.long.length);
             str.push(before);
-            str.push(exports.YELLOW);
+            str.push(YELLOW);
             str.push(o.long);
-            str.push(exports.NORMAL_COLOR);
+            str.push(NORMAL_COLOR);
             str.push(after);
             str.push("\n");
         }
-        let pos = (opts === null || opts === void 0 ? void 0 : opts.def) || 0;
-        if ((0, args_1.getArgs)().length > 0) {
-            const arg = (0, args_1.getArgs)().splice(0, 1)[0];
+        let pos = opts?.def || 0;
+        if (getArgs().length > 0) {
+            const arg = getArgs().splice(0, 1)[0];
             if (arg === "_") {
-                const prom = ((_c = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _c === void 0 ? void 0 : _c.cmd) === true
+                const prom = opts?.invertedQuiet?.cmd === true
                     ? makeSelection(options[pos])
                     : makeSelectionQuietly(options[pos]);
                 prom.then(resolve);
                 prom.catch(reject);
                 return;
             }
-            else if (contexts_1.CONTEXTS[arg] !== undefined)
-                output(contexts_1.CONTEXTS[arg](arg) + "\n");
+            else if (CONTEXTS[arg] !== undefined)
+                output(CONTEXTS[arg](arg) + "\n");
             else
-                output(`${exports.RED}Invalid argument in the current context: ${arg}${exports.NORMAL_COLOR}\n`);
-            (0, args_1.getArgs)().splice(0, (0, args_1.getArgs)().length);
+                output(`${RED}Invalid argument in the current context: ${arg}${NORMAL_COLOR}\n`);
+            getArgs().splice(0, getArgs().length);
         }
         output(" \n");
-        output(exports.HIDE_CURSOR);
+        output(HIDE_CURSOR);
         output(str.join(""));
-        if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
+        if (!stdin.isTTY || stdin.setRawMode === undefined) {
             console.log("This console does not support TTY, please use the 'mmk'-command instead.");
             process.exit(1);
         }
-        output(exports.YELLOW);
+        output(YELLOW);
         moveCursor(0, -options.length + pos);
         output(`>`);
         moveCursor(-1, 0);
         // on any data into stdin
-        node_process_1.stdin.on("data", (listener = (key) => {
-            var _a;
+        stdin.on("data", (listener = (key) => {
             const k = key.toString();
             // moveCursor(0, options.length - pos);
             // //let l = JSON.stringify(key);
             // //output(l);
             // stdout.write("" + yOffset);
             // moveCursor(-("" + yOffset).length, -options.length + pos);
-            if (k === exports.ENTER) {
-                const prom = ((_a = opts === null || opts === void 0 ? void 0 : opts.invertedQuiet) === null || _a === void 0 ? void 0 : _a.cmd) !== false
+            if (k === ENTER) {
+                const prom = opts?.invertedQuiet?.cmd !== false
                     ? makeSelection(options[pos])
                     : makeSelectionQuietly(options[pos]);
                 prom.then(resolve);
                 prom.catch(reject);
                 return;
             }
-            else if (k === exports.UP && pos <= 0) {
+            else if (k === UP && pos <= 0) {
                 return;
             }
-            else if (k === exports.UP) {
+            else if (k === UP) {
                 pos--;
                 output(` `);
                 moveCursor(-1, -1);
                 output(`>`);
                 moveCursor(-1, 0);
             }
-            else if (k === exports.DOWN && pos >= options.length - 1) {
+            else if (k === DOWN && pos >= options.length - 1) {
                 return;
             }
-            else if (k === exports.DOWN) {
+            else if (k === DOWN) {
                 pos++;
                 output(` `);
                 moveCursor(-1, 1);
@@ -266,7 +287,7 @@ function choice(heading, options, opts) {
 }
 const SELECTED_MARK = "✔";
 const NOT_SELECTED_MARK = "_";
-function multiSelect(selection, after, errorMessage) {
+export function multiSelect(selection, after, errorMessage) {
     return new Promise((resolve, reject) => {
         // options.push({
         //   short: "x",
@@ -279,19 +300,19 @@ function multiSelect(selection, after, errorMessage) {
             console.log(errorMessage);
             process.exit(1);
         }
-        if ((0, args_1.getArgs)().length > 0) {
-            const arg = (0, args_1.getArgs)()[0];
+        if (getArgs().length > 0) {
+            const arg = getArgs()[0];
             const es = arg.split(",");
             const result = {};
             keys.forEach((e) => (result[e] = false));
             const illegal = es.filter((e) => !keys.includes(e));
             if (illegal.length > 0) {
-                output(`${exports.RED}Invalid arguments in the current context: ${illegal.join(", ")}${exports.NORMAL_COLOR}\n`);
+                output(`${RED}Invalid arguments in the current context: ${illegal.join(", ")}${NORMAL_COLOR}\n`);
             }
             else {
                 es.forEach((e) => (result[e] = true));
             }
-            (0, args_1.getArgs)().splice(0, (0, args_1.getArgs)().length);
+            getArgs().splice(0, getArgs().length);
             const prom = makeSelectionSuperInternal(() => after(selection));
             prom.then(resolve);
             prom.catch(reject);
@@ -309,26 +330,26 @@ function multiSelect(selection, after, errorMessage) {
         str.push(`  [s] submit\n`);
         str.push(`  [x] exit\n`);
         output(" \n");
-        output(exports.HIDE_CURSOR);
+        output(HIDE_CURSOR);
         output(str.join(""));
-        if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
+        if (!stdin.isTTY || stdin.setRawMode === undefined) {
             console.log("This console does not support TTY, please use the 'mmk'-command instead.");
             process.exit(1);
         }
         let pos = 0;
-        output(exports.YELLOW);
+        output(YELLOW);
         moveCursor(0, -(keys.length + 2) + pos);
         output(`>`);
         moveCursor(-1, 0);
         // on any data into stdin
-        node_process_1.stdin.on("data", (listener = (key) => {
+        stdin.on("data", (listener = (key) => {
             const k = key.toString();
             // moveCursor(0, options.length - pos);
             // //let l = JSON.stringify(key);
             // //output(l);
             // stdout.write("" + yOffset);
             // moveCursor(-("" + yOffset).length, -options.length + pos);
-            if (k === exports.ENTER) {
+            if (k === ENTER) {
                 if (pos === keys.length) {
                     // Submit
                     const selected = keys
@@ -353,7 +374,7 @@ function multiSelect(selection, after, errorMessage) {
                         short: "x",
                         long: "x",
                         text: "exit",
-                        action: () => (0, utils_1.abort)(),
+                        action: () => abort(),
                     });
                     prom.then(resolve);
                     prom.catch(reject);
@@ -362,27 +383,27 @@ function multiSelect(selection, after, errorMessage) {
                 else {
                     const sel = (selection[keys[pos]] = !selection[keys[pos]]);
                     moveCursor(2, 0);
-                    output(exports.NORMAL_COLOR);
+                    output(NORMAL_COLOR);
                     output(sel ? SELECTED_MARK : NOT_SELECTED_MARK);
-                    output(exports.YELLOW);
+                    output(YELLOW);
                     moveCursor(-3, 0);
                 }
                 return;
             }
-            else if (k === exports.UP && pos <= 0) {
+            else if (k === UP && pos <= 0) {
                 return;
             }
-            else if (k === exports.UP) {
+            else if (k === UP) {
                 pos--;
                 output(` `);
                 moveCursor(-1, -1);
                 output(`>`);
                 moveCursor(-1, 0);
             }
-            else if (k === exports.DOWN && pos >= keys.length + 2 - 1) {
+            else if (k === DOWN && pos >= keys.length + 2 - 1) {
                 return;
             }
-            else if (k === exports.DOWN) {
+            else if (k === DOWN) {
                 pos++;
                 output(` `);
                 moveCursor(-1, 1);
@@ -394,7 +415,7 @@ function multiSelect(selection, after, errorMessage) {
                     short: "x",
                     long: "x",
                     text: "exit",
-                    action: () => (0, utils_1.abort)(),
+                    action: () => abort(),
                 });
                 prom.then(resolve);
                 prom.catch(reject);
@@ -423,8 +444,8 @@ function multiSelect(selection, after, errorMessage) {
 let interval;
 let spinnerIndex = 0;
 const SPINNER = ["│", "/", "─", "\\"];
-function spinner_start() {
-    if (!node_process_1.stdout.isTTY)
+export function spinner_start() {
+    if (!stdout.isTTY)
         return;
     interval = setInterval(spin, 200);
 }
@@ -432,24 +453,33 @@ function spin() {
     output(SPINNER[(spinnerIndex = (spinnerIndex + 1) % SPINNER.length)]);
     moveCursor(-1, 0);
 }
-function spinner_stop() {
+export function spinner_stop() {
     if (interval !== undefined) {
         clearInterval(interval);
         interval = undefined;
     }
 }
-var Visibility;
+export var Visibility;
 (function (Visibility) {
     Visibility[Visibility["Secret"] = 0] = "Secret";
     Visibility[Visibility["Public"] = 1] = "Public";
-})(Visibility || (exports.Visibility = Visibility = {}));
-function shortText(prompt, description, defaultValueArg, hide = Visibility.Public) {
+})(Visibility || (Visibility = {}));
+export var Formatting;
+(function (Formatting) {
+    Formatting[Formatting["Normal"] = 0] = "Normal";
+    Formatting[Formatting["Minimal"] = 1] = "Minimal";
+})(Formatting || (Formatting = {}));
+export function shortText(prompt, description, defaultValueArg, options) {
     return new Promise((resolve) => {
+        const hide = options?.hide === undefined ? Visibility.Public : options.hide;
+        const formatting = options?.formatting === undefined
+            ? Formatting.Normal
+            : options.formatting;
         if (hide === Visibility.Secret)
             hasSecret = true;
         const defaultValue = defaultValueArg === null ? "" : defaultValueArg;
-        if ((0, args_1.getArgs)()[0] !== undefined) {
-            const result = (0, args_1.getArgs)()[0] === "_" ? defaultValue : (0, args_1.getArgs)()[0];
+        if (getArgs()[0] !== undefined) {
+            const result = getArgs()[0] === "_" ? defaultValue : getArgs()[0];
             command +=
                 " " +
                     (result.includes(" ")
@@ -457,33 +487,35 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
                         : result.length === 0
                             ? "_"
                             : result);
-            (0, args_1.getArgs)().splice(0, 1);
+            getArgs().splice(0, 1);
             moveToBottom();
             cleanup();
             if (listener !== undefined)
-                node_process_1.stdin.removeListener("data", listener);
+                stdin.removeListener("data", listener);
             resolve(result);
             return;
         }
         let str = prompt;
-        if (defaultValue === "")
-            str += ` (${exports.YELLOW}optional${exports.NORMAL_COLOR})`;
-        else
-            str += ` (suggestion: ${exports.YELLOW}${defaultValue}${exports.NORMAL_COLOR})`;
-        str += ": ";
+        if (formatting === Formatting.Normal) {
+            if (defaultValue === "")
+                str += ` (${YELLOW}optional${NORMAL_COLOR})`;
+            else
+                str += ` (suggestion: ${YELLOW}${defaultValue}${NORMAL_COLOR})`;
+            str += ": ";
+        }
         output(" \n");
         output(str);
         const [prevX, prevY] = getCursorPosition();
         output("\n");
         moveCursorTo(prevX, prevY);
-        if (!node_process_1.stdin.isTTY || node_process_1.stdin.setRawMode === undefined) {
+        if (!stdin.isTTY || stdin.setRawMode === undefined) {
             console.log("This console does not support TTY, please use the 'mmk'-command instead.");
             process.exit(1);
         }
         let beforeCursor = "";
         let afterCursor = "";
         // on any data into stdin
-        node_process_1.stdin.on("data", (listener = (key) => {
+        stdin.on("data", (listener = (key) => {
             const k = key.toString();
             // moveCursor(-str.length, 0);
             // const l = JSON.stringify(key);
@@ -491,7 +523,7 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
             // output("" + afterCursor.length);
             // moveCursor(str.length - l.length, 0);
             // moveCursor(-l.length, -options.length + pos);
-            if (k === exports.ENTER) {
+            if (k === ENTER) {
                 moveToBottom();
                 cleanup();
                 const combinedStr = beforeCursor + afterCursor;
@@ -508,55 +540,55 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
                 }
                 output("\n");
                 if (listener !== undefined)
-                    node_process_1.stdin.removeListener("data", listener);
+                    stdin.removeListener("data", listener);
                 resolve(result);
                 return;
             }
-            else if (k === exports.UP || k === exports.DOWN) {
+            else if (k === UP || k === DOWN) {
             }
-            else if (k === exports.ESCAPE) {
+            else if (k === ESCAPE) {
                 const [prevX, prevY] = getCursorPosition();
                 moveCursor(-str.length - beforeCursor.length, 1);
                 output(description);
                 moveCursorTo(prevX, prevY);
             }
-            else if (k === exports.LEFT && beforeCursor.length > 0) {
+            else if (k === LEFT && beforeCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 afterCursor =
                     beforeCursor.charAt(beforeCursor.length - 1) + afterCursor;
                 beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);
-                node_process_1.stdout.clearLine(1);
+                stdout.clearLine(1);
                 output(hide === Visibility.Secret
                     ? (beforeCursor + afterCursor).replace(/./g, "*")
                     : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (k === exports.RIGHT && afterCursor.length > 0) {
+            else if (k === RIGHT && afterCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += afterCursor.charAt(0);
                 afterCursor = afterCursor.substring(1);
-                node_process_1.stdout.clearLine(1);
+                stdout.clearLine(1);
                 output(hide === Visibility.Secret
                     ? (beforeCursor + afterCursor).replace(/./g, "*")
                     : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (k === exports.DELETE && afterCursor.length > 0) {
+            else if (k === DELETE && afterCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 afterCursor = afterCursor.substring(1);
-                node_process_1.stdout.clearLine(1);
+                stdout.clearLine(1);
                 output(hide === Visibility.Secret
                     ? (beforeCursor + afterCursor).replace(/./g, "*")
                     : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if ((k === exports.BACKSPACE ||
+            else if ((k === BACKSPACE ||
                 k.charCodeAt(0) === 8 ||
                 k.charCodeAt(0) === 127) &&
                 beforeCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor = beforeCursor.substring(0, beforeCursor.length - 1);
-                node_process_1.stdout.clearLine(1);
+                stdout.clearLine(1);
                 output(hide === Visibility.Secret
                     ? (beforeCursor + afterCursor).replace(/./g, "*")
                     : beforeCursor + afterCursor);
@@ -565,7 +597,7 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
             else if (/^[A-Za-z0-9@_, .\-/:;#=&*?!"'`^%£$€+<>()\[\]{}\\]+$/.test(k)) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += k;
-                node_process_1.stdout.clearLine(1);
+                stdout.clearLine(1);
                 output(hide === Visibility.Secret
                     ? (beforeCursor + afterCursor).replace(/./g, "*")
                     : beforeCursor + afterCursor);
@@ -576,7 +608,30 @@ function shortText(prompt, description, defaultValueArg, hide = Visibility.Publi
         }));
     });
 }
-function exit() {
+let seconds = 0;
+export function timer_start(suffix = "") {
+    if (!stdout.isTTY)
+        return;
+    seconds = 0;
+    const out = seconds.toString().padStart(3, " ") + suffix;
+    output(out);
+    interval = setInterval(() => time(suffix), 1000);
+}
+function time(suffix) {
+    seconds++;
+    const out = seconds.toString().padStart(3, " ") + suffix;
+    moveCursor(-out.length, 0);
+    output(out);
+}
+export function timer_stop() {
+    if (interval !== undefined) {
+        clearInterval(interval);
+        interval = undefined;
+        return true;
+    }
+    return false;
+}
+export function exit() {
     moveToBottom();
     cleanup();
 }

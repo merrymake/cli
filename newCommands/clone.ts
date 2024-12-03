@@ -1,19 +1,18 @@
 import fs from "fs";
-import { GIT_HOST } from "../config";
-import { choice } from "../prompt";
+import { GIT_HOST } from "../config.js";
+import { choice } from "../prompt.js";
+import { OrganizationId, PathToOrganization } from "../types.js";
 import {
   OrgFile,
-  Path,
   addToExecuteQueue,
   execPromise,
   finish,
-  output2,
+  outputGit,
   sshReq,
   toFolderName,
-} from "../utils";
-import { ToBeStructure, ensureGroupStructure } from "./fetch";
-import { listOrgs } from "./org";
-import { OrganizationId, PathToOrganization } from "../types";
+} from "../utils.js";
+import { ToBeStructure, ensureGroupStructure } from "./fetch.js";
+import { listOrgs } from "./org.js";
 
 export async function do_clone(
   struct: ToBeStructure,
@@ -22,7 +21,7 @@ export async function do_clone(
   organizationId: OrganizationId
 ) {
   try {
-    output2(`Cloning ${displayName}...`);
+    outputGit(`Cloning ${displayName}...`);
     fs.mkdirSync(`${folderName}/.merrymake`, { recursive: true });
     const orgFile: OrgFile = { organizationId: organizationId.toString() };
     fs.writeFileSync(

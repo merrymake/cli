@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ADJECTIVE = exports.NOUN = void 0;
-exports.NOUN = [
+export const NOUN = [
     "advantage",
     "advertisement",
     "advice",
@@ -103,7 +100,7 @@ exports.NOUN = [
     "transport",
     "turnover",
 ];
-exports.ADJECTIVE = [
+export const ADJECTIVE = [
     "absent-minded",
     "abstruse",
     "absurd",

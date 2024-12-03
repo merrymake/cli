@@ -1,16 +1,19 @@
 import { MerrymakeCrypto } from "@merrymake/secret-lib";
 import fs from "fs";
-import path from "path";
-import { GIT_HOST } from "../config";
-import { Option, Visibility, choice, shortText } from "../prompt";
-import { OrganizationId, PathToOrganization, ServiceGroupId } from "../types";
+import { GIT_HOST } from "../config.js";
+import { Option, Visibility, choice, shortText } from "../prompt.js";
+import {
+  OrganizationId,
+  PathToOrganization,
+  ServiceGroupId,
+} from "../types.js";
 import {
   addToExecuteQueue,
   execPromise,
   finish,
-  output2,
+  outputGit,
   sshReq,
-} from "../utils";
+} from "../utils.js";
 
 async function do_envvar(
   pathToOrganization: PathToOrganization,
@@ -38,7 +41,7 @@ async function do_envvar(
     } else {
       val = value;
     }
-    output2(
+    outputGit(
       await sshReq(
         `envvar-set`,
         key,
@@ -160,7 +163,7 @@ async function envvar_key_visible(
       "Value",
       "The value...",
       "",
-      secret === true ? Visibility.Secret : Visibility.Public
+      secret === true ? { hide: Visibility.Secret } : undefined
     ).then();
     if (value !== "")
       return envvar_key_visible_value(

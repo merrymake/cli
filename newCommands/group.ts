@@ -1,13 +1,68 @@
 import fs from "fs";
-import { shortText } from "../prompt";
+import { choice, Option, shortText } from "../prompt.js";
 import {
   Organization,
   OrganizationId,
   PathToServiceGroup,
+  ServiceGroup,
   ServiceGroupId,
-} from "../types";
-import { sshReq, toFolderName } from "../utils";
-import { repo_create } from "./repo";
+} from "../types.js";
+import { addToExecuteQueue, finish, sshReq, toFolderName } from "../utils.js";
+import { repo_create } from "./repo.js";
+
+export async function do_deleteServiceGroup(
+  serviceGroup: ServiceGroup,
+  displayName: string
+) {
+  try {
+    console.log(`Deleting service group '${displayName}'...`);
+    const reply = await sshReq(`group-delete`, serviceGroup.id.toString());
+    console.log(reply);
+    if (fs.existsSync(serviceGroup.pathTo.toString()))
+      fs.renameSync(
+        serviceGroup.pathTo.toString(),
+        `(deleted) ${serviceGroup.pathTo}`
+      );
+  } catch (e) {
+    throw e;
+  }
+}
+
+function deleteServiceGroupId(serviceGroup: ServiceGroup, displayName: string) {
+  addToExecuteQueue(async () =>
+    do_deleteServiceGroup(serviceGroup, displayName)
+  );
+  return finish();
+}
+
+export async function deleteServiceGroup(organizationId: OrganizationId) {
+  try {
+    const resp = await sshReq(`group-list`, organizationId.toString());
+    if (!resp.startsWith("[")) throw resp;
+    const groups: { id: string; name: string }[] = JSON.parse(resp);
+    const options: Option[] = groups.map((group) => {
+      const folderName = toFolderName(group.name);
+      return {
+        long: folderName,
+        text: `Delete ${group.name} (${folderName})`,
+        action: () =>
+          deleteServiceGroupId(
+            {
+              id: new ServiceGroupId(group.id),
+              pathTo: new PathToServiceGroup(folderName),
+            },
+            group.name
+          ),
+      };
+    });
+    return await choice(
+      "Which service group would you like to delete?",
+      options
+    ).then();
+  } catch (e) {
+    throw e;
+  }
+}
 
 export async function do_createServiceGroup(
   path: PathToServiceGroup,

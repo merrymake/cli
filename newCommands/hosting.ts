@@ -1,31 +1,25 @@
 import fs from "fs";
-import {
-  API_URL,
-  FINGERPRINT,
-  GIT_HOST,
-  MERRYMAKE_IO,
-  SPECIAL_FOLDERS,
-} from "../config";
-import { Option, choice, shortText } from "../prompt";
+import { API_URL, FINGERPRINT, GIT_HOST, SPECIAL_FOLDERS } from "../config.js";
+import { Option, choice, shortText } from "../prompt.js";
 import {
   Organization,
   Path,
   PathTo,
-  Repository,
   RepositoryId,
+  RepositoryWithId,
   ServiceGroup,
   ServiceGroupId,
-} from "../types";
+} from "../types.js";
 import {
   addToExecuteQueue,
   execPromise,
   finish,
   getFiles,
-  output2,
+  outputGit,
   sshReq,
   toFolderName,
-} from "../utils";
-import { ToBeStructure, do_fetch, ensureGroupStructure } from "./fetch";
+} from "../utils.js";
+import { do_fetch } from "./fetch.js";
 
 export async function do_create_deployment_agent(
   organization: Organization,
@@ -33,7 +27,7 @@ export async function do_create_deployment_agent(
   file: string
 ) {
   try {
-    output2("Creating service user...");
+    outputGit("Creating service user...");
     const cmd = [`user-create-service`, organization.id.toString()];
     if (name !== "") cmd.push(`--name`, name);
     const key = await sshReq(...cmd);
@@ -76,7 +70,7 @@ git config --global user.email "support@merrymake.eu"
 git config --global user.name "Merrymake"
 git add -A && (git diff-index --quiet HEAD || git commit -m 'Deploy from BitBucket')
 export RES=$(git push merrymake HEAD:main --force 2>&1); echo "\${RES}"
-case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succeeds"*) exit 0 ;; *"Processed events"*) exit 0 ;; *) echo "Deployment failed"; exit -1 ;; esac`
+case $RES in "Everything up-to-date"*) exit 0 ;; *"Releasing service"*) exit 0 ;; *"Processed events"*) exit 0 ;; *) echo "Deployment failed"; exit -1 ;; esac`
     );
     const pipelineFile = [
       `pipelines:
@@ -97,7 +91,7 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
       Object.keys(group.repositories).forEach((repositoryId) => {
         const repositoryDisplayName = group.repositories[repositoryId];
         const folderName = toFolderName(repositoryDisplayName);
-        const repository: Repository = {
+        const repository: RepositoryWithId = {
           pathTo: serviceGroup.pathTo.with(folderName),
           id: new RepositoryId(repositoryId),
         };
@@ -108,7 +102,7 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
     });
     for (let i = 0; i < folders.length; i++) {
       const { localPath, remotePath } = folders[i];
-      output2(`Processing ${localPath}`);
+      outputGit(`Processing ${localPath}`);
       try {
         await execPromise(`git fetch`, localPath.toString());
         await execPromise(`git reset origin/main`, localPath.toString());
@@ -124,6 +118,12 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"if/when the smoke test succee
       pipelineFile.join("\n")
     );
     await execPromise(`git init`, organization.pathTo.toString());
+    // For mac
+    await execPromise(
+      `chmod +x .merrymake/deploy.sh`,
+      organization.pathTo.toString()
+    );
+    // For windows
     await execPromise(
       `git update-index --add --chmod=+x .merrymake/deploy.sh`,
       organization.pathTo.toString()

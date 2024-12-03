@@ -1,26 +1,16 @@
 import { stdin } from "node:process";
-import { initializeArgs } from "./args";
-import { CTRL_C, exit } from "./prompt";
-import { abort, checkVersion, setDryrun } from "./utils";
-import { addKnownHost } from "./newCommands/register";
-import { index } from "./newCommands";
+import { initializeArgs } from "./args.js";
+import { index } from "./newCommands/index.js";
+import { addKnownHost } from "./newCommands/register.js";
+import { CTRL_C, exit } from "./prompt.js";
+import { abort, checkVersion, package_json, setDryrun } from "./utils.js";
 
-// if (!stdin.isTTY || stdin.setRawMode === undefined) {
-//   console.log(
-//     "This console does not support TTY, please use 'winpty mm' or the 'mmk'-command instead."
-//   );
-//   process.exit(1);
-// }
-
-// TODO make type for command
-
-// if (
-//   process.argv[0]
-//     .substring(process.argv[0].lastIndexOf(path.sep) + 1)
-//     .startsWith("node")
-// )
-process.argv.splice(0, 1);
-process.argv.splice(0, 1);
+process.argv.splice(0, 1); // Remove node
+process.argv.splice(0, 1); // Remove index
+if (process.argv[0].endsWith("version")) {
+  console.log(package_json.version);
+  process.exit(0);
+}
 if (process.argv[0] === "dryrun") {
   setDryrun();
   process.argv.splice(0, 1);
@@ -62,13 +52,14 @@ if (stdin.isTTY) {
   const token: never = await index();
 })().catch((e) => {
   exit();
-  if (("" + e).includes("Permission denied")) {
+  const eStr = "" + e;
+  if (eStr.includes("Permission denied")) {
     addKnownHost();
     console.log(
       "\x1b[31mAn error occurred, please try again. If the problem persists reach out on http://discord.merrymake.eu \x1b[0m",
       e
     );
   }
-  console.log(`\x1b[31mERROR ${e.toString().trimEnd()}\x1b[0m`);
+  console.log(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
   process.exit(0);
 });

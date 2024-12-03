@@ -1,9 +1,9 @@
-import { getArgs, initializeArgs } from "../args";
-import { alignLeft, alignRight, printTableHeader } from "../executors";
-import { Option, choice, shortText } from "../prompt";
-import { addToExecuteQueue, finish, output2, sshReq } from "../utils";
-import { post } from "../newCommands/post";
-import { OrganizationId } from "../types";
+import { getArgs, initializeArgs } from "../args.js";
+import { alignLeft, alignRight, printTableHeader } from "../executors.js";
+import { post } from "../newCommands/post.js";
+import { Option, choice, shortText } from "../prompt.js";
+import { OrganizationId } from "../types.js";
+import { addToExecuteQueue, finish, outputGit, sshReq } from "../utils.js";
 
 export async function do_queue_time(org: string, time: number) {
   try {
@@ -15,7 +15,7 @@ export async function do_queue_time(org: string, time: number) {
       r: string;
       s: string;
     }[] = JSON.parse(resp);
-    output2(
+    outputGit(
       printTableHeader("", {
         Id: 6,
         River: 12,
@@ -25,7 +25,7 @@ export async function do_queue_time(org: string, time: number) {
       })
     );
     queue.forEach((x) =>
-      output2(
+      outputGit(
         `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${alignLeft(
           x.s,
           7
@@ -45,8 +45,8 @@ async function queue_event(id: string, river: string) {
     const resout = res.output;
     delete res.output;
     console.log(res);
-    output2("Output:");
-    output2(resout);
+    outputGit("Output:");
+    outputGit(resout);
     return finish();
     // return choice(
     //   "Do you want to replay this service invocation?",
@@ -110,7 +110,7 @@ async function queue_time(org: string) {
       )
     ).getTime();
     while (isNaN(d)) {
-      output2("Invalid date, please try again.");
+      outputGit("Invalid date, please try again.");
       d = new Date(
         await shortText(
           "Time",

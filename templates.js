@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.templates = exports.languages = void 0;
-exports.languages = {
+export const languages = {
     python: { long: "python", short: "p", projectType: "python" },
     csharp: { long: "c#", short: "#", projectType: "csharp" },
     java: { long: "java", short: "j", projectType: "gradle" },
@@ -10,7 +7,7 @@ exports.languages = {
     go: { long: "go", short: "g", projectType: "go" },
     javascript: { long: "javascript", short: "¤", projectType: "nodejs" },
 };
-exports.templates = {
+export const templates = {
     basic: {
         long: "basic",
         short: "b",

@@ -1,23 +1,23 @@
 import fs from "fs";
-import { GIT_HOST } from "../config";
+import { GIT_HOST } from "../config.js";
 import {
   Organization,
   OrganizationId,
   PathToOrganization,
-  Repository,
   RepositoryId,
+  RepositoryWithId,
   ServiceGroup,
   ServiceGroupId,
-} from "../types";
+} from "../types.js";
 import {
   addToExecuteQueue,
   directoryNames,
   execPromise,
   finish,
-  output2,
+  outputGit,
   sshReq,
   toFolderName,
-} from "../utils";
+} from "../utils.js";
 
 type DisplayName = string;
 type RepositoryStructure = { [repositoryId: string]: DisplayName };
@@ -159,7 +159,7 @@ export async function ensureGroupStructure(
 async function ensureServiceFolder(
   organizationId: OrganizationId,
   groupId: ServiceGroupId,
-  repository: Repository
+  repository: RepositoryWithId
 ) {
   process.stdout.write(".");
   const dir = repository.pathTo.toString();
@@ -198,7 +198,7 @@ rm fetch.bat fetch.sh`,
 
 export async function do_fetch(organization: Organization) {
   try {
-    output2(`Fetching...`);
+    outputGit(`Fetching...`);
     const reply = await sshReq(
       `organization-fetch`,
       organization.id.toString()

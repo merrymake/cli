@@ -5,9 +5,8 @@ import {
 import { ExecOptions, spawn } from "child_process";
 import fs from "fs";
 import { stdout } from "process";
-import { getArgs } from "./args";
-import { GREEN, NORMAL_COLOR, RED, YELLOW } from "./prompt";
-import { fetchOrgRaw, getCache, output2, sshReq, urlReq } from "./utils";
+import { getArgs } from "./args.js";
+import { outputGit, sshReq } from "./utils.js";
 
 function spawnPromise(str: string) {
   return new Promise<void>((resolve, reject) => {
@@ -18,10 +17,10 @@ function spawnPromise(str: string) {
     };
     const ls = spawn(cmd, args, options);
     ls.stdout.on("data", (data: Buffer | string) => {
-      output2(data.toString());
+      outputGit(data.toString());
     });
     ls.stderr.on("data", (data: Buffer | string) => {
-      output2(data.toString());
+      outputGit(data.toString());
     });
     ls.on("close", (code) => {
       if (code === 0) resolve();
@@ -33,7 +32,7 @@ function spawnPromise(str: string) {
 export async function do_build() {
   try {
     const projectType = detectProjectType(".");
-    output2(`Building ${projectType} project...`);
+    outputGit(`Building ${projectType} project...`);
     const buildCommands = BUILD_SCRIPT_MAKERS[projectType](".");
     for (let i = 0; i < buildCommands.length; i++) {
       const x = buildCommands[i];
@@ -163,9 +162,9 @@ export async function do_spending(org: string) {
       if (x.mth === null) return;
       const nmth = +x.mth;
       if (mth !== nmth) {
-        if (mth !== 0) output2("");
+        if (mth !== 0) outputGit("");
         mth = nmth;
-        output2(`Month: ${MONTHS[mth - 1]}`);
+        outputGit(`Month: ${MONTHS[mth - 1]}`);
         printTableHeader("", {
           Group: 11,
           Service: 11,
@@ -227,7 +226,7 @@ export async function do_spending(org: string) {
         time_str = time.toFixed(1);
       }
       const hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
-      output2(
+      outputGit(
         `${alignLeft(group, 11)} │ ${alignLeft(service, 11)} │ ${alignLeft(
           hook,
           20
@@ -244,7 +243,7 @@ export async function do_spending(org: string) {
 
 export async function do_delete_group(org: string, group: string) {
   try {
-    output2(await sshReq(`team`, `--delete`, `--org`, org, group));
+    outputGit(await sshReq(`team`, `--delete`, `--org`, org, group));
     if (fs.existsSync(group)) fs.renameSync(group, `(deleted) ${group}`);
   } catch (e) {
     throw e;
@@ -253,7 +252,7 @@ export async function do_delete_group(org: string, group: string) {
 
 export async function do_delete_org(org: string) {
   try {
-    output2(await sshReq(`org`, `--delete`, org));
+    outputGit(await sshReq(`org`, `--delete`, org));
     if (fs.existsSync(org)) fs.renameSync(org, `(deleted) ${org}`);
   } catch (e) {
     throw e;

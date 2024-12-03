@@ -1,16 +1,18 @@
-import { Option, choice, shortText } from "../prompt";
-import { OrganizationId, PathToOrganization } from "../types";
+import { Option, choice, shortText } from "../prompt.js";
+import { OrganizationId, PathToOrganization } from "../types.js";
 import {
-  Path,
   addToExecuteQueue,
+  digits,
   finish,
-  output2,
+  generateString,
+  lowercase,
+  outputGit,
   sshReq,
   toFolderName,
-} from "../utils";
-import { ADJECTIVE, NOUN } from "../words";
-import { checkout, checkout_org, do_clone } from "./clone";
-import { group } from "./group";
+} from "../utils.js";
+import { ADJECTIVE, NOUN } from "../words.js";
+import { checkout, checkout_org, do_clone } from "./clone.js";
+import { group } from "./group.js";
 
 export async function do_createOrganization(
   folderName: string,
@@ -57,17 +59,6 @@ export async function rename(organizationId: OrganizationId) {
   }
 }
 
-const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
-
-function generateString(length: number) {
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-
-  return result;
-}
-
 export function generateOrgName() {
   if (
     process.env["MERRYMAKE_NAME_LENGTH"] !== undefined &&
@@ -75,7 +66,11 @@ export function generateOrgName() {
   ) {
     const base = `org-${new Date().toLocaleDateString().replace(/\//g, "-")}-`;
     return (
-      base + generateString(+process.env["MERRYMAKE_NAME_LENGTH"] - base.length)
+      base +
+      generateString(
+        +process.env["MERRYMAKE_NAME_LENGTH"] - base.length,
+        lowercase + digits
+      )
     );
   } else
     return (
@@ -108,7 +103,7 @@ export async function org() {
 
 export async function do_join(org: string) {
   try {
-    output2(await sshReq(`me-join`, org));
+    outputGit(await sshReq(`me-join`, org));
   } catch (e) {
     throw e;
   }

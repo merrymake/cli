@@ -6,12 +6,14 @@
 ## Fixes and improvements
 -
 
-# NEXT:
-## Breaking changes
--
+# 4.4.0
 ## Added features
+- Basic local `sim`-ulator
+- `delete` service groups
 - Can crete service user with `role`
 ## Fixes and improvements
+- `deploy` asks for a message if there are changed files and colors the deployment output to make it easier to read
+- hide 'pending' users from main view
 - `build` skips library install if up-to-date
 
 # 4.2.0

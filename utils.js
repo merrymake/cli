@@ -1,84 +1,32 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
+import { exec, spawn } from "child_process";
+import fs from "fs";
+import http from "http";
+import https from "https";
+import { readdirSync } from "node:fs";
+import os from "os";
+import path from "path";
+import { SSH_HOST } from "./config.js";
+// IN THE FUTURE: import conf from "./package.json" with {type:"json"};
+import { BLUE, GRAY, GREEN, NORMAL_COLOR, RED, REMOVE_INVISIBLE, YELLOW, exit, output, spinner_start, spinner_stop, timer_start, timer_stop, } from "./prompt.js";
+import { createRequire } from "node:module";
+import { stdout } from "process";
+const require = createRequire(import.meta.url);
+export const package_json = require("./package.json");
+export const lowercase = "abcdefghijklmnopqrstuvwxyz";
+export const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+export const digits = "0123456789";
+export const underscore = "_";
+export const dash = "-";
+export const all = lowercase + uppercase + digits + underscore + dash;
+export function generateString(length, alphabet) {
+    let result = "";
+    for (let i = 0; i < length; i++) {
+        result += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
     }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Path = void 0;
-exports.getFiles = getFiles;
-exports.setDryrun = setDryrun;
-exports.addToExecuteQueue = addToExecuteQueue;
-exports.addExitMessage = addExitMessage;
-exports.abort = abort;
-exports.finish = finish;
-exports.TODO = TODO;
-exports.getCache = getCache;
-exports.saveCache = saveCache;
-exports.fetchOrgRaw = fetchOrgRaw;
-exports.fetchOrg = fetchOrg;
-exports.output2 = output2;
-exports.execPromise = execPromise;
-exports.checkVersion = checkVersion;
-exports.typedKeys = typedKeys;
-exports.execStreamPromise = execStreamPromise;
-exports.spawnPromise = spawnPromise;
-exports.sshReq = sshReq;
-exports.partition = partition;
-exports.urlReq = urlReq;
-exports.directoryNames = directoryNames;
-exports.toFolderName = toFolderName;
-const child_process_1 = require("child_process");
-const fs_1 = __importDefault(require("fs"));
-const http_1 = __importDefault(require("http"));
-const https_1 = __importDefault(require("https"));
-const node_fs_1 = require("node:fs");
-const os_1 = __importDefault(require("os"));
-const path_1 = __importDefault(require("path"));
-const config_1 = require("./config");
-const conf = __importStar(require("./package.json"));
-const prompt_1 = require("./prompt");
-class Path {
+    return result;
+}
+export class Path {
+    offset;
     constructor(offset = ".") {
         this.offset = offset;
         let end = this.offset.length;
@@ -89,7 +37,7 @@ class Path {
             this.offset = ".";
     }
     with(next) {
-        return new Path(path_1.default.join(this.offset, next));
+        return new Path(path.join(this.offset, next));
     }
     withoutLastUp() {
         return new Path(this.offset.substring(0, this.offset.lastIndexOf("..")));
@@ -98,101 +46,140 @@ class Path {
         return this.offset;
     }
 }
-exports.Path = Path;
-function getFiles(path) {
+export function getFiles(path) {
     return getFiles_internal(path, "");
 }
 function getFiles_internal(path, prefix) {
-    if (!fs_1.default.existsSync(path.toString()))
+    if (!fs.existsSync(path.toString()))
         return [];
-    return (0, node_fs_1.readdirSync)(path.toString(), { withFileTypes: true }).flatMap((x) => x.isDirectory()
+    return readdirSync(path.toString(), { withFileTypes: true }).flatMap((x) => x.isDirectory()
         ? getFiles_internal(path.with(x.name), prefix + x.name + "/")
         : [prefix + x.name]);
 }
 const toExecute = [];
 let dryrun = false;
-function setDryrun() {
-    output2(`${prompt_1.BLUE}Dryrun mode, changes will not be performed.${prompt_1.NORMAL_COLOR}`);
+export function setDryrun() {
+    outputGit(`${BLUE}Dryrun mode, changes will not be performed.${NORMAL_COLOR}`);
     dryrun = true;
 }
-function addToExecuteQueue(f) {
+export function addToExecuteQueue(f) {
     if (!dryrun)
         toExecute.push(f);
 }
 let printOnExit = [];
-function addExitMessage(str) {
+export function addExitMessage(str) {
     printOnExit.push(str);
 }
 function printExitMessages() {
-    printOnExit.forEach((x) => (0, prompt_1.output)(x + "\n"));
+    printOnExit.forEach((x) => output(x + "\n"));
 }
-function abort() {
-    (0, prompt_1.exit)();
+export function abort() {
+    exit();
     printExitMessages();
     process.exit(0);
 }
-function finish() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            (0, prompt_1.exit)();
-            for (let i = 0; i < toExecute.length; i++) {
-                yield toExecute[i]();
-            }
-            printExitMessages();
-            process.exit(0);
+export async function finish() {
+    try {
+        exit();
+        for (let i = 0; i < toExecute.length; i++) {
+            await toExecute[i]();
         }
-        catch (e) {
-            console.log("finish");
-            throw e;
-        }
-    });
+        printExitMessages();
+        process.exit(0);
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function TODO() {
+export function TODO() {
     console.log("TODO");
-    (0, prompt_1.exit)();
+    exit();
     process.exit(0);
 }
-function getCache() {
-    if (!fs_1.default.existsSync(`${historyFolder}cache`)) {
+export function getCache() {
+    if (!fs.existsSync(`${historyFolder}cache`)) {
         return { registered: false, hasOrgs: false };
     }
-    return JSON.parse(fs_1.default.readFileSync(`${historyFolder}cache`).toString());
+    return JSON.parse(fs.readFileSync(`${historyFolder}cache`).toString());
 }
-function saveCache(cache) {
-    fs_1.default.writeFileSync(`${historyFolder}cache`, JSON.stringify(cache));
+export function saveCache(cache) {
+    fs.writeFileSync(`${historyFolder}cache`, JSON.stringify(cache));
 }
-function fetchOrgRaw() {
-    if (fs_1.default.existsSync(path_1.default.join(".merrymake", "conf.json"))) {
-        const org = JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(".merrymake", "conf.json")));
-        return { org, serviceGroup: null, pathToRoot: "." + path_1.default.sep };
+export function fetchOrgRaw() {
+    if (fs.existsSync(path.join(".merrymake", "conf.json"))) {
+        const org = JSON.parse("" + fs.readFileSync(path.join(".merrymake", "conf.json")));
+        return { org, serviceGroup: null, pathToRoot: "." + path.sep };
     }
     const cwd = process.cwd().split(/\/|\\/);
     let out = "";
-    let folder = path_1.default.sep;
+    let folder = path.sep;
     let serviceGroup = null;
     for (let i = cwd.length - 1; i >= 0; i--) {
-        if (fs_1.default.existsSync(out + path_1.default.join("..", ".merrymake", "conf.json"))) {
+        if (fs.existsSync(out + path.join("..", ".merrymake", "conf.json"))) {
             serviceGroup = cwd[i];
-            const org = (JSON.parse("" + fs_1.default.readFileSync(path_1.default.join(`${out}..`, `.merrymake`, `conf.json`))));
-            return { org, serviceGroup, pathToRoot: out + ".." + path_1.default.sep };
+            const org = (JSON.parse("" + fs.readFileSync(path.join(`${out}..`, `.merrymake`, `conf.json`))));
+            return { org, serviceGroup, pathToRoot: out + ".." + path.sep };
         }
-        folder = path_1.default.sep + cwd[i] + folder;
-        out += ".." + path_1.default.sep;
+        folder = path.sep + cwd[i] + folder;
+        out += ".." + path.sep;
     }
     return { org: null, serviceGroup: null, pathToRoot: null };
 }
-function fetchOrg() {
+export function fetchOrg() {
     const res = fetchOrgRaw();
     if (res.org === null)
         throw "Not inside a Merrymake organization";
     return res;
 }
-function output2(str) {
-    console.log((str || "")
-        .trimEnd()
+export function printWithPrefix(str, prefix = "") {
+    const prefixLength = prefix.replace(REMOVE_INVISIBLE, "").length;
+    console.log(prefix +
+        str
+            .trimEnd()
+            .split("\n")
+            .flatMap((x) => x
+            .match(new RegExp(`.{1,${stdout.getWindowSize()[0] - prefixLength}}( |$)|.{1,${stdout.getWindowSize()[0] - prefixLength}}`, "g"))
+            .map((x) => x.trimEnd()))
+            .join(`\n${prefix}`));
+}
+export function outputGit(str) {
+    const st = (str || "").trimEnd();
+    if (st.endsWith("elapsed")) {
+        return;
+    }
+    else {
+        const wasRunning = timer_stop();
+        if (wasRunning)
+            process.stdout.write(`\n`);
+    }
+    console.log(st
         .split("\n")
-        .map((x) => x.trimEnd())
+        .map((x) => {
+        const lineParts = x.trimEnd().split("remote: ");
+        const line = lineParts[lineParts.length - 1];
+        const color = line.match(/fail|error|fatal/i) !== null
+            ? RED
+            : line.match(/warn/i) !== null
+                ? YELLOW
+                : line.match(/succe/i) !== null
+                    ? GREEN
+                    : NORMAL_COLOR;
+        const commands = line.split("'mm");
+        for (let i = 1; i < commands.length; i++) {
+            const ind = commands[i].indexOf("'");
+            const cmd = commands[i].substring(0, ind);
+            const rest = commands[i].substring(ind);
+            commands[i] = `'${YELLOW}mm ${cmd}${color}${rest}`;
+        }
+        lineParts[lineParts.length - 1] =
+            color + commands.join("") + NORMAL_COLOR;
+        return lineParts.join(`${GRAY}remote: `);
+    })
         .join("\n"));
+    if (st.endsWith("(this may take a few minutes)...")) {
+        process.stdout.write(`${GRAY}remote: ${NORMAL_COLOR} `);
+        timer_start("s elapsed");
+    }
 }
 function versionIsOlder(old, new_) {
     const os = old.split(".");
@@ -209,10 +196,10 @@ function versionIsOlder(old, new_) {
         return true;
     return false;
 }
-function execPromise(cmd, cwd) {
+export function execPromise(cmd, cwd) {
     return new Promise((resolve, reject) => {
-        const a = (0, child_process_1.exec)(cmd, { cwd }, (error, stdout, stderr) => {
-            const err = (error === null || error === void 0 ? void 0 : error.message) || stderr;
+        const a = exec(cmd, { cwd }, (error, stdout, stderr) => {
+            const err = error?.message || stderr;
             if (err) {
                 reject(stderr || stdout);
             }
@@ -222,37 +209,35 @@ function execPromise(cmd, cwd) {
         });
     });
 }
-const historyFolder = os_1.default.homedir() + "/.merrymake/";
+const historyFolder = os.homedir() + "/.merrymake/";
 const historyFile = "history";
 const updateFile = "last_update_check";
-function checkVersion() {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (!fs_1.default.existsSync(historyFolder))
-            fs_1.default.mkdirSync(historyFolder);
-        const lastCheck = fs_1.default.existsSync(historyFolder + updateFile)
-            ? +fs_1.default.readFileSync(historyFolder + updateFile).toString()
-            : 0;
-        if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
-            try {
-                const call = yield execPromise("npm show @merrymake/cli dist-tags --json");
-                const version = JSON.parse(call);
-                if (versionIsOlder(conf.version, version.latest)) {
-                    addExitMessage(`
+export async function checkVersion() {
+    if (!fs.existsSync(historyFolder))
+        fs.mkdirSync(historyFolder);
+    const lastCheck = fs.existsSync(historyFolder + updateFile)
+        ? +fs.readFileSync(historyFolder + updateFile).toString()
+        : 0;
+    if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
+        try {
+            const call = await execPromise("npm show @merrymake/cli dist-tags --json");
+            const version = JSON.parse(call);
+            if (versionIsOlder(package_json.version, version.latest)) {
+                addExitMessage(`
 New version of merrymake-cli available, ${process.env["UPDATE_MESSAGE"]}`);
-                }
             }
-            catch (e) { }
-            fs_1.default.writeFileSync(historyFolder + updateFile, "" + Date.now());
         }
-    });
+        catch (e) { }
+        fs.writeFileSync(historyFolder + updateFile, "" + Date.now());
+    }
 }
-function typedKeys(o) {
+export function typedKeys(o) {
     return Object.keys(o);
 }
-function execStreamPromise(full, onData, cwd) {
+export function execStreamPromise(full, onData, cwd) {
     return new Promise((resolve, reject) => {
         const [cmd, ...args] = full.split(" ");
-        const p = (0, child_process_1.spawn)(cmd, args, { cwd, shell: "sh" });
+        const p = spawn(cmd, args, { cwd, shell: "sh" });
         p.stdout.on("data", (data) => {
             onData(data.toString());
         });
@@ -261,25 +246,25 @@ function execStreamPromise(full, onData, cwd) {
         });
         p.on("exit", (code) => {
             if (code !== 0)
-                reject();
+                reject("subprocess failed");
             else
                 resolve();
         });
     });
 }
-function spawnPromise(str) {
+export function spawnPromise(str) {
     return new Promise((resolve, reject) => {
         const [cmd, ...args] = str.split(" ");
         const options = {
             cwd: ".",
             shell: "sh",
         };
-        const ls = (0, child_process_1.spawn)(cmd, args, options);
+        const ls = spawn(cmd, args, options);
         ls.stdout.on("data", (data) => {
-            output2(data.toString());
+            outputGit(data.toString());
         });
         ls.stderr.on("data", (data) => {
-            output2(data.toString());
+            outputGit(data.toString());
         });
         ls.on("close", (code) => {
             if (code === 0)
@@ -290,30 +275,28 @@ function spawnPromise(str) {
     });
 }
 function sshReqInternal(cmd) {
-    return execPromise(`ssh -o ConnectTimeout=10 mist@${config_1.SSH_HOST} "${cmd}"`);
+    return execPromise(`ssh -o ConnectTimeout=10 mist@${SSH_HOST} "${cmd}"`);
 }
-function sshReq(...cmd) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            (0, prompt_1.spinner_start)();
-            const result = yield sshReqInternal(cmd
-                .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
-                .join(" "));
-            (0, prompt_1.spinner_stop)();
-            return result;
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+export async function sshReq(...cmd) {
+    try {
+        spinner_start();
+        const result = await sshReqInternal(cmd
+            .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
+            .join(" "));
+        spinner_stop();
+        return result;
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function partition(str, radix) {
+export function partition(str, radix) {
     const index = str.indexOf(radix);
     if (index < 0)
         return [str, ""];
     return [str.substring(0, index), str.substring(index + radix.length)];
 }
-function urlReq(url, method = "GET", data, contentType = "application/json") {
+export function urlReq(url, method = "GET", data, contentType = "application/json") {
     return new Promise((resolve, reject) => {
         const [protocol, fullPath] = url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
         const [base, path] = partition(fullPath, "/");
@@ -324,7 +307,7 @@ function urlReq(url, method = "GET", data, contentType = "application/json") {
                 "Content-Type": contentType,
                 "Content-Length": data.length,
             };
-        const sender = protocol === "http" ? http_1.default : https_1.default;
+        const sender = protocol === "http" ? http : https;
         const req = sender.request({
             host,
             port,
@@ -348,13 +331,13 @@ function urlReq(url, method = "GET", data, contentType = "application/json") {
         req.end();
     });
 }
-function directoryNames(path, exclude) {
-    if (!fs_1.default.existsSync(path.toString()))
+export function directoryNames(path, exclude) {
+    if (!fs.existsSync(path.toString()))
         return [];
-    return fs_1.default
+    return fs
         .readdirSync(path.toString(), { withFileTypes: true })
         .filter((x) => x.isDirectory() && !exclude.includes(x.name) && !x.name.startsWith("."));
 }
-function toFolderName(str) {
+export function toFolderName(str) {
     return str.toLowerCase().replace(/[^a-z0-9\-_]/g, "-");
 }

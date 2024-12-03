@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { GREEN, NORMAL_COLOR } from "./prompt";
-import { Path, directoryNames, fetchOrgRaw } from "./utils";
+import { GREEN, NORMAL_COLOR } from "./prompt.js";
+import { Path, directoryNames, fetchOrgRaw } from "./utils.js";
 
 function downOrg(cmd: string) {
   const folders = fs.readdirSync(".");
@@ -84,16 +84,20 @@ const NOT_ORGANIZATION_CONTEXT = (cmd: string) => {
 };
 
 export const CONTEXTS: { [cmd: string]: (cmd: string) => string } = {
-  rapids: ORGANIZATION_CONTEXT,
-  role: ORGANIZATION_CONTEXT,
-  deploy: SERVICE_CONTEXT,
-  fetch: NOT_SERVICE_CONTEXT,
-  repo: SERVICE_GROUP_CONTEXT,
-  envvar: SERVICE_GROUP_CONTEXT,
-  group: NOT_SERVICE_GROUP_CONTEXT,
-  key: ORGANIZATION_CONTEXT,
-  event: ORGANIZATION_CONTEXT,
-  org: NOT_ORGANIZATION_CONTEXT,
   clone: NOT_ORGANIZATION_CONTEXT,
+  clean: SERVICE_CONTEXT,
+  build: SERVICE_CONTEXT,
+  deploy: SERVICE_CONTEXT,
+  envvar: SERVICE_GROUP_CONTEXT,
+  event: ORGANIZATION_CONTEXT,
+  fetch: NOT_SERVICE_CONTEXT,
+  group: NOT_SERVICE_GROUP_CONTEXT,
+  hosting: NOT_SERVICE_GROUP_CONTEXT,
   join: NOT_ORGANIZATION_CONTEXT,
+  key: ORGANIZATION_CONTEXT,
+  org: NOT_ORGANIZATION_CONTEXT,
+  rapids: ORGANIZATION_CONTEXT,
+  rename: NOT_SERVICE_GROUP_CONTEXT,
+  repo: SERVICE_GROUP_CONTEXT,
+  role: NOT_SERVICE_GROUP_CONTEXT,
 };

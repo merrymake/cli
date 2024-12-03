@@ -1,4 +1,4 @@
-"use strict";
+export {};
 // import fs from "fs";
 // import { key } from "./newCommands/apikey";
 // import { checkout } from "./commands/clone";

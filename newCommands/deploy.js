@@ -1,75 +1,127 @@
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_deploy = do_deploy;
-exports.do_redeploy = do_redeploy;
-exports.deploy = deploy;
-exports.redeploy = redeploy;
-const prompt_1 = require("../prompt");
-const types_1 = require("../types");
-const utils_1 = require("../utils");
-function do_deploy_internal(commit) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const result = [];
-            const onData = (s) => {
-                result.push(s);
-                (0, utils_1.output2)(s);
-            };
-            yield (0, utils_1.execStreamPromise)(`git add -A && ${commit} && git push origin HEAD 2>&1`, onData);
-            return result.join("");
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+import { choice, Formatting, shortText } from "../prompt.js";
+import { addToExecuteQueue, execStreamPromise, finish, outputGit, spawnPromise, } from "../utils.js";
+/*
+[remove .gitignored files]
+[clean workspace]
+*/
+/*
+git add -A
+git diff-index --quiet HEAD 2>/dev/null [exitCode to detect dirty working tree]
+if dirty
+  read MSG
+  git commit -m "MSG"
+git fetch
+git rebase origin/main
+git push origin HEAD:main 2>&1
+if "Everything up to date"
+  ask redeploy?
+  git commit --allow-empty -m "Redeploy (empty)"
+*/
+async function do_deploy_internal(commit) {
+    try {
+        const result = [];
+        const onData = (s) => {
+            result.push(s);
+            outputGit(s);
+        };
+        await execStreamPromise(`git add -A && ${commit} && git push origin HEAD 2>&1`, onData);
+        return result.join("");
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function do_deploy(pathToService) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const before = process.cwd();
-            process.chdir(pathToService.toString());
-            const output = yield do_deploy_internal("(git diff-index --quiet HEAD 2>/dev/null || git commit -m 'Deploy')");
-            process.chdir(before);
-            return !output.startsWith("Everything up-to-date");
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+async function executeAndPrint(command) {
+    try {
+        const result = [];
+        const onData = (s) => {
+            result.push(s);
+            outputGit(s);
+        };
+        await execStreamPromise(command, onData);
+        return result.join("");
+    }
+    catch (e) {
+        throw e;
+    }
+}
+export async function do_deploy(pathToService) {
+    try {
+        const before = process.cwd();
+        process.chdir(pathToService.toString());
+        const output = await do_deploy_internal("(git diff-index --quiet HEAD 2>/dev/null || git commit -m 'Deploy with Merrymake')");
+        process.chdir(before);
+        return !output.startsWith("Everything up-to-date");
+    }
+    catch (e) {
+        throw e;
+    }
 }
 function do_redeploy() {
-    return do_deploy_internal("git commit --allow-empty -m 'Redeploy'");
-}
-function deploy() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const didDeploy = yield do_deploy(new types_1.PathToRepository("."));
-            if (didDeploy)
-                return (0, utils_1.finish)();
-            else
-                return (0, prompt_1.choice)("Would you like to redeploy?", [
-                    {
-                        long: "again",
-                        text: "deploy again",
-                        action: () => redeploy(),
-                    },
-                ], { disableAutoPick: true });
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+    return spawnPromise("git commit --allow-empty -m 'Redeploy with Merrymake' && git push origin HEAD 2>&1");
 }
 function redeploy() {
-    (0, utils_1.addToExecuteQueue)(() => do_redeploy());
-    return (0, utils_1.finish)();
+    addToExecuteQueue(() => do_redeploy());
+    return finish();
+}
+async function rebaseOntoMain() {
+    try {
+        const output = await executeAndPrint(`git fetch && git rebase origin/main && git push origin HEAD:main 2>&1`);
+        if (output.trimEnd().endsWith("Everything up-to-date"))
+            return choice("Would you like to redeploy?", [
+                {
+                    long: "again",
+                    text: "deploy again",
+                    action: () => redeploy(),
+                },
+            ], { disableAutoPick: true });
+        return finish();
+    }
+    catch (e) {
+        throw e;
+    }
+}
+async function getMessage() {
+    try {
+        const message = await shortText("Describe your changes: This commit will ", "Write in future tense 'refactor module X'", null, { formatting: Formatting.Minimal });
+        const msg = message.length === 0
+            ? "[No message]"
+            : message[0].toUpperCase() + message.substring(1);
+        await spawnPromise(`git commit -m "${msg}"`);
+        return rebaseOntoMain();
+    }
+    catch (e) {
+        throw e;
+    }
+}
+export async function deploy() {
+    try {
+        const dirty = await (async () => {
+            try {
+                await spawnPromise(`git add -A && git diff-index --quiet HEAD 2>/dev/null`);
+                return false;
+            }
+            catch (e) {
+                return true;
+            }
+        })();
+        return dirty ? getMessage() : rebaseOntoMain();
+        // const didDeploy = await do_deploy(new PathToRepository("."));
+        // if (didDeploy) return finish();
+        // else
+        //   return choice(
+        //     "Would you like to redeploy?",
+        //     [
+        //       {
+        //         long: "again",
+        //         text: "deploy again",
+        //         action: () => redeploy(),
+        //       },
+        //     ],
+        //     { disableAutoPick: true }
+        //   );
+    }
+    catch (e) {
+        throw e;
+    }
 }

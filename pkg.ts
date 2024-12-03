@@ -7,7 +7,7 @@ if (!stdin.isTTY || stdin.setRawMode === undefined) {
   );
   process.exit(1);
 }
-import { YELLOW, NORMAL_COLOR } from "./prompt";
+import { YELLOW, NORMAL_COLOR } from "./prompt.js";
 process.env["UPDATE_MESSAGE"] = `get the latest version from:
 ${YELLOW}https://github.com/merrymake/cli/releases${NORMAL_COLOR}`;
-import "./index";
+import "./index.js";

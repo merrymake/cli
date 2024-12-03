@@ -78,6 +78,8 @@ export interface ServiceGroup {
   pathTo: PathToServiceGroup;
 }
 export interface Repository {
-  id: RepositoryId;
   pathTo: PathToRepository;
+}
+export interface RepositoryWithId extends Repository {
+  id: RepositoryId;
 }

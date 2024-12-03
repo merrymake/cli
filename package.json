@@ -1,8 +1,9 @@
 {
   "name": "@merrymake/cli",
-  "version": "4.3.1",
+  "version": "4.4.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "pack": "pkg -c pkg.json pkg.js"
@@ -23,16 +24,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@merrymake/detect-project-type": "^1.2.0",
-    "@merrymake/ext2mime": "^1.0.3",
-    "@merrymake/secret-lib": "^1.0.0",
-    "cookie-parser": "^1.4.6",
-    "express": "^4.17.3"
+    "@merrymake/detect-project-type": "latest",
+    "@merrymake/ext2mime": "latest",
+    "@merrymake/secret-lib": "latest",
+    "cookie-parser": "latest",
+    "express": "latest"
   },
   "devDependencies": {
-    "@types/cookie-parser": "^1.4.6",
-    "@types/express": "^4.17.13",
-    "@types/node": "^16.7.4",
-    "pkg": "^5.8.1"
+    "@types/cookie-parser": "latest",
+    "@types/express": "latest",
+    "@types/node": "latest",
+    "pkg": "latest",
+    "@tsconfig/node-lts": "latest"
   }
 }

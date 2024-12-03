@@ -1,45 +1,26 @@
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.useExistingKey = useExistingKey;
-exports.generateNewKey = generateNewKey;
-exports.addKnownHost = addKnownHost;
-exports.do_register = do_register;
-exports.register = register;
-const fs_1 = __importDefault(require("fs"));
-const os_1 = __importDefault(require("os"));
-const utils_1 = require("../utils");
-const config_1 = require("../config");
-const prompt_1 = require("../prompt");
-const wait_1 = require("./wait");
-const org_1 = require("./org");
+import fs from "fs";
+import os from "os";
+import { API_URL, FINGERPRINT, HTTP_HOST, SSH_USER } from "../config.js";
+import { choice, NORMAL_COLOR, output, shortText, YELLOW, } from "../prompt.js";
+import { addExitMessage, execPromise, getFiles, Path, urlReq, } from "../utils.js";
+import { orgAction } from "./org.js";
+import { wait } from "./wait.js";
 function saveSSHConfig(path) {
     let lines = [];
     let changed = false;
     let foundHost = false;
-    if (fs_1.default.existsSync(`${os_1.default.homedir()}/.ssh/config`)) {
-        lines = fs_1.default
-            .readFileSync(`${os_1.default.homedir()}/.ssh/config`)
+    if (fs.existsSync(`${os.homedir()}/.ssh/config`)) {
+        lines = fs
+            .readFileSync(`${os.homedir()}/.ssh/config`)
             .toString()
             .split("\n");
         let inHost = false;
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             if ((line.startsWith("\t") || line.startsWith(" ")) && inHost) {
-                if (line.includes("User ") && !line.includes(`User ${config_1.SSH_USER}`)) {
+                if (line.includes("User ") && !line.includes(`User ${SSH_USER}`)) {
                     lines[i] =
-                        line.substring(0, line.indexOf("User ")) + `User ${config_1.SSH_USER}`;
+                        line.substring(0, line.indexOf("User ")) + `User ${SSH_USER}`;
                     changed = true;
                 }
                 else if (line.includes("IdentityFile ") &&
@@ -52,7 +33,7 @@ function saveSSHConfig(path) {
             }
             else if (line.startsWith("\t") || line.startsWith(" ")) {
             }
-            else if (line.startsWith(`Host ${config_1.API_URL}`)) {
+            else if (line.startsWith(`Host ${API_URL}`)) {
                 inHost = true;
                 foundHost = true;
             }
@@ -62,146 +43,134 @@ function saveSSHConfig(path) {
         }
     }
     if (!foundHost) {
-        lines.unshift(`Host ${config_1.API_URL}`, `\tUser ${config_1.SSH_USER}`, `\tHostName ${config_1.API_URL}`, `\tPreferredAuthentications publickey`, `\tIdentityFile ~/.ssh/${path}\n`);
+        lines.unshift(`Host ${API_URL}`, `\tUser ${SSH_USER}`, `\tHostName ${API_URL}`, `\tPreferredAuthentications publickey`, `\tIdentityFile ~/.ssh/${path}\n`);
         changed = true;
     }
     if (changed) {
-        (0, prompt_1.output)(`Saving preference...\n`);
-        fs_1.default.writeFileSync(`${os_1.default.homedir()}/.ssh/config`, lines.join("\n"));
+        output(`Saving preference...\n`);
+        fs.writeFileSync(`${os.homedir()}/.ssh/config`, lines.join("\n"));
     }
 }
-function useExistingKey(path) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            saveSSHConfig(path);
-            (0, prompt_1.output)(`Reading ${path}.pub...\n`);
-            return {
-                key: "" + fs_1.default.readFileSync(os_1.default.homedir() + `/.ssh/${path}.pub`),
-                keyFile: path,
-            };
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+export async function useExistingKey(path) {
+    try {
+        saveSSHConfig(path);
+        output(`Reading ${path}.pub...\n`);
+        return {
+            key: "" + fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`),
+            keyFile: path,
+        };
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function generateNewKey() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            (0, prompt_1.output)(`Generating new ssh key...\n`);
-            if (!fs_1.default.existsSync(os_1.default.homedir() + "/.ssh"))
-                fs_1.default.mkdirSync(os_1.default.homedir() + "/.ssh");
-            yield (0, utils_1.execPromise)(`ssh-keygen -t rsa -b 4096 -f "${os_1.default.homedir()}/.ssh/merrymake" -N ""`);
-            saveSSHConfig("merrymake");
-            return {
-                key: "" + fs_1.default.readFileSync(os_1.default.homedir() + "/.ssh/merrymake.pub"),
-                keyFile: "merrymake",
-            };
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+export async function generateNewKey() {
+    try {
+        output(`Generating new ssh key...\n`);
+        if (!fs.existsSync(os.homedir() + "/.ssh"))
+            fs.mkdirSync(os.homedir() + "/.ssh");
+        await execPromise(`ssh-keygen -t rsa -b 4096 -f "${os.homedir()}/.ssh/merrymake" -N ""`);
+        saveSSHConfig("merrymake");
+        return {
+            key: "" + fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub"),
+            keyFile: "merrymake",
+        };
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function addKnownHost() {
+export function addKnownHost() {
     let isKnownHost = false;
-    if (fs_1.default.existsSync(`${os_1.default.homedir()}/.ssh/known_hosts`)) {
-        const lines = ("" + fs_1.default.readFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`)).split("\n");
-        isKnownHost = lines.some((x) => x.includes(`${config_1.API_URL} ssh-ed25519 ${config_1.FINGERPRINT}`));
+    if (fs.existsSync(`${os.homedir()}/.ssh/known_hosts`)) {
+        const lines = ("" + fs.readFileSync(`${os.homedir()}/.ssh/known_hosts`)).split("\n");
+        isKnownHost = lines.some((x) => x.includes(`${API_URL} ssh-ed25519 ${FINGERPRINT}`));
     }
     if (!isKnownHost) {
-        (0, prompt_1.output)("Adding fingerprint...\n");
-        if (!fs_1.default.existsSync(os_1.default.homedir() + "/.ssh"))
-            fs_1.default.mkdirSync(os_1.default.homedir() + "/.ssh");
-        fs_1.default.appendFileSync(`${os_1.default.homedir()}/.ssh/known_hosts`, `\n${config_1.API_URL} ssh-ed25519 ${config_1.FINGERPRINT}\n`);
+        output("Adding fingerprint...\n");
+        if (!fs.existsSync(os.homedir() + "/.ssh"))
+            fs.mkdirSync(os.homedir() + "/.ssh");
+        fs.appendFileSync(`${os.homedir()}/.ssh/known_hosts`, `\n${API_URL} ssh-ed25519 ${FINGERPRINT}\n`);
     }
 }
-function do_register(keyAction, email) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const { key, keyFile } = yield keyAction();
-            (0, prompt_1.output)(`Registering ${email === "" ? "anonymous account" : email}...\n`);
-            addKnownHost();
-            if (email === "") {
-                (0, utils_1.addExitMessage)(`Notice: Anonymous accounts are automatically deleted permanently after ~2 weeks, without warning. To add an email and avoid automatic deletion, run the command:
-  ${prompt_1.YELLOW}${process.env["COMMAND"]} register ${keyFile}${prompt_1.NORMAL_COLOR}`);
-            }
-            const result = yield (0, utils_1.urlReq)(`${config_1.HTTP_HOST}/admin/user`, "POST", JSON.stringify({
-                email,
-                key,
-            }));
-            if (result.code !== 200)
-                throw result.body;
-            const needsVerify = result.body === "true";
-            return needsVerify
-                ? (0, wait_1.wait)("Click the button in the email before continuing", org_1.orgAction)
-                : (0, org_1.orgAction)();
+export async function do_register(keyAction, email) {
+    try {
+        const { key, keyFile } = await keyAction();
+        output(`Registering ${email === "" ? "anonymous account" : email}...\n`);
+        addKnownHost();
+        if (email === "") {
+            addExitMessage(`Notice: Anonymous accounts are automatically deleted permanently after ~2 weeks, without warning. To add an email and avoid automatic deletion, run the command:
+  ${YELLOW}${process.env["COMMAND"]} register ${keyFile}${NORMAL_COLOR}`);
         }
-        catch (e) {
-            throw e;
-        }
-    });
+        const result = await urlReq(`${HTTP_HOST}/admin/user`, "POST", JSON.stringify({
+            email,
+            key,
+        }));
+        if (result.code !== 200)
+            throw result.body;
+        const needsVerify = result.body === "true";
+        return needsVerify
+            ? wait("Click the button in the email before continuing", orgAction)
+            : orgAction();
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function register_key(keyAction) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const email = yield (0, prompt_1.shortText)("Email", "By attaching an email you'll be notified in case of changes for your organizations.", "").then();
-            return do_register(keyAction, email);
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+async function register_key(keyAction) {
+    try {
+        const email = await shortText("Email", "By attaching an email you'll be notified in case of changes for your organizations.", "").then();
+        return do_register(keyAction, email);
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function register_manual() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const key = yield (0, prompt_1.shortText)("Public key", "", "ssh-rsa ...").then();
-            return register_key(() => Promise.resolve({
-                key,
-                keyFile: `add "${key}"`,
-            }));
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+async function register_manual() {
+    try {
+        const key = await shortText("Public key", "", "ssh-rsa ...").then();
+        return register_key(() => Promise.resolve({
+            key,
+            keyFile: `add "${key}"`,
+        }));
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function register() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const keyfiles = (0, utils_1.getFiles)(new utils_1.Path(`${os_1.default.homedir()}/.ssh`)).filter((x) => x.endsWith(".pub"));
-            const keys = keyfiles.map((x) => {
-                const f = x.substring(0, x.length - ".pub".length);
-                return {
-                    long: f,
-                    text: `use key ${f}`,
-                    action: () => register_key(() => useExistingKey(f)),
-                };
-            });
+export async function register() {
+    try {
+        const keyfiles = getFiles(new Path(`${os.homedir()}/.ssh`)).filter((x) => x.endsWith(".pub"));
+        const keys = keyfiles.map((x) => {
+            const f = x.substring(0, x.length - ".pub".length);
+            return {
+                long: f,
+                text: `use key ${f}`,
+                action: () => register_key(() => useExistingKey(f)),
+            };
+        });
+        keys.push({
+            long: "add",
+            short: "a",
+            text: "manually add key",
+            action: () => register_manual(),
+        });
+        let def = keyfiles.indexOf("merrymake.pub");
+        if (def < 0) {
             keys.push({
-                long: "add",
-                short: "a",
-                text: "manually add key",
-                action: () => register_manual(),
+                long: "new",
+                short: "n",
+                text: "setup new key specifically for Merrymake",
+                action: () => register_key(generateNewKey),
             });
-            let def = keyfiles.indexOf("merrymake.pub");
-            if (def < 0) {
-                keys.push({
-                    long: "new",
-                    short: "n",
-                    text: "setup new key specifically for Merrymake",
-                    action: () => register_key(generateNewKey),
-                });
-                def = keys.length - 1;
-            }
-            return yield (0, prompt_1.choice)("Which SSH key would you like to use?", keys, {
-                invertedQuiet: { cmd: false, select: true },
-                def,
-            }).then();
+            def = keys.length - 1;
         }
-        catch (e) {
-            throw e;
-        }
-    });
+        return await choice("Which SSH key would you like to use?", keys, {
+            invertedQuiet: { cmd: false, select: true },
+            def,
+        }).then();
+    }
+    catch (e) {
+        throw e;
+    }
 }

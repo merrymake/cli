@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 process.env["COMMAND"] = "mm";
-const prompt_1 = require("./prompt");
+import { YELLOW, NORMAL_COLOR } from "./prompt.js";
 process.env["UPDATE_MESSAGE"] = `to update run the command:
-${prompt_1.YELLOW}npm install --global @merrymake/cli@latest${prompt_1.NORMAL_COLOR}`;
-require("./index");
+${YELLOW}npm install --global @merrymake/cli@latest${NORMAL_COLOR}`;
+import "./index.js";

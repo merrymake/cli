@@ -1,11 +1,7 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.initializeArgs = initializeArgs;
-exports.getArgs = getArgs;
 let args;
-function initializeArgs(strs) {
+export function initializeArgs(strs) {
     args = strs;
 }
-function getArgs() {
+export function getArgs() {
     return args;
 }

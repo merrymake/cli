@@ -1,11 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Path = exports.PathToRepository = exports.PathToServiceGroup = exports.PathToOrganization = exports.AccessId = exports.RepositoryId = exports.ServiceGroupId = exports.OrganizationId = void 0;
-const path_1 = __importDefault(require("path"));
-class OrganizationId {
+import path from "path";
+export class OrganizationId {
+    organizationId;
     constructor(organizationId) {
         this.organizationId = organizationId;
     }
@@ -13,8 +8,8 @@ class OrganizationId {
         return this.organizationId;
     }
 }
-exports.OrganizationId = OrganizationId;
-class ServiceGroupId {
+export class ServiceGroupId {
+    serviceGroupId;
     constructor(serviceGroupId) {
         this.serviceGroupId = serviceGroupId;
     }
@@ -22,8 +17,8 @@ class ServiceGroupId {
         return this.serviceGroupId;
     }
 }
-exports.ServiceGroupId = ServiceGroupId;
-class RepositoryId {
+export class RepositoryId {
+    repositoryId;
     constructor(repositoryId) {
         this.repositoryId = repositoryId;
     }
@@ -31,8 +26,8 @@ class RepositoryId {
         return this.repositoryId;
     }
 }
-exports.RepositoryId = RepositoryId;
-class AccessId {
+export class AccessId {
+    accessId;
     constructor(accessId) {
         this.accessId = accessId;
     }
@@ -40,25 +35,25 @@ class AccessId {
         return this.accessId;
     }
 }
-exports.AccessId = AccessId;
-class PathToOrganization {
+export class PathToOrganization {
+    pathToOrganization;
     constructor(pathToOrganization) {
         this.pathToOrganization = pathToOrganization;
     }
     with(folder) {
-        return new PathToServiceGroup(path_1.default.join(this.pathToOrganization, folder));
+        return new PathToServiceGroup(path.join(this.pathToOrganization, folder));
     }
     toString() {
         return this.pathToOrganization;
     }
 }
-exports.PathToOrganization = PathToOrganization;
-class PathToServiceGroup {
+export class PathToServiceGroup {
+    pathToServiceGroup;
     constructor(pathToServiceGroup) {
         this.pathToServiceGroup = pathToServiceGroup;
     }
     with(folder) {
-        return new PathToRepository(path_1.default.join(this.pathToServiceGroup, folder));
+        return new PathToRepository(path.join(this.pathToServiceGroup, folder));
     }
     last() {
         return this.pathToServiceGroup.substring(this.pathToServiceGroup.lastIndexOf("/"));
@@ -67,28 +62,27 @@ class PathToServiceGroup {
         return this.pathToServiceGroup;
     }
 }
-exports.PathToServiceGroup = PathToServiceGroup;
-class PathToRepository {
+export class PathToRepository {
+    pathToRepository;
     constructor(pathToRepository) {
         this.pathToRepository = pathToRepository;
     }
     with(folder) {
-        return new Path(path_1.default.join(this.pathToRepository, folder));
+        return new Path(path.join(this.pathToRepository, folder));
     }
     toString() {
         return this.pathToRepository;
     }
 }
-exports.PathToRepository = PathToRepository;
-class Path {
+export class Path {
+    path;
     constructor(path) {
         this.path = path;
     }
     with(folder) {
-        return new Path(path_1.default.join(this.path, folder));
+        return new Path(path.join(this.path, folder));
     }
     toString() {
         return this.path;
     }
 }
-exports.Path = Path;

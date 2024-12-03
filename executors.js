@@ -1,30 +1,9 @@
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.do_build = do_build;
-exports.alignRight = alignRight;
-exports.alignLeft = alignLeft;
-exports.printTableHeader = printTableHeader;
-exports.do_spending = do_spending;
-exports.do_delete_group = do_delete_group;
-exports.do_delete_org = do_delete_org;
-const detect_project_type_1 = require("@merrymake/detect-project-type");
-const child_process_1 = require("child_process");
-const fs_1 = __importDefault(require("fs"));
-const process_1 = require("process");
-const args_1 = require("./args");
-const utils_1 = require("./utils");
+import { BUILD_SCRIPT_MAKERS, detectProjectType, } from "@merrymake/detect-project-type";
+import { spawn } from "child_process";
+import fs from "fs";
+import { stdout } from "process";
+import { getArgs } from "./args.js";
+import { outputGit, sshReq } from "./utils.js";
 function spawnPromise(str) {
     return new Promise((resolve, reject) => {
         const [cmd, ...args] = str.split(" ");
@@ -32,12 +11,12 @@ function spawnPromise(str) {
             cwd: ".",
             shell: "sh",
         };
-        const ls = (0, child_process_1.spawn)(cmd, args, options);
+        const ls = spawn(cmd, args, options);
         ls.stdout.on("data", (data) => {
-            (0, utils_1.output2)(data.toString());
+            outputGit(data.toString());
         });
         ls.stderr.on("data", (data) => {
-            (0, utils_1.output2)(data.toString());
+            outputGit(data.toString());
         });
         ls.on("close", (code) => {
             if (code === 0)
@@ -47,38 +26,36 @@ function spawnPromise(str) {
         });
     });
 }
-function do_build() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const projectType = (0, detect_project_type_1.detectProjectType)(".");
-            (0, utils_1.output2)(`Building ${projectType} project...`);
-            const buildCommands = detect_project_type_1.BUILD_SCRIPT_MAKERS[projectType](".");
-            for (let i = 0; i < buildCommands.length; i++) {
-                const x = buildCommands[i];
-                yield spawnPromise(x);
-            }
+export async function do_build() {
+    try {
+        const projectType = detectProjectType(".");
+        outputGit(`Building ${projectType} project...`);
+        const buildCommands = BUILD_SCRIPT_MAKERS[projectType](".");
+        for (let i = 0; i < buildCommands.length; i++) {
+            const x = buildCommands[i];
+            await spawnPromise(x);
         }
-        catch (e) {
-            throw e;
-        }
-    });
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function alignRight(str, width) {
+export function alignRight(str, width) {
     return str.length > width
         ? str.substring(0, width - 3) + "..."
         : str.padStart(width, " ");
 }
-function alignLeft(str, width) {
+export function alignLeft(str, width) {
     return str.length > width
         ? str.substring(0, width - 3) + "..."
         : str.padEnd(width, " ");
 }
-function printTableHeader(prefix, widths) {
-    if ((0, args_1.getArgs)().length > 0)
+export function printTableHeader(prefix, widths) {
+    if (getArgs().length > 0)
         return "";
-    const totalWidth = (typeof process_1.stdout.getWindowSize !== "function"
+    const totalWidth = (typeof stdout.getWindowSize !== "function"
         ? 80
-        : process_1.stdout.getWindowSize()[0]) - prefix.length;
+        : stdout.getWindowSize()[0]) - prefix.length;
     const vals = Object.values(widths);
     const rest = totalWidth -
         vals.reduce((acc, x) => acc + Math.max(x, 0)) -
@@ -149,111 +126,105 @@ const MONTHS = [
     "November",
     "December",
 ];
-function do_spending(org) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const rows = JSON.parse(yield (0, utils_1.sshReq)(`spending`, `--org`, org));
-            let mth = 0;
-            let grp = "";
-            let srv = "";
-            rows.forEach((x) => {
-                if (x.mth === null)
-                    return;
-                const nmth = +x.mth;
-                if (mth !== nmth) {
-                    if (mth !== 0)
-                        (0, utils_1.output2)("");
-                    mth = nmth;
-                    (0, utils_1.output2)(`Month: ${MONTHS[mth - 1]}`);
-                    printTableHeader("", {
-                        Group: 11,
-                        Service: 11,
-                        Hook: 20,
-                        Count: 7,
-                        Time: 7,
-                        "Est. Cost": 9,
-                    });
-                }
-                const group = x.grp === null ? "= Total" : x.grp === grp ? "" : x.grp;
-                grp = x.grp;
-                const service = x.grp === null
-                    ? ""
-                    : x.srv === null
-                        ? "= Total"
-                        : x.srv === srv
-                            ? ""
-                            : x.srv;
-                srv = x.srv;
-                let count = +x.cnt;
-                let count_unit = " ";
-                let count_str = "" + count + "  ";
+export async function do_spending(org) {
+    try {
+        const rows = JSON.parse(await sshReq(`spending`, `--org`, org));
+        let mth = 0;
+        let grp = "";
+        let srv = "";
+        rows.forEach((x) => {
+            if (x.mth === null)
+                return;
+            const nmth = +x.mth;
+            if (mth !== nmth) {
+                if (mth !== 0)
+                    outputGit("");
+                mth = nmth;
+                outputGit(`Month: ${MONTHS[mth - 1]}`);
+                printTableHeader("", {
+                    Group: 11,
+                    Service: 11,
+                    Hook: 20,
+                    Count: 7,
+                    Time: 7,
+                    "Est. Cost": 9,
+                });
+            }
+            const group = x.grp === null ? "= Total" : x.grp === grp ? "" : x.grp;
+            grp = x.grp;
+            const service = x.grp === null
+                ? ""
+                : x.srv === null
+                    ? "= Total"
+                    : x.srv === srv
+                        ? ""
+                        : x.srv;
+            srv = x.srv;
+            let count = +x.cnt;
+            let count_unit = " ";
+            let count_str = "" + count + "  ";
+            if (count > 1000) {
+                count /= 1000;
+                count_unit = "k";
                 if (count > 1000) {
                     count /= 1000;
-                    count_unit = "k";
+                    count_unit = "M";
                     if (count > 1000) {
                         count /= 1000;
-                        count_unit = "M";
-                        if (count > 1000) {
-                            count /= 1000;
-                            count_unit = "B";
-                        }
+                        count_unit = "B";
                     }
-                    count_str = count.toFixed(1);
                 }
-                let time = x.time_ms;
-                let time_unit = "ms";
-                let time_str = "" + time + " ";
-                if (time > 1000) {
-                    time /= 1000;
-                    time_unit = "s";
+                count_str = count.toFixed(1);
+            }
+            let time = x.time_ms;
+            let time_unit = "ms";
+            let time_str = "" + time + " ";
+            if (time > 1000) {
+                time /= 1000;
+                time_unit = "s";
+                if (time > 60) {
+                    time /= 60;
+                    time_unit = "m";
                     if (time > 60) {
                         time /= 60;
-                        time_unit = "m";
-                        if (time > 60) {
-                            time /= 60;
-                            time_unit = "h";
-                            if (time > 24) {
-                                time /= 24;
-                                time_unit = "d";
-                                if (time > 30) {
-                                    time /= 30;
-                                    time_unit = "M";
-                                }
+                        time_unit = "h";
+                        if (time > 24) {
+                            time /= 24;
+                            time_unit = "d";
+                            if (time > 30) {
+                                time /= 30;
+                                time_unit = "M";
                             }
                         }
                     }
-                    time_str = time.toFixed(1);
                 }
-                const hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
-                (0, utils_1.output2)(`${alignLeft(group, 11)} │ ${alignLeft(service, 11)} │ ${alignLeft(hook, 20)} │ ${alignRight("" + count_str + " " + count_unit, 7)} │ ${alignRight("" + time_str + " " + time_unit, 7)} │ € ${alignRight(x.cost_eur, 7)}`);
-            });
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+                time_str = time.toFixed(1);
+            }
+            const hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
+            outputGit(`${alignLeft(group, 11)} │ ${alignLeft(service, 11)} │ ${alignLeft(hook, 20)} │ ${alignRight("" + count_str + " " + count_unit, 7)} │ ${alignRight("" + time_str + " " + time_unit, 7)} │ € ${alignRight(x.cost_eur, 7)}`);
+        });
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function do_delete_group(org, group) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`team`, `--delete`, `--org`, org, group));
-            if (fs_1.default.existsSync(group))
-                fs_1.default.renameSync(group, `(deleted) ${group}`);
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+export async function do_delete_group(org, group) {
+    try {
+        outputGit(await sshReq(`team`, `--delete`, `--org`, org, group));
+        if (fs.existsSync(group))
+            fs.renameSync(group, `(deleted) ${group}`);
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function do_delete_org(org) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            (0, utils_1.output2)(yield (0, utils_1.sshReq)(`org`, `--delete`, org));
-            if (fs_1.default.existsSync(org))
-                fs_1.default.renameSync(org, `(deleted) ${org}`);
-        }
-        catch (e) {
-            throw e;
-        }
-    });
+export async function do_delete_org(org) {
+    try {
+        outputGit(await sshReq(`org`, `--delete`, org));
+        if (fs.existsSync(org))
+            fs.renameSync(org, `(deleted) ${org}`);
+    }
+    catch (e) {
+        throw e;
+    }
 }

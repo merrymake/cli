@@ -1,4 +1,4 @@
-"use strict";
+export {};
 // import { Path, addToExecuteQueue, getCache } from "../utils";
 // import { do_key } from "../newCommands/apikey";
 // import { createServiceGroup } from "./group";

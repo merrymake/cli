@@ -1,27 +1,23 @@
 import fs from "fs";
 import os from "os";
+import { API_URL, FINGERPRINT, HTTP_HOST, SSH_USER } from "../config.js";
 import {
-  output2,
+  choice,
+  NORMAL_COLOR,
+  Option,
+  output,
+  shortText,
+  YELLOW,
+} from "../prompt.js";
+import {
   addExitMessage,
-  urlReq,
-  saveCache,
-  addToExecuteQueue,
-  finish,
+  execPromise,
   getFiles,
   Path,
-  execPromise,
-} from "../utils";
-import { API_URL, FINGERPRINT, HTTP_HOST, SSH_USER } from "../config";
-import {
-  YELLOW,
-  NORMAL_COLOR,
-  choice,
-  Option,
-  shortText,
-  output,
-} from "../prompt";
-import { wait } from "./wait";
-import { orgAction } from "./org";
+  urlReq,
+} from "../utils.js";
+import { orgAction } from "./org.js";
+import { wait } from "./wait.js";
 
 function saveSSHConfig(path: string) {
   let lines: string[] = [];

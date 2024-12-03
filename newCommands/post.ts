@@ -1,10 +1,16 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 import fs, { readdirSync } from "fs";
-import { RAPIDS_HOST } from "../config";
-import { Option, choice, shortText } from "../prompt";
-import { OrganizationId } from "../types";
-import { addToExecuteQueue, finish, output2, sshReq, urlReq } from "../utils";
-import { key_create } from "./apikey";
+import { RAPIDS_HOST } from "../config.js";
+import { Option, choice, shortText } from "../prompt.js";
+import { OrganizationId } from "../types.js";
+import {
+  addToExecuteQueue,
+  finish,
+  outputGit,
+  sshReq,
+  urlReq,
+} from "../utils.js";
+import { key_create } from "./apikey.js";
 
 export async function do_post(
   eventType: string,
@@ -13,14 +19,14 @@ export async function do_post(
   payload: string
 ) {
   try {
-    output2(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
+    outputGit(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
     const resp = await urlReq(
       `${RAPIDS_HOST}/${key}/${eventType}`,
       "POST",
       payload,
       contentType
     );
-    output2(resp.body);
+    outputGit(resp.body);
   } catch (e) {
     throw e;
   }
@@ -37,14 +43,14 @@ export async function do_post_file(
       filename.substring(filename.lastIndexOf(".") + 1)
     );
     if (type === null) throw "Could not determine content type";
-    output2(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
+    outputGit(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
     const resp = await urlReq(
       `${RAPIDS_HOST}/${key}/${eventType}`,
       "POST",
       content,
       type.toString()
     );
-    output2(resp.body);
+    outputGit(resp.body);
   } catch (e) {
     throw e;
   }

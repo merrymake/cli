@@ -1,19 +1,18 @@
-import { getArgs } from "../args";
-import { Option, choice, shortText } from "../prompt";
-import { AccessId, Organization, OrganizationId } from "../types";
+import { Option, choice, shortText } from "../prompt.js";
+import { AccessId, Organization, OrganizationId } from "../types.js";
 import {
   addToExecuteQueue,
   finish,
-  output2,
+  outputGit,
   sshReq,
   toFolderName,
-} from "../utils";
-import { do_create_deployment_agent } from "./hosting";
+} from "../utils.js";
+import { do_create_deployment_agent } from "./hosting.js";
 
 const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 export async function do_attach_role(user: string, accessId: AccessId) {
   try {
-    output2(
+    outputGit(
       await sshReq(`user-assign`, user, `--accessId`, accessId.toString())
     );
   } catch (e) {
@@ -23,7 +22,7 @@ export async function do_attach_role(user: string, accessId: AccessId) {
 
 export async function do_auto_approve(domain: string, accessId: AccessId) {
   try {
-    output2(
+    outputGit(
       await sshReq(`preapprove-add`, `--accessId`, accessId.toString(), domain)
     );
   } catch (e) {
@@ -36,7 +35,7 @@ export async function do_remove_auto_approve(
   domain: string
 ) {
   try {
-    output2(
+    outputGit(
       await sshReq(
         `preapprove-remove`,
         `--organizationId`,
@@ -198,24 +197,58 @@ async function service_user(organization: Organization) {
   }
 }
 
+let userListCache: { email: string; id: string; roles: string }[] | undefined;
+export async function listUsers(organizationId: OrganizationId) {
+  if (userListCache === undefined) {
+    const resp = await sshReq(`user-list`, organizationId.toString());
+    if (!resp.startsWith("[")) throw resp;
+    userListCache = JSON.parse(resp);
+  }
+  return userListCache!;
+}
+
+export async function pending(organization: Organization) {
+  try {
+    const users = await listUsers(organization.id);
+    const options: Option[] = users
+      .filter((u) => u.roles[0] === "Pending")
+      .map((user) => {
+        return {
+          long: user.email,
+          text: `${user.email}: ${user.roles}`,
+          action: () => role_user(organization.id, user.id),
+        };
+      });
+    return await choice("Which user do you want to allow?", options).then();
+  } catch (e) {
+    throw e;
+  }
+}
+
 export async function role(organization: Organization) {
   try {
-    const resp = await sshReq(`user-list`, organization.id.toString());
-    const users: { email: string; id: string; roles: string }[] =
-      JSON.parse(resp);
-    const options: Option[] = users.map((user) => {
-      return {
-        long: user.email,
-        text: `${user.email}: ${user.roles}`,
-        action: () => role_user(organization.id, user.id),
-      };
-    });
+    const users = await listUsers(organization.id);
+    const options: Option[] = users
+      .filter((u) => u.roles[0] !== "Pending")
+      .map((user) => {
+        return {
+          long: user.email,
+          text: `${user.email}: ${user.roles}`,
+          action: () => role_user(organization.id, user.id),
+        };
+      });
     // options.push({
     //   long: `new`,
     //   short: `n`,
     //   text: `create a new role`,
     //   action: () => role_new(org),
     // });
+    options.push({
+      long: `pending`,
+      short: `p`,
+      text: `see or allow pending users`,
+      action: () => pending(organization),
+    });
     options.push({
       long: `service`,
       short: `s`,
@@ -228,9 +261,7 @@ export async function role(organization: Organization) {
       text: `configure domain auto approval`,
       action: () => role_auto(organization.id),
     });
-    return await choice("Which user do you want to manage?", options).then(
-      (x) => x
-    );
+    return await choice("Which user do you want to manage?", options).then();
   } catch (e) {
     throw e;
   }

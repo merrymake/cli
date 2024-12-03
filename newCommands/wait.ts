@@ -1,4 +1,4 @@
-import { choice } from "../prompt";
+import { choice } from "../prompt.js";
 
 export async function wait(text: string, action: () => Promise<never>) {
   try {

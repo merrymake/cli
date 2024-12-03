@@ -5,18 +5,43 @@ import https from "https";
 import { readdirSync } from "node:fs";
 import os from "os";
 import path from "path";
-import { SSH_HOST } from "./config";
-import * as conf from "./package.json";
+import { SSH_HOST } from "./config.js";
+// IN THE FUTURE: import conf from "./package.json" with {type:"json"};
 import {
   BLUE,
+  GRAY,
+  GREEN,
   NORMAL_COLOR,
+  RED,
+  REMOVE_INVISIBLE,
+  YELLOW,
   exit,
   output,
   spinner_start,
   spinner_stop,
-} from "./prompt";
-import { PathTo } from "./types";
+  timer_start,
+  timer_stop,
+} from "./prompt.js";
+import { PathTo } from "./types.js";
 
+import { createRequire } from "node:module";
+import { stdout } from "process";
+const require = createRequire(import.meta.url);
+export const package_json = require("./package.json");
+
+export const lowercase = "abcdefghijklmnopqrstuvwxyz";
+export const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+export const digits = "0123456789";
+export const underscore = "_";
+export const dash = "-";
+export const all = lowercase + uppercase + digits + underscore + dash;
+export function generateString(length: number, alphabet: string) {
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+  }
+  return result;
+}
 export class Path {
   constructor(private offset = ".") {
     let end = this.offset.length;
@@ -52,7 +77,9 @@ const toExecute: (() => Promise<unknown>)[] = [];
 let dryrun = false;
 
 export function setDryrun() {
-  output2(`${BLUE}Dryrun mode, changes will not be performed.${NORMAL_COLOR}`);
+  outputGit(
+    `${BLUE}Dryrun mode, changes will not be performed.${NORMAL_COLOR}`
+  );
   dryrun = true;
 }
 export function addToExecuteQueue(f: () => Promise<unknown>) {
@@ -80,7 +107,6 @@ export async function finish(): Promise<never> {
     printExitMessages();
     process.exit(0);
   } catch (e) {
-    console.log("finish");
     throw e;
   }
 }
@@ -140,14 +166,69 @@ export function fetchOrg() {
   if (res.org === null) throw "Not inside a Merrymake organization";
   return res;
 }
-export function output2(str: string) {
+
+export function printWithPrefix(str: string, prefix: string = "") {
+  const prefixLength = prefix.replace(REMOVE_INVISIBLE, "").length;
   console.log(
-    (str || "")
-      .trimEnd()
+    prefix +
+      str
+        .trimEnd()
+        .split("\n")
+        .flatMap((x) =>
+          x
+            .match(
+              new RegExp(
+                `.{1,${stdout.getWindowSize()[0] - prefixLength}}( |$)|.{1,${
+                  stdout.getWindowSize()[0] - prefixLength
+                }}`,
+                "g"
+              )
+            )!
+            .map((x) => x.trimEnd())
+        )
+        .join(`\n${prefix}`)
+  );
+}
+
+export function outputGit(str: string) {
+  const st = (str || "").trimEnd();
+  if (st.endsWith("elapsed")) {
+    return;
+  } else {
+    const wasRunning = timer_stop();
+    if (wasRunning) process.stdout.write(`\n`);
+  }
+  console.log(
+    st
       .split("\n")
-      .map((x) => x.trimEnd())
+      .map((x) => {
+        const lineParts = x.trimEnd().split("remote: ");
+        const line = lineParts[lineParts.length - 1];
+        const color =
+          line.match(/fail|error|fatal/i) !== null
+            ? RED
+            : line.match(/warn/i) !== null
+            ? YELLOW
+            : line.match(/succe/i) !== null
+            ? GREEN
+            : NORMAL_COLOR;
+        const commands = line.split("'mm");
+        for (let i = 1; i < commands.length; i++) {
+          const ind = commands[i].indexOf("'");
+          const cmd = commands[i].substring(0, ind);
+          const rest = commands[i].substring(ind);
+          commands[i] = `'${YELLOW}mm ${cmd}${color}${rest}`;
+        }
+        lineParts[lineParts.length - 1] =
+          color + commands.join("") + NORMAL_COLOR;
+        return lineParts.join(`${GRAY}remote: `);
+      })
       .join("\n")
   );
+  if (st.endsWith("(this may take a few minutes)...")) {
+    process.stdout.write(`${GRAY}remote: ${NORMAL_COLOR} `);
+    timer_start("s elapsed");
+  }
 }
 
 function versionIsOlder(old: string, new_: string) {
@@ -188,7 +269,7 @@ export async function checkVersion() {
         "npm show @merrymake/cli dist-tags --json"
       );
       const version: { latest: string } = JSON.parse(call);
-      if (versionIsOlder(conf.version, version.latest)) {
+      if (versionIsOlder(package_json.version, version.latest)) {
         addExitMessage(`
 New version of merrymake-cli available, ${process.env["UPDATE_MESSAGE"]}`);
       }
@@ -216,7 +297,7 @@ export function execStreamPromise(
       console.log(data.toString());
     });
     p.on("exit", (code) => {
-      if (code !== 0) reject();
+      if (code !== 0) reject("subprocess failed");
       else resolve();
     });
   });
@@ -231,10 +312,10 @@ export function spawnPromise(str: string) {
     };
     const ls = spawn(cmd, args, options);
     ls.stdout.on("data", (data: Buffer | string) => {
-      output2(data.toString());
+      outputGit(data.toString());
     });
     ls.stderr.on("data", (data: Buffer | string) => {
-      output2(data.toString());
+      outputGit(data.toString());
     });
     ls.on("close", (code) => {
       if (code === 0) resolve();

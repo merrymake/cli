@@ -1,18 +1,8 @@
 import { VERSION_CMD } from "@merrymake/detect-project-type";
 import fs from "fs";
-import { GIT_HOST } from "../config";
-import { Option, choice, shortText } from "../prompt";
-import { languages, templates } from "../templates";
-import {
-  Path,
-  TODO,
-  execPromise,
-  finish,
-  sshReq,
-  toFolderName,
-} from "../utils";
-import { do_deploy } from "./deploy";
-import { post } from "./post";
+import { GIT_HOST } from "../config.js";
+import { Option, choice, shortText } from "../prompt.js";
+import { languages, templates } from "../templates.js";
 import {
   Organization,
   OrganizationId,
@@ -21,8 +11,18 @@ import {
   RepositoryId,
   ServiceGroup,
   ServiceGroupId,
-} from "../types";
-import { BITBUCKET_FILE, bitbucketStep } from "./hosting";
+} from "../types.js";
+import {
+  Path,
+  TODO,
+  execPromise,
+  finish,
+  sshReq,
+  toFolderName,
+} from "../utils.js";
+import { do_deploy } from "./deploy.js";
+import { BITBUCKET_FILE, bitbucketStep } from "./hosting.js";
+import { post } from "./post.js";
 
 async function do_pull(pth: PathToRepository, repo: string) {
   try {
@@ -141,13 +141,15 @@ export async function service_template(
       templates[template].languages.map((x, i) =>
         (async () => ({
           ...languages[x],
-          weight: await execPromise(VERSION_CMD[languages[x].projectType])
-            .then((r) => {
-              return templates[template].languages.length + 1 - i;
-            })
-            .catch((e) => {
-              return -i;
-            }),
+          weight: (
+            await Promise.all(
+              Object.keys(VERSION_CMD[languages[x].projectType]).map((k) =>
+                execPromise(VERSION_CMD[languages[x].projectType][k])
+                  .then((r) => 1)
+                  .catch((e) => -1)
+              )
+            )
+          ).reduce((a, x) => a * x, i),
         }))()
       )
     );

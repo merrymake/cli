@@ -1,7 +1,7 @@
 import { stdin, stdout } from "node:process";
-import { getArgs } from "./args";
-import { abort } from "./utils";
-import { CONTEXTS } from "./contexts";
+import { getArgs } from "./args.js";
+import { CONTEXTS } from "./contexts.js";
+import { abort } from "./utils.js";
 
 export const CTRL_C = "\u0003";
 // const CR = "\u000D";
@@ -16,33 +16,66 @@ export const RIGHT = "\u001b[C";
 export const HIDE_CURSOR = "\u001B[?25l";
 export const SHOW_CURSOR = "\u001B[?25h";
 export const NORMAL_COLOR = "\u001B[0m";
-export const RED = "\u001B[0;31m";
-export const BLUE = "\u001B[0;34m";
-export const GREEN = "\u001B[0;32m";
-export const YELLOW = "\u001B[0;93m";
+
+export const BLACK = "\x1b[30m";
+export const RED = "\x1b[31m";
+export const GREEN = "\x1b[32m";
+export const YELLOW = "\x1b[33m";
+export const BLUE = "\x1b[34m";
+export const PURPLE = "\x1b[35m";
+export const CYAN = "\x1b[36m";
+export const WHITE = "\x1b[37m";
+export const GRAY = "\x1b[90m";
+
+export const BgBlack = "\x1b[40m";
+export const BgRed = "\x1b[41m";
+export const BgGreen = "\x1b[42m";
+export const BgYellow = "\x1b[43m";
+export const BgBlue = "\x1b[44m";
+export const BgPurple = "\x1b[45m";
+export const BgCyan = "\x1b[46m";
+export const BgWhite = "\x1b[47m";
+export const BgGray = "\x1b[100m";
+
+export const STRIKE = "\x1b[9m";
+export const NOSTRIKE = "\x1b[29m";
+
 export const INVISIBLE = [
   HIDE_CURSOR,
   SHOW_CURSOR,
   NORMAL_COLOR,
+  BLACK,
   RED,
-  BLUE,
   GREEN,
   YELLOW,
+  BLUE,
+  PURPLE,
+  CYAN,
+  WHITE,
+  GRAY,
+  BgBlack,
+  BgRed,
+  BgGreen,
+  BgYellow,
+  BgBlue,
+  BgPurple,
+  BgCyan,
+  BgWhite,
+  BgGray,
+  STRIKE,
+  NOSTRIKE,
 ];
+
+export const REMOVE_INVISIBLE = new RegExp(
+  INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join("|"),
+  "gi"
+);
 
 let xOffset = 0;
 let yOffset = 0;
 let maxYOffset = 0;
 export function output(str: string) {
-  const cleanStr = str.replace(
-    new RegExp(
-      INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join(
-        "|"
-      ),
-      "gi"
-    ),
-    ""
-  );
+  const cleanStr = str.replace(REMOVE_INVISIBLE, "");
   stdout.write(stdout.isTTY ? str : cleanStr);
   if (!stdout.isTTY) return;
   const lines = cleanStr.split("\n");
@@ -480,7 +513,7 @@ export function multiSelect(
   });
 }
 
-let interval: NodeJS.Timer | undefined;
+let interval: NodeJS.Timeout | undefined;
 let spinnerIndex = 0;
 const SPINNER = ["│", "/", "─", "\\"];
 export function spinner_start() {
@@ -502,13 +535,22 @@ export enum Visibility {
   Secret,
   Public,
 }
+export enum Formatting {
+  Normal,
+  Minimal,
+}
 export function shortText(
   prompt: string,
   description: string,
   defaultValueArg: string | null,
-  hide = Visibility.Public
+  options?: { hide?: Visibility; formatting?: Formatting }
 ) {
   return new Promise<string>((resolve) => {
+    const hide = options?.hide === undefined ? Visibility.Public : options.hide;
+    const formatting =
+      options?.formatting === undefined
+        ? Formatting.Normal
+        : options.formatting;
     if (hide === Visibility.Secret) hasSecret = true;
     const defaultValue = defaultValueArg === null ? "" : defaultValueArg;
     if (getArgs()[0] !== undefined) {
@@ -529,9 +571,11 @@ export function shortText(
     }
 
     let str = prompt;
-    if (defaultValue === "") str += ` (${YELLOW}optional${NORMAL_COLOR})`;
-    else str += ` (suggestion: ${YELLOW}${defaultValue}${NORMAL_COLOR})`;
-    str += ": ";
+    if (formatting === Formatting.Normal) {
+      if (defaultValue === "") str += ` (${YELLOW}optional${NORMAL_COLOR})`;
+      else str += ` (suggestion: ${YELLOW}${defaultValue}${NORMAL_COLOR})`;
+      str += ": ";
+    }
 
     output(" \n");
     output(str);
@@ -652,6 +696,29 @@ export function shortText(
       })
     );
   });
+}
+
+let seconds = 0;
+export function timer_start(suffix = "") {
+  if (!stdout.isTTY) return;
+  seconds = 0;
+  const out = seconds.toString().padStart(3, " ") + suffix;
+  output(out);
+  interval = setInterval(() => time(suffix), 1000);
+}
+function time(suffix: string) {
+  seconds++;
+  const out = seconds.toString().padStart(3, " ") + suffix;
+  moveCursor(-out.length, 0);
+  output(out);
+}
+export function timer_stop() {
+  if (interval !== undefined) {
+    clearInterval(interval);
+    interval = undefined;
+    return true;
+  }
+  return false;
 }
 
 export function exit() {

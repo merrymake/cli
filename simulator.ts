@@ -1,16 +1,15 @@
-import { output2, fetchOrg, directoryNames, Path } from "./utils";
-import express, { Request, RequestHandler } from "express";
-import { Response } from "express";
-import fs from "fs";
-import { spawn, ExecOptions } from "child_process";
 import {
   detectProjectType,
   ProjectType,
   RUN_COMMAND,
 } from "@merrymake/detect-project-type";
-import http from "http";
-import { YELLOW, NORMAL_COLOR } from "./prompt";
+import { ExecOptions, spawn } from "child_process";
 import cookieParser from "cookie-parser";
+import express, { Request, RequestHandler, Response } from "express";
+import fs from "fs";
+import http from "http";
+import { NORMAL_COLOR, YELLOW } from "./prompt.js";
+import { directoryNames, fetchOrg, outputGit, Path } from "./utils.js";
 
 const MILLISECONDS = 1;
 const SECONDS = 1000 * MILLISECONDS;
@@ -90,44 +89,44 @@ export class Run {
       });
 
       app.get("/rapids", (req, res) => {
-        res.send("Running...");
+        res.send("Ready.");
       });
 
       server.listen(this.port, () => {
-        output2("");
-        output2(
+        outputGit("");
+        outputGit(
           `88.     .88                                                88           `
         );
-        output2(
+        outputGit(
           `888.   .888                                                88           `
         );
-        output2(
+        outputGit(
           `88Y8. .8P88                                                88           `
         );
-        output2(
+        outputGit(
           `88 Y8o8P 88  .88.  88.d8 88.d8 Yb     dP 8888bd88b   .88.8 88  .8P .88. `
         );
-        output2(
+        outputGit(
           `88  Y8P  88 d"  "b 88"   88"    Yb   dP  88 '88 '8b d"  "8 88 .8P d"  "b`
         );
-        output2(
+        outputGit(
           `88   "   88 888888 88    88      Yb dP   88  88  88 8    8 88d8P  888888`
         );
-        output2(
+        outputGit(
           `88       88 Y.     88    88       Y8P    88  88  88 Y.  .8 88" 8b Y.    `
         );
-        output2(
+        outputGit(
           `88       88  "88P  88    88       dP     88  88  88  "88"8 88  "8b "88P `
         );
-        output2(
+        outputGit(
           `                                 dP                                     `
         );
-        output2("");
-        output2(
+        outputGit("");
+        outputGit(
           `Running local Rapids on ${YELLOW}http://localhost:${this.port}/rapids${NORMAL_COLOR}`
         );
-        output2(`To exit, press ctrl+c`);
-        output2("");
+        outputGit(`To exit, press ctrl+c`);
+        outputGit("");
       });
     });
   }
@@ -465,8 +464,8 @@ function loadLocalEnvvars(pathToRoot: string) {
 let spacerTimer: undefined | NodeJS.Timeout;
 function timedOutput(str: string) {
   if (spacerTimer !== undefined) clearTimeout(spacerTimer);
-  output2(str);
-  spacerTimer = setTimeout(() => output2(""), 10000);
+  outputGit(str);
+  spacerTimer = setTimeout(() => outputGit(""), 10000);
 }
 
 module HTTP {

@@ -1,5 +1,5 @@
 import { stdout } from "process";
-import { alignLeft, printTableHeader } from "../executors";
+import { alignLeft, printTableHeader } from "../executors.js";
 import {
   NORMAL_COLOR,
   Option,
@@ -8,9 +8,9 @@ import {
   choice,
   output,
   shortText,
-} from "../prompt";
-import { OrganizationId } from "../types";
-import { finish, output2, sshReq } from "../utils";
+} from "../prompt.js";
+import { OrganizationId } from "../types.js";
+import { finish, outputGit, sshReq } from "../utils.js";
 
 export async function do_key_create(
   organizationId: OrganizationId,
@@ -48,7 +48,7 @@ export async function do_key_modify(
     const cmd = [`apikey-modify`, `--duration`, duration, apikeyId];
     if (description !== "") cmd.push(`--description`, description);
     await sshReq(...cmd);
-    output2(`Updated key.`);
+    outputGit(`Updated key.`);
   } catch (e) {
     throw e;
   }

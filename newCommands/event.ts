@@ -1,9 +1,7 @@
-import { stdout } from "process";
-import { alignLeft, printTableHeader } from "../executors";
-import { Option, choice, multiSelect } from "../prompt";
-import { OrganizationId } from "../types";
-import { addToExecuteQueue, finish, output2, sshReq } from "../utils";
-import { key_create } from "./apikey";
+import { Option, choice, multiSelect } from "../prompt.js";
+import { OrganizationId } from "../types.js";
+import { addToExecuteQueue, finish, outputGit, sshReq } from "../utils.js";
+import { key_create } from "./apikey.js";
 
 export async function do_event(
   apikeyId: string,
@@ -12,7 +10,7 @@ export async function do_event(
   try {
     const selected = Object.keys(events).filter((x) => events[x]);
     await sshReq(`events-allow`, apikeyId, `--events`, selected.join(","));
-    output2(
+    outputGit(
       `Allowed event${selected.length > 1 ? "s" : ""} ${selected.join(
         ", "
       )} on key ${apikeyId}.`
