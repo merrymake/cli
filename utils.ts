@@ -175,16 +175,16 @@ export function printWithPrefix(str: string, prefix: string = "") {
         .trimEnd()
         .split("\n")
         .flatMap((x) =>
-          x
-            .match(
+          (
+            x.match(
               new RegExp(
                 `.{1,${stdout.getWindowSize()[0] - prefixLength}}( |$)|.{1,${
                   stdout.getWindowSize()[0] - prefixLength
                 }}`,
                 "g"
               )
-            )!
-            .map((x) => x.trimEnd())
+            ) || []
+          ).map((x) => x.trimEnd())
         )
         .join(`\n${prefix}`)
   );

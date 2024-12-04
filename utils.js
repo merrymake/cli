@@ -137,9 +137,7 @@ export function printWithPrefix(str, prefix = "") {
         str
             .trimEnd()
             .split("\n")
-            .flatMap((x) => x
-            .match(new RegExp(`.{1,${stdout.getWindowSize()[0] - prefixLength}}( |$)|.{1,${stdout.getWindowSize()[0] - prefixLength}}`, "g"))
-            .map((x) => x.trimEnd()))
+            .flatMap((x) => (x.match(new RegExp(`.{1,${stdout.getWindowSize()[0] - prefixLength}}( |$)|.{1,${stdout.getWindowSize()[0] - prefixLength}}`, "g")) || []).map((x) => x.trimEnd()))
             .join(`\n${prefix}`));
 }
 export function outputGit(str) {

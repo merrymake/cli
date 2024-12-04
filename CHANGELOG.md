@@ -6,6 +6,10 @@
 ## Fixes and improvements
 -
 
+# 4.4.3
+## Fixes and improvements
+- Simulator doesn't crash on logging empty lines
+
 # 4.4.2
 ## Fixes and improvements
 - Simulator's service detection ignores files
