@@ -381,7 +381,7 @@ ${NORMAL_COLOR}`);
       delete this.pendingReplies[traceId];
       reply(
         rs.resp,
-        body.content,
+        Buffer.from(body.content),
         body["content-type"],
         body["status-code"] || 200,
         body.headers || {}
@@ -418,7 +418,7 @@ ${NORMAL_COLOR}`);
     }
     const riverConfigs = processFolders(this.pathToRoot, event);
     const rivers = Object.keys(riverConfigs);
-    if (rivers.length === 0) {
+    if (rivers.length === 0 && event[0] !== "$") {
       timedOutput(
         `${YELLOW}Warning: No hooks for '${event}'${NORMAL_COLOR}`,
         `${GRAY}${traceId}: `

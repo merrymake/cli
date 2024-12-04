@@ -6,6 +6,11 @@
 ## Fixes and improvements
 -
 
+# 4.4.4
+## Fixes and improvements
+- Simulator serves bytes correctly
+- Simulator doesn't warn of dead ends for $-messages
+
 # 4.4.3
 ## Fixes and improvements
 - Simulator doesn't crash on logging empty lines
