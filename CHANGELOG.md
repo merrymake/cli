@@ -6,6 +6,10 @@
 ## Fixes and improvements
 -
 
+# 4.4.2
+## Fixes and improvements
+- Simulator's service detection ignores files
+
 # 4.4.1
 ## Fixes and improvements
 - Simulator parsing body correctly

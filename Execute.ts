@@ -201,9 +201,15 @@ function processFolders(pathToRoot: string, event: string) {
   const rivers: {
     [river: string]: { group: string; repo: string; action: string }[];
   } = {};
-  fs.readdirSync(pathToRoot)
-    .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
-    .forEach((group) => {
+  fs.readdirSync(pathToRoot, { withFileTypes: true })
+    .filter(
+      (x) =>
+        x.isDirectory() &&
+        !x.name.startsWith("(deleted) ") &&
+        !x.name.endsWith(".DS_Store")
+    )
+    .forEach((g) => {
+      const group = g.name;
       fs.readdirSync(`${pathToRoot}/${group}`)
         .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
         .forEach((repo) => {
