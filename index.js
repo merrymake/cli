@@ -6,7 +6,7 @@ import { CTRL_C, exit } from "./prompt.js";
 import { abort, checkVersion, package_json, setDryrun } from "./utils.js";
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
-if (process.argv[0].endsWith("version")) {
+if (process.argv.length > 0 && process.argv[0].endsWith("version")) {
     console.log(package_json.version);
     process.exit(0);
 }

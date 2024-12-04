@@ -244,6 +244,15 @@ class Simulator {
     start() {
         return new Promise((resolve) => {
             const app = express();
+            app.use((req, res, next) => {
+                if (req.is("multipart/form-data") ||
+                    req.is("application/x-www-form-urlencoded")) {
+                    express.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
+                }
+                else {
+                    express.raw({ type: "*/*", limit: "10mb" })(req, res, next);
+                }
+            });
             const withSession = cookieParser();
             app.get("/:event", withSession, (req, res) => {
                 let event = req.params.event;

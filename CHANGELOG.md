@@ -6,6 +6,11 @@
 ## Fixes and improvements
 -
 
+# 4.4.1
+## Fixes and improvements
+- Simulator parsing body correctly
+- Don't crash if no arguments
+
 # 4.4.0
 ## Added features
 - Basic local `sim`-ulator
