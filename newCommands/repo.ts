@@ -286,23 +286,69 @@ export async function repo_create(
       displayName
     );
     const options: Option[] = [];
-    // const repositories = await listRepos(serviceGroupId);
-    // if (repositories.length > 0) {
-    //   options.push({
-    //     long: "duplicate",
-    //     short: "d",
-    //     text: "duplicate an existing service",
-    //     action: () => duplicate(pathToRepository, org, group),
-    //   });
-    // }
-    Object.keys(templates).forEach((x) =>
+    const repositories = await listRepos(serviceGroup.id);
+    console.log(repositories);
+    if (repositories.length === 1) {
       options.push({
-        long: templates[x].long,
-        short: templates[x].short,
-        text: templates[x].text,
-        action: () => service_template(pathToRepository, organization.id, x),
+        long: "duplicate",
+        short: "d",
+        text: `duplicate ${repositories[0].name}`,
+        action: () =>
+          duplicate_then(
+            pathToRepository,
+            organization.id,
+            serviceGroup.id,
+            new RepositoryId(repositories[0].id)
+          ),
+      });
+    } else if (repositories.length > 0) {
+      options.push({
+        long: "duplicate",
+        short: "d",
+        text: "duplicate an existing service",
+        action: () =>
+          duplicate(pathToRepository, organization.id, serviceGroup.id),
+      });
+    }
+    const langs = await Promise.all(
+      templates.basic.languages.map((x, i) =>
+        (async () => ({
+          ...languages[x],
+          weight: (
+            await Promise.all(
+              Object.keys(VERSION_CMD[languages[x].projectType]).map((k) =>
+                execPromise(VERSION_CMD[languages[x].projectType][k])
+                  .then((r) => 1)
+                  .catch((e) => -1)
+              )
+            )
+          ).reduce((a, x) => a * x, i),
+        }))()
+      )
+    );
+    langs.sort((a, b) => b.weight - a.weight);
+    langs.forEach((x) =>
+      options.push({
+        long: x.long,
+        short: x.short,
+        text: `initialize with the basic ${x.long} template`,
+        action: () =>
+          service_template_language(
+            pathToRepository,
+            organization.id,
+            "basic",
+            x.projectType
+          ),
       })
     );
+    // Object.keys(templates).forEach((x) =>
+    //   options.push({
+    //     long: templates[x].long,
+    //     short: templates[x].short,
+    //     text: templates[x].text,
+    //     action: () => service_template(pathToRepository, organization.id, x),
+    //   })
+    // );
     options.push({
       long: "empty",
       short: "e",

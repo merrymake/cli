@@ -14,10 +14,10 @@ function timedOutput(str, prefix) {
     spacerTimer = setTimeout(() => console.log(""), 10000);
 }
 function prep(folder, runCommand, env, displayFolder) {
-    const runCmd = runCommand(folder);
+    const runCmd = runCommand(folder.toString());
     const [cmd, ...args] = runCmd.split(" ");
     const options = {
-        cwd: folder,
+        cwd: folder.toString(),
         env,
         shell: "sh",
     };
@@ -97,8 +97,8 @@ function execute(handle, pathToRoot, group, repo, action, envelope, payload) {
     server.listen(() => { });
     const env = process.env || {};
     env.RAPIDS = `localhost:${server.address().port}`;
-    if (fs.existsSync(pathToRoot + "/" + group + "/env.kv")) {
-        fs.readFileSync(pathToRoot + "/" + group + "/env.kv", "utf-8")
+    if (fs.existsSync(pathToRoot.with(group).with("env.kv").toString())) {
+        fs.readFileSync(pathToRoot.with(group).with("env.kv").toString(), "utf-8")
             .split(/\r?\n/)
             .forEach((x) => {
             if (!x.includes("="))
@@ -107,16 +107,16 @@ function execute(handle, pathToRoot, group, repo, action, envelope, payload) {
             env[b[0]] = b[1];
         });
     }
-    const folder = `${pathToRoot}/${group}/${repo}`;
-    const type = detectProjectType(folder);
+    const folder = pathToRoot.with(group).with(repo);
+    const type = detectProjectType(folder.toString());
     const runCommand = RUN_COMMAND[type];
     const p = prep(folder, runCommand, env, `${envelope.traceId}:${group}/${repo}`);
     return run(p, action, envelope, payload);
 }
 function parseMerrymakeJson(folder, event) {
-    if (!fs.existsSync(`${folder}/merrymake.json`))
+    if (!fs.existsSync(folder.with("merrymake.json").toString()))
         throw "Missing merrymake.json";
-    const config = JSON.parse(fs.readFileSync(`${folder}/merrymake.json`, "utf-8"));
+    const config = JSON.parse(fs.readFileSync(folder.with("merrymake.json").toString(), "utf-8"));
     return Object.keys(config.hooks)
         .filter((x) => x.endsWith(`/${event}`))
         .map((x) => {
@@ -127,18 +127,22 @@ function parseMerrymakeJson(folder, event) {
 }
 function processFolders(pathToRoot, event) {
     const rivers = {};
-    fs.readdirSync(pathToRoot, { withFileTypes: true })
+    fs.readdirSync(pathToRoot.toString(), { withFileTypes: true })
         .filter((x) => x.isDirectory() &&
         !x.name.startsWith("(deleted) ") &&
         !x.name.endsWith(".DS_Store"))
         .forEach((g) => {
         const group = g.name;
-        fs.readdirSync(`${pathToRoot}/${group}`)
+        fs.readdirSync(pathToRoot.with(group).toString())
             .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
             .forEach((repo) => {
-            if (!fs.existsSync(`${pathToRoot}/${group}/${repo}/merrymake.json`))
+            if (!fs.existsSync(pathToRoot
+                .with(group)
+                .with(repo)
+                .with("merrymake.json")
+                .toString()))
                 return;
-            parseMerrymakeJson(`${pathToRoot}/${group}/${repo}`, event).forEach(([river, action]) => {
+            parseMerrymakeJson(pathToRoot.with(group).with(repo), event).forEach(([river, action]) => {
                 if (rivers[river] === undefined)
                     rivers[river] = [];
                 rivers[river].push({ group, repo, action });
@@ -369,7 +373,7 @@ ${NORMAL_COLOR}`);
             sessionId = "s" + Math.random();
             resp.cookie("sessionId", sessionId);
         }
-        const api_json = JSON.parse(fs.readFileSync(`${this.pathToRoot}/event-catalogue/api.json`, "utf-8"));
+        const api_json = JSON.parse(fs.readFileSync(this.pathToRoot.with("event-catalogue").with("api.json").toString(), "utf-8"));
         const conf = api_json[event];
         const traceId = generateString(3, all);
         this.pendingReplies[traceId] = {

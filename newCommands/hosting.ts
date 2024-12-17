@@ -50,7 +50,8 @@ export function bitbucketStep(group_service: PathTo, repo: string) {
 export async function do_bitbucket(
   organization: Organization,
   host: string,
-  key: string
+  key: string,
+  releaseBranch: string
 ) {
   try {
     const structure = await do_fetch(organization);
@@ -75,7 +76,7 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"Releasing service"*) exit 0 ;
     const pipelineFile = [
       `pipelines:
   branches:
-    master:
+    ${releaseBranch}:
       - parallel:
 # SERVICES ARE AUTOMATICALLY ADDED BELOW`,
     ];
@@ -137,13 +138,22 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"Releasing service"*) exit 0 ;
   }
 }
 
-function hosting_bitbucket_key_host(
+async function hosting_bitbucket_key_host(
   organization: Organization,
   host: string,
   key: string
 ) {
-  addToExecuteQueue(() => do_bitbucket(organization, host, key));
-  return finish();
+  try {
+    const branch = await shortText(
+      "Release branch",
+      "Pushes or pull requests to this branch will trigger a deploy. Normally: main, master, trunk, or release",
+      `master`
+    ).then();
+    addToExecuteQueue(() => do_bitbucket(organization, host, key, branch));
+    return finish();
+  } catch (e) {
+    throw e;
+  }
 }
 
 async function hosting_bitbucket_key(organization: Organization, file: string) {

@@ -96,6 +96,7 @@ export const CONTEXTS: { [cmd: string]: (cmd: string) => string } = {
   join: NOT_ORGANIZATION_CONTEXT,
   key: ORGANIZATION_CONTEXT,
   org: NOT_ORGANIZATION_CONTEXT,
+  start: NOT_ORGANIZATION_CONTEXT,
   rapids: ORGANIZATION_CONTEXT,
   rename: NOT_SERVICE_GROUP_CONTEXT,
   repo: SERVICE_GROUP_CONTEXT,

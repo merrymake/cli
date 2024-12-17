@@ -16,6 +16,7 @@ import {
   generateString,
   printWithPrefix,
 } from "./utils.js";
+import { PathTo, PathToOrganization, PathToRepository } from "./types.js";
 
 interface Envelope {
   messageId: string;
@@ -50,15 +51,15 @@ function timedOutput(str: string, prefix?: string) {
 }
 
 function prep(
-  folder: string,
+  folder: PathToRepository,
   runCommand: (folder: string) => string,
   env: NodeJS.ProcessEnv,
   displayFolder: string
 ) {
-  const runCmd = runCommand(folder);
+  const runCmd = runCommand(folder.toString());
   const [cmd, ...args] = runCmd.split(" ");
   const options: ExecOptions = {
-    cwd: folder,
+    cwd: folder.toString(),
     env,
     shell: "sh",
   };
@@ -109,7 +110,7 @@ function pack(...buffers: Buffer[]) {
 
 function execute(
   handle: (event: string, payload: Buffer) => void,
-  pathToRoot: string,
+  pathToRoot: PathToOrganization,
   group: string,
   repo: string,
   action: string,
@@ -161,8 +162,8 @@ function execute(
   server.listen(() => {});
   const env = process.env || {};
   env.RAPIDS = `localhost:${(server.address() as net.AddressInfo).port}`;
-  if (fs.existsSync(pathToRoot + "/" + group + "/env.kv")) {
-    fs.readFileSync(pathToRoot + "/" + group + "/env.kv", "utf-8")
+  if (fs.existsSync(pathToRoot.with(group).with("env.kv").toString())) {
+    fs.readFileSync(pathToRoot.with(group).with("env.kv").toString(), "utf-8")
       .split(/\r?\n/)
       .forEach((x) => {
         if (!x.includes("=")) return;
@@ -170,8 +171,8 @@ function execute(
         env[b[0]] = b[1];
       });
   }
-  const folder = `${pathToRoot}/${group}/${repo}`;
-  const type = detectProjectType(folder);
+  const folder = pathToRoot.with(group).with(repo);
+  const type = detectProjectType(folder.toString());
   const runCommand = RUN_COMMAND[type];
   const p = prep(
     folder,
@@ -182,11 +183,11 @@ function execute(
   return run(p, action, envelope, payload);
 }
 
-function parseMerrymakeJson(folder: string, event: string) {
-  if (!fs.existsSync(`${folder}/merrymake.json`))
+function parseMerrymakeJson(folder: PathTo, event: string) {
+  if (!fs.existsSync(folder.with("merrymake.json").toString()))
     throw "Missing merrymake.json";
   const config: MerrymakeJson = JSON.parse(
-    fs.readFileSync(`${folder}/merrymake.json`, "utf-8")
+    fs.readFileSync(folder.with("merrymake.json").toString(), "utf-8")
   );
   return Object.keys(config.hooks)
     .filter((x) => x.endsWith(`/${event}`))
@@ -197,11 +198,11 @@ function parseMerrymakeJson(folder: string, event: string) {
     });
 }
 
-function processFolders(pathToRoot: string, event: string) {
+function processFolders(pathToRoot: PathToOrganization, event: string) {
   const rivers: {
     [river: string]: { group: string; repo: string; action: string }[];
   } = {};
-  fs.readdirSync(pathToRoot, { withFileTypes: true })
+  fs.readdirSync(pathToRoot.toString(), { withFileTypes: true })
     .filter(
       (x) =>
         x.isDirectory() &&
@@ -210,12 +211,20 @@ function processFolders(pathToRoot: string, event: string) {
     )
     .forEach((g) => {
       const group = g.name;
-      fs.readdirSync(`${pathToRoot}/${group}`)
+      fs.readdirSync(pathToRoot.with(group).toString())
         .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
         .forEach((repo) => {
-          if (!fs.existsSync(`${pathToRoot}/${group}/${repo}/merrymake.json`))
+          if (
+            !fs.existsSync(
+              pathToRoot
+                .with(group)
+                .with(repo)
+                .with("merrymake.json")
+                .toString()
+            )
+          )
             return;
-          parseMerrymakeJson(`${pathToRoot}/${group}/${repo}`, event).forEach(
+          parseMerrymakeJson(pathToRoot.with(group).with(repo), event).forEach(
             ([river, action]) => {
               if (rivers[river] === undefined) rivers[river] = [];
               rivers[river].push({ group, repo, action });
@@ -326,7 +335,7 @@ function reply(
 class Simulator {
   private pendingReplies: PendingReplies = {};
   private channels: Channels = {};
-  constructor(private pathToRoot: string) {}
+  constructor(private pathToRoot: PathToOrganization) {}
   start() {
     return new Promise<void>((resolve) => {
       const app = express();
@@ -481,7 +490,10 @@ ${NORMAL_COLOR}`);
       resp.cookie("sessionId", sessionId);
     }
     const api_json: ApiJson = JSON.parse(
-      fs.readFileSync(`${this.pathToRoot}/event-catalogue/api.json`, "utf-8")
+      fs.readFileSync(
+        this.pathToRoot.with("event-catalogue").with("api.json").toString(),
+        "utf-8"
+      )
     );
     const conf = api_json[event];
     const traceId = generateString(3, all);
@@ -522,7 +534,7 @@ ${NORMAL_COLOR}`);
   }
 }
 
-export function do_startSimulator(pathToRoot: string) {
+export function do_startSimulator(pathToRoot: PathToOrganization) {
   const sim = new Simulator(pathToRoot);
   addToExecuteQueue(() => sim.start());
   return finish();

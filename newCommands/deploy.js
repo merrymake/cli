@@ -1,4 +1,4 @@
-import { choice, Formatting, shortText } from "../prompt.js";
+import { choice, Formatting, output, shortText } from "../prompt.js";
 import { addToExecuteQueue, execStreamPromise, finish, outputGit, spawnPromise, } from "../utils.js";
 /*
 [remove .gitignored files]
@@ -66,7 +66,7 @@ function redeploy() {
 }
 async function rebaseOntoMain() {
     try {
-        const output = await executeAndPrint(`git fetch && git rebase origin/main && git push origin HEAD:main 2>&1`);
+        const output = await executeAndPrint(`git fetch && ({ ! git ls-remote --exit-code origin main; } || git rebase origin/main) && git push origin HEAD:main 2>&1`);
         if (output.trimEnd().endsWith("Everything up-to-date"))
             return choice("Would you like to redeploy?", [
                 {
@@ -83,7 +83,8 @@ async function rebaseOntoMain() {
 }
 async function getMessage() {
     try {
-        const message = await shortText("Describe your changes: This commit will ", "Write in future tense 'refactor module X'", null, { formatting: Formatting.Minimal });
+        output("Describe your changes (optional):\n");
+        const message = await shortText("This commit will ", "Write in future tense 'refactor module X'", null, { formatting: Formatting.Minimal });
         const msg = message.length === 0
             ? "[No message]"
             : message[0].toUpperCase() + message.substring(1);

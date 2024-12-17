@@ -6,6 +6,17 @@
 ## Fixes and improvements
 -
 
+# 4.5.0
+## Added features
+- `repo` option to `duplicate` an existing repo
+- `hosting` asks which bitbucket branch should be the release branch
+## Fixes and improvements
+- Breadcrumb is again printing "mm" or "mmk" instead of "undefined"
+- Fix `deploy` fails with "origin/main not found" on the first deploy
+- More space for change message in `deploy`
+- Fix `sim` fails on Mac when started inside group or repo
+- Merge the sequential choices "template vs empty" and "language"
+
 # 4.4.4
 ## Fixes and improvements
 - Simulator serves bytes correctly

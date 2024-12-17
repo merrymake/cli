@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-process.env["COMMAND"] = "mm";
+import { setCommand } from "./mmCommand.js";
+setCommand("mm");
 import { stdin } from "node:process";
 if (!stdin.isTTY || stdin.setRawMode === undefined) {
   console.log(

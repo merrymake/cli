@@ -35,7 +35,7 @@ async function getContext() {
   let organization: Organization | undefined;
   let inGit = false;
   const cwd = process.cwd().split(/\/|\\/);
-  let out = ".";
+  let out = "." + path.sep;
   for (let i = cwd.length - 1; i >= 0; i--) {
     if (fs.existsSync(path.join(out, ".git"))) inGit = true;
     if (fs.existsSync(path.join(out, "merrymake.json"))) {
@@ -71,7 +71,7 @@ async function getContext() {
       };
       return { repository, serviceGroup, organization, inGit };
     }
-    out += ".." + path.sep;
+    out = path.join(out, "..");
   }
   return {
     repository,
@@ -188,7 +188,7 @@ export async function index() {
           short: "s",
           text: "simulate your system locally",
           weight: 700,
-          action: () => do_startSimulator(organization.pathTo.toString()),
+          action: () => do_startSimulator(organization.pathTo),
         },
         {
           long: "key",

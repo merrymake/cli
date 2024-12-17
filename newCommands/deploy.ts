@@ -1,4 +1,4 @@
-import { choice, Formatting, shortText } from "../prompt.js";
+import { choice, Formatting, output, shortText } from "../prompt.js";
 import { PathToRepository } from "../types.js";
 import {
   addToExecuteQueue,
@@ -84,7 +84,7 @@ function redeploy() {
 async function rebaseOntoMain() {
   try {
     const output = await executeAndPrint(
-      `git fetch && git rebase origin/main && git push origin HEAD:main 2>&1`
+      `git fetch && ({ ! git ls-remote --exit-code origin main; } || git rebase origin/main) && git push origin HEAD:main 2>&1`
     );
     if (output.trimEnd().endsWith("Everything up-to-date"))
       return choice(
@@ -106,8 +106,9 @@ async function rebaseOntoMain() {
 
 async function getMessage() {
   try {
+    output("Describe your changes (optional):\n");
     const message = await shortText(
-      "Describe your changes: This commit will ",
+      "This commit will ",
       "Write in future tense 'refactor module X'",
       null,
       { formatting: Formatting.Minimal }

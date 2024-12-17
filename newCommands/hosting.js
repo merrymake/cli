@@ -26,7 +26,7 @@ export function bitbucketStep(group_service, repo) {
         .toString()
         .replace(/\\/g, "/")} ${repo}`;
 }
-export async function do_bitbucket(organization, host, key) {
+export async function do_bitbucket(organization, host, key, releaseBranch) {
     try {
         const structure = await do_fetch(organization);
         fs.writeFileSync(organization.pathTo.with(".merrymake").with("deploy.sh").toString(), `set -o errexit
@@ -47,7 +47,7 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"Releasing service"*) exit 0 ;
         const pipelineFile = [
             `pipelines:
   branches:
-    master:
+    ${releaseBranch}:
       - parallel:
 # SERVICES ARE AUTOMATICALLY ADDED BELOW`,
         ];
@@ -97,9 +97,15 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"Releasing service"*) exit 0 ;
         throw e;
     }
 }
-function hosting_bitbucket_key_host(organization, host, key) {
-    addToExecuteQueue(() => do_bitbucket(organization, host, key));
-    return finish();
+async function hosting_bitbucket_key_host(organization, host, key) {
+    try {
+        const branch = await shortText("Release branch", "Pushes or pull requests to this branch will trigger a deploy. Normally: main, master, trunk, or release", `master`).then();
+        addToExecuteQueue(() => do_bitbucket(organization, host, key, branch));
+        return finish();
+    }
+    catch (e) {
+        throw e;
+    }
 }
 async function hosting_bitbucket_key(organization, file) {
     try {

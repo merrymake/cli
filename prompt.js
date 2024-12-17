@@ -2,6 +2,7 @@ import { stdin, stdout } from "node:process";
 import { getArgs } from "./args.js";
 import { CONTEXTS } from "./contexts.js";
 import { abort } from "./utils.js";
+import { getCommand } from "./mmCommand.js";
 export const CTRL_C = "\u0003";
 // const CR = "\u000D";
 export const BACKSPACE = "\b";
@@ -122,9 +123,11 @@ function moveToBottom() {
 function getCursorPosition() {
     return [xOffset, yOffset];
 }
-let command = "$ " + process.env["COMMAND"];
+let command = "";
 let hasSecret = false;
 function makeSelectionSuperInternal(action, extra = () => { }) {
+    if (command.length === 0)
+        command = getCommand();
     moveToBottom();
     cleanup();
     extra();
