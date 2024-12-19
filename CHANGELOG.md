@@ -6,6 +6,13 @@
 ## Fixes and improvements
 -
 
+# 4.5.1
+## Fixes and improvements
+- CORS in `sim` to allow setting content-type
+- `delete` service group now works
+- `deploy` targets the remote's HEAD branch instead of always `main`
+- `build` skips npm install more often
+
 # 4.5.0
 ## Added features
 - `repo` option to `duplicate` an existing repo

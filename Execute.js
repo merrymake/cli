@@ -1,4 +1,4 @@
-import { detectProjectType, RUN_COMMAND } from "@merrymake/detect-project-type";
+import { detectProjectType, ProjectTypes, } from "@merrymake/detect-project-type";
 import { spawn, } from "child_process";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -13,22 +13,27 @@ function timedOutput(str, prefix) {
     printWithPrefix(str, prefix);
     spacerTimer = setTimeout(() => console.log(""), 10000);
 }
-function prep(folder, runCommand, env, displayFolder) {
-    const runCmd = runCommand(folder.toString());
-    const [cmd, ...args] = runCmd.split(" ");
-    const options = {
-        cwd: folder.toString(),
-        env,
-        shell: "sh",
-    };
-    const p = spawn(cmd, args, options);
-    p.stdout.on("data", (data) => {
-        timedOutput(`${data.toString()}`, `${GRAY}${displayFolder}: ${NORMAL_COLOR}`);
-    });
-    p.stderr.on("data", (data) => {
-        timedOutput(`${data.toString()}${NORMAL_COLOR}`, `${GRAY}${displayFolder}: ${RED}`);
-    });
-    return p;
+async function prep(folder, runCommand, env, displayFolder) {
+    try {
+        const runCmd = await runCommand(folder.toString());
+        const [cmd, ...args] = runCmd.split(" ");
+        const options = {
+            cwd: folder.toString(),
+            env,
+            shell: "sh",
+        };
+        const p = spawn(cmd, args, options);
+        p.stdout.on("data", (data) => {
+            timedOutput(`${data.toString()}`, `${GRAY}${displayFolder}: ${NORMAL_COLOR}`);
+        });
+        p.stderr.on("data", (data) => {
+            timedOutput(`${data.toString()}${NORMAL_COLOR}`, `${GRAY}${displayFolder}: ${RED}`);
+        });
+        return p;
+    }
+    catch (e) {
+        throw e;
+    }
 }
 function run(p, action, envelope, payload) {
     return new Promise((resolve) => {
@@ -50,68 +55,72 @@ function pack(...buffers) {
     buffers.forEach((x) => result.push(numberToBuffer(x.length), x));
     return Buffer.concat(result);
 }
-function execute(handle, pathToRoot, group, repo, action, envelope, payload) {
-    const server = net.createServer((socket) => {
-        socket.on("end", () => {
-            socket.end();
-        });
-        socket.on("close", () => {
-            server.close();
-        });
-        let missing = 0;
-        const parsed = [];
-        let buffer = Buffer.alloc(0);
-        socket.on("data", (buf) => {
-            buffer = Buffer.concat([buffer, buf]);
-            while (true) {
-                if (missing === 0) {
-                    if (buffer.length < 3) {
+async function execute(handle, pathToRoot, group, repo, action, envelope, payload) {
+    try {
+        const server = net.createServer((socket) => {
+            socket.on("end", () => {
+                socket.end();
+            });
+            socket.on("close", () => {
+                server.close();
+            });
+            let missing = 0;
+            const parsed = [];
+            let buffer = Buffer.alloc(0);
+            socket.on("data", (buf) => {
+                buffer = Buffer.concat([buffer, buf]);
+                while (true) {
+                    if (missing === 0) {
+                        if (buffer.length < 3) {
+                            return;
+                        }
+                        missing = bufferToNumber(buffer);
+                        buffer = buffer.subarray(3);
+                    }
+                    if (missing === 0) {
+                        parsed.push(Buffer.alloc(0));
+                        if (parsed.length === 2) {
+                            const [event, payload] = parsed.splice(0, 2);
+                            handle(event.toString(), payload);
+                        }
+                        continue;
+                    }
+                    if (buffer.length >= missing) {
+                        parsed.push(buffer.subarray(0, missing));
+                        buffer = buffer.subarray(missing);
+                        missing = 0;
+                        if (parsed.length === 2) {
+                            const [event, payload] = parsed.splice(0, 2);
+                            handle(event.toString(), payload);
+                        }
+                    }
+                    else {
                         return;
                     }
-                    missing = bufferToNumber(buffer);
-                    buffer = buffer.subarray(3);
                 }
-                if (missing === 0) {
-                    parsed.push(Buffer.alloc(0));
-                    if (parsed.length === 2) {
-                        const [event, payload] = parsed.splice(0, 2);
-                        handle(event.toString(), payload);
-                    }
-                    continue;
-                }
-                if (buffer.length >= missing) {
-                    parsed.push(buffer.subarray(0, missing));
-                    buffer = buffer.subarray(missing);
-                    missing = 0;
-                    if (parsed.length === 2) {
-                        const [event, payload] = parsed.splice(0, 2);
-                        handle(event.toString(), payload);
-                    }
-                }
-                else {
+            });
+        });
+        server.listen(() => { });
+        const env = process.env || {};
+        env.RAPIDS = `localhost:${server.address().port}`;
+        if (fs.existsSync(pathToRoot.with(group).with("env.kv").toString())) {
+            fs.readFileSync(pathToRoot.with(group).with("env.kv").toString(), "utf-8")
+                .split(/\r?\n/)
+                .forEach((x) => {
+                if (!x.includes("="))
                     return;
-                }
-            }
-        });
-    });
-    server.listen(() => { });
-    const env = process.env || {};
-    env.RAPIDS = `localhost:${server.address().port}`;
-    if (fs.existsSync(pathToRoot.with(group).with("env.kv").toString())) {
-        fs.readFileSync(pathToRoot.with(group).with("env.kv").toString(), "utf-8")
-            .split(/\r?\n/)
-            .forEach((x) => {
-            if (!x.includes("="))
-                return;
-            const b = x.split("=");
-            env[b[0]] = b[1];
-        });
+                const b = x.split("=");
+                env[b[0]] = b[1];
+            });
+        }
+        const folder = pathToRoot.with(group).with(repo);
+        const pType = await detectProjectType(folder.toString());
+        const p = await prep(folder, (folder) => ProjectTypes[pType].runCommand(folder), env, `${envelope.traceId}:${group}/${repo}`);
+        return run(p, action, envelope, payload);
     }
-    const folder = pathToRoot.with(group).with(repo);
-    const type = detectProjectType(folder.toString());
-    const runCommand = RUN_COMMAND[type];
-    const p = prep(folder, runCommand, env, `${envelope.traceId}:${group}/${repo}`);
-    return run(p, action, envelope, payload);
+    catch (e) {
+        throw e;
+    }
 }
 function parseMerrymakeJson(folder, event) {
     if (!fs.existsSync(folder.with("merrymake.json").toString()))
@@ -251,6 +260,7 @@ class Simulator {
     start() {
         return new Promise((resolve) => {
             const app = express();
+            const withSession = cookieParser();
             app.use((req, res, next) => {
                 if (req.is("multipart/form-data") ||
                     req.is("application/x-www-form-urlencoded")) {
@@ -260,7 +270,13 @@ class Simulator {
                     express.raw({ type: "*/*", limit: "10mb" })(req, res, next);
                 }
             });
-            const withSession = cookieParser();
+            // CORS
+            app.options("/:event", withSession, async (req, res) => {
+                res.set("Access-Control-Allow-Origin", "*");
+                res.set("Access-Control-Allow-Headers", "Content-Type");
+                res.send("Ok");
+            });
+            // NORMAL EVENTS
             app.get("/:event", withSession, (req, res) => {
                 let event = req.params.event;
                 let payload = Buffer.from(JSON.stringify(req.query));
@@ -360,6 +376,7 @@ ${NORMAL_COLOR}`);
     }
     async handleEndpoint(req, resp, event, payload) {
         resp.set("Access-Control-Allow-Origin", "*");
+        resp.set("Access-Control-Allow-Headers", "Content-Type");
         const headers = (() => {
             const filtered = Object.keys(req.headersDistinct).filter((k) => !USUAL_HEADERS.has(k));
             if (filtered.length === 0)

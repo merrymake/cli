@@ -10,7 +10,7 @@ import { deploy } from "./deploy.js";
 import { envvar } from "./envvar.js";
 import { event } from "./event.js";
 import { fetch } from "./fetch.js";
-import { group } from "./group.js";
+import { deleteServiceGroup, group } from "./group.js";
 import { BITBUCKET_FILE, hosting } from "./hosting.js";
 import { orgAction, rename } from "./org.js";
 import { queue } from "./queue.js";
@@ -41,7 +41,6 @@ async function getContext() {
                     pathTo: new PathToRepository(out),
                 };
             }
-            // TODO bitbucket
         }
         else if (fs.existsSync(path.join(out, ".group-id"))) {
             serviceGroup = {
@@ -55,7 +54,8 @@ async function getContext() {
                 id: new OrganizationId(orgFile.organizationId),
                 pathTo: new PathToOrganization(out),
             };
-            return { repository, serviceGroup, organization, inGit };
+            const monorepo = fs.existsSync(path.join(out, ".git"));
+            return { repository, serviceGroup, organization, inGit, monorepo };
         }
         out = path.join(out, "..");
     }
@@ -63,19 +63,21 @@ async function getContext() {
         repository,
         serviceGroup,
         organization,
+        inGit,
+        monorepo: false,
     };
 }
 export async function index() {
     try {
         const options = [];
-        const { repository, serviceGroup, organization, inGit } = await getContext();
+        const { repository, serviceGroup, organization, inGit, monorepo } = await getContext();
         if (inGit) {
             options.push({
                 long: "deploy",
                 short: "d",
                 text: "deploy service with git",
                 weight: 900,
-                action: () => deploy(),
+                action: () => deploy(monorepo),
             });
         }
         if (repository !== undefined) {
@@ -127,7 +129,7 @@ export async function index() {
                     short: "d",
                     text: "delete a service group",
                     weight: 100,
-                    action: () => hosting(organization),
+                    action: () => deleteServiceGroup(organization.id),
                 }, {
                     long: "group",
                     short: "g",

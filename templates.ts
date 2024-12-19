@@ -1,10 +1,10 @@
-import { ProjectType } from "@merrymake/detect-project-type";
+import { ProjectTypes } from "@merrymake/detect-project-type";
 
 export type Languages = {
   [key: string]: {
     long: string;
     short: string;
-    projectType: ProjectType;
+    projectType: keyof typeof ProjectTypes;
   };
 };
 export const languages: Languages = {

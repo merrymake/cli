@@ -1,4 +1,4 @@
-import { VERSION_CMD } from "@merrymake/detect-project-type";
+import { ProjectTypes } from "@merrymake/detect-project-type";
 import fs from "fs";
 import { GIT_HOST } from "../config.js";
 import { Option, choice, shortText } from "../prompt.js";
@@ -139,18 +139,24 @@ export async function service_template(
   try {
     const langs = await Promise.all(
       templates[template].languages.map((x, i) =>
-        (async () => ({
-          ...languages[x],
-          weight: (
-            await Promise.all(
-              Object.keys(VERSION_CMD[languages[x].projectType]).map((k) =>
-                execPromise(VERSION_CMD[languages[x].projectType][k])
-                  .then((r) => 1)
-                  .catch((e) => -1)
+        (async () => {
+          const versionCommands =
+            ProjectTypes[languages[x].projectType].versionCommands();
+          return {
+            ...languages[x],
+            weight: (
+              await Promise.all(
+                Object.keys(versionCommands).map((k) =>
+                  versionCommands[k] === undefined
+                    ? 1
+                    : execPromise(versionCommands[k])
+                        .then((r) => 1)
+                        .catch((e) => 0)
+                )
               )
-            )
-          ).reduce((a, x) => a * x, i),
-        }))()
+            ).reduce((a, x) => a * x, i),
+          };
+        })()
       )
     );
     langs.sort((a, b) => b.weight - a.weight);
@@ -312,18 +318,24 @@ export async function repo_create(
     }
     const langs = await Promise.all(
       templates.basic.languages.map((x, i) =>
-        (async () => ({
-          ...languages[x],
-          weight: (
-            await Promise.all(
-              Object.keys(VERSION_CMD[languages[x].projectType]).map((k) =>
-                execPromise(VERSION_CMD[languages[x].projectType][k])
-                  .then((r) => 1)
-                  .catch((e) => -1)
+        (async () => {
+          const versionCommands =
+            ProjectTypes[languages[x].projectType].versionCommands();
+          return {
+            ...languages[x],
+            weight: (
+              await Promise.all(
+                Object.keys(versionCommands).map((k) =>
+                  versionCommands[k] === undefined
+                    ? 1
+                    : execPromise(versionCommands[k])
+                        .then((r) => 1)
+                        .catch((e) => 0)
+                )
               )
-            )
-          ).reduce((a, x) => a * x, i),
-        }))()
+            ).reduce((a, x) => a * x, i),
+          };
+        })()
       )
     );
     langs.sort((a, b) => b.weight - a.weight);

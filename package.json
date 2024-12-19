@@ -1,6 +1,6 @@
 {
   "name": "@merrymake/cli",
-  "version": "4.5.0",
+  "version": "4.5.1",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -34,7 +34,6 @@
     "@types/cookie-parser": "latest",
     "@types/express": "latest",
     "@types/node": "latest",
-    "pkg": "latest",
     "@tsconfig/node-lts": "latest"
   }
 }

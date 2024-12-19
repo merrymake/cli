@@ -1,6 +1,6 @@
 import {
-  BUILD_SCRIPT_MAKERS,
   detectProjectType,
+  ProjectTypes,
 } from "@merrymake/detect-project-type";
 import {
   addToExecuteQueue,
@@ -11,9 +11,9 @@ import {
 
 export async function do_build() {
   try {
-    const projectType = detectProjectType(".");
+    const projectType = await detectProjectType(".");
     outputGit(`Building ${projectType} project...`);
-    const buildCommands = BUILD_SCRIPT_MAKERS[projectType](".");
+    const buildCommands = await ProjectTypes[projectType].build(".");
     for (let i = 0; i < buildCommands.length; i++) {
       const x = buildCommands[i];
       await spawnPromise(x);

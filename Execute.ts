@@ -1,4 +1,7 @@
-import { detectProjectType, RUN_COMMAND } from "@merrymake/detect-project-type";
+import {
+  detectProjectType,
+  ProjectTypes,
+} from "@merrymake/detect-project-type";
 import {
   ChildProcessWithoutNullStreams,
   ExecOptions,
@@ -50,33 +53,37 @@ function timedOutput(str: string, prefix?: string) {
   spacerTimer = setTimeout(() => console.log(""), 10000);
 }
 
-function prep(
+async function prep(
   folder: PathToRepository,
-  runCommand: (folder: string) => string,
+  runCommand: (folder: string) => Promise<string>,
   env: NodeJS.ProcessEnv,
   displayFolder: string
 ) {
-  const runCmd = runCommand(folder.toString());
-  const [cmd, ...args] = runCmd.split(" ");
-  const options: ExecOptions = {
-    cwd: folder.toString(),
-    env,
-    shell: "sh",
-  };
-  const p = spawn(cmd, args, options);
-  p.stdout.on("data", (data: Buffer) => {
-    timedOutput(
-      `${data.toString()}`,
-      `${GRAY}${displayFolder}: ${NORMAL_COLOR}`
-    );
-  });
-  p.stderr.on("data", (data: Buffer) => {
-    timedOutput(
-      `${data.toString()}${NORMAL_COLOR}`,
-      `${GRAY}${displayFolder}: ${RED}`
-    );
-  });
-  return p;
+  try {
+    const runCmd = await runCommand(folder.toString());
+    const [cmd, ...args] = runCmd.split(" ");
+    const options: ExecOptions = {
+      cwd: folder.toString(),
+      env,
+      shell: "sh",
+    };
+    const p = spawn(cmd, args, options);
+    p.stdout.on("data", (data: Buffer) => {
+      timedOutput(
+        `${data.toString()}`,
+        `${GRAY}${displayFolder}: ${NORMAL_COLOR}`
+      );
+    });
+    p.stderr.on("data", (data: Buffer) => {
+      timedOutput(
+        `${data.toString()}${NORMAL_COLOR}`,
+        `${GRAY}${displayFolder}: ${RED}`
+      );
+    });
+    return p;
+  } catch (e) {
+    throw e;
+  }
 }
 
 function run(
@@ -108,7 +115,7 @@ function pack(...buffers: Buffer[]) {
   return Buffer.concat(result);
 }
 
-function execute(
+async function execute(
   handle: (event: string, payload: Buffer) => void,
   pathToRoot: PathToOrganization,
   group: string,
@@ -117,70 +124,73 @@ function execute(
   envelope: Envelope,
   payload: Buffer
 ) {
-  const server = net.createServer((socket: net.Socket) => {
-    socket.on("end", () => {
-      socket.end();
-    });
-    socket.on("close", () => {
-      server.close();
-    });
-    let missing = 0;
-    const parsed: Buffer[] = [];
-    let buffer = Buffer.alloc(0);
-    socket.on("data", (buf: Buffer) => {
-      buffer = Buffer.concat([buffer, buf]);
-      while (true) {
-        if (missing === 0) {
-          if (buffer.length < 3) {
+  try {
+    const server = net.createServer((socket: net.Socket) => {
+      socket.on("end", () => {
+        socket.end();
+      });
+      socket.on("close", () => {
+        server.close();
+      });
+      let missing = 0;
+      const parsed: Buffer[] = [];
+      let buffer = Buffer.alloc(0);
+      socket.on("data", (buf: Buffer) => {
+        buffer = Buffer.concat([buffer, buf]);
+        while (true) {
+          if (missing === 0) {
+            if (buffer.length < 3) {
+              return;
+            }
+            missing = bufferToNumber(buffer);
+            buffer = buffer.subarray(3);
+          }
+          if (missing === 0) {
+            parsed.push(Buffer.alloc(0));
+            if (parsed.length === 2) {
+              const [event, payload] = parsed.splice(0, 2);
+              handle(event.toString(), payload);
+            }
+            continue;
+          }
+          if (buffer.length >= missing) {
+            parsed.push(buffer.subarray(0, missing));
+            buffer = buffer.subarray(missing);
+            missing = 0;
+            if (parsed.length === 2) {
+              const [event, payload] = parsed.splice(0, 2);
+              handle(event.toString(), payload);
+            }
+          } else {
             return;
           }
-          missing = bufferToNumber(buffer);
-          buffer = buffer.subarray(3);
         }
-        if (missing === 0) {
-          parsed.push(Buffer.alloc(0));
-          if (parsed.length === 2) {
-            const [event, payload] = parsed.splice(0, 2);
-            handle(event.toString(), payload);
-          }
-          continue;
-        }
-        if (buffer.length >= missing) {
-          parsed.push(buffer.subarray(0, missing));
-          buffer = buffer.subarray(missing);
-          missing = 0;
-          if (parsed.length === 2) {
-            const [event, payload] = parsed.splice(0, 2);
-            handle(event.toString(), payload);
-          }
-        } else {
-          return;
-        }
-      }
-    });
-  });
-  server.listen(() => {});
-  const env = process.env || {};
-  env.RAPIDS = `localhost:${(server.address() as net.AddressInfo).port}`;
-  if (fs.existsSync(pathToRoot.with(group).with("env.kv").toString())) {
-    fs.readFileSync(pathToRoot.with(group).with("env.kv").toString(), "utf-8")
-      .split(/\r?\n/)
-      .forEach((x) => {
-        if (!x.includes("=")) return;
-        const b = x.split("=");
-        env[b[0]] = b[1];
       });
+    });
+    server.listen(() => {});
+    const env = process.env || {};
+    env.RAPIDS = `localhost:${(server.address() as net.AddressInfo).port}`;
+    if (fs.existsSync(pathToRoot.with(group).with("env.kv").toString())) {
+      fs.readFileSync(pathToRoot.with(group).with("env.kv").toString(), "utf-8")
+        .split(/\r?\n/)
+        .forEach((x) => {
+          if (!x.includes("=")) return;
+          const b = x.split("=");
+          env[b[0]] = b[1];
+        });
+    }
+    const folder = pathToRoot.with(group).with(repo);
+    const pType = await detectProjectType(folder.toString());
+    const p = await prep(
+      folder,
+      (folder) => ProjectTypes[pType].runCommand(folder),
+      env,
+      `${envelope.traceId}:${group}/${repo}`
+    );
+    return run(p, action, envelope, payload);
+  } catch (e) {
+    throw e;
   }
-  const folder = pathToRoot.with(group).with(repo);
-  const type = detectProjectType(folder.toString());
-  const runCommand = RUN_COMMAND[type];
-  const p = prep(
-    folder,
-    runCommand,
-    env,
-    `${envelope.traceId}:${group}/${repo}`
-  );
-  return run(p, action, envelope, payload);
 }
 
 function parseMerrymakeJson(folder: PathTo, event: string) {
@@ -339,6 +349,7 @@ class Simulator {
   start() {
     return new Promise<void>((resolve) => {
       const app = express();
+      const withSession: RequestHandler<{ event: string }> = cookieParser();
       app.use((req, res, next) => {
         if (
           req.is("multipart/form-data") ||
@@ -349,7 +360,13 @@ class Simulator {
           express.raw({ type: "*/*", limit: "10mb" })(req, res, next);
         }
       });
-      const withSession: RequestHandler<{ event: string }> = cookieParser();
+      // CORS
+      app.options("/:event", withSession, async (req, res) => {
+        res.set("Access-Control-Allow-Origin", "*");
+        res.set("Access-Control-Allow-Headers", "Content-Type");
+        res.send("Ok");
+      });
+      // NORMAL EVENTS
       app.get("/:event", withSession, (req, res) => {
         let event = req.params.event;
         let payload: Buffer = Buffer.from(JSON.stringify(req.query));
@@ -475,6 +492,7 @@ ${NORMAL_COLOR}`);
     payload: Buffer
   ) {
     resp.set("Access-Control-Allow-Origin", "*");
+    resp.set("Access-Control-Allow-Headers", "Content-Type");
     const headers = (() => {
       const filtered = Object.keys(req.headersDistinct).filter(
         (k) => !USUAL_HEADERS.has(k)

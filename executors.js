@@ -1,4 +1,3 @@
-import { BUILD_SCRIPT_MAKERS, detectProjectType, } from "@merrymake/detect-project-type";
 import { spawn } from "child_process";
 import fs from "fs";
 import { stdout } from "process";
@@ -25,20 +24,6 @@ function spawnPromise(str) {
                 reject();
         });
     });
-}
-export async function do_build() {
-    try {
-        const projectType = detectProjectType(".");
-        outputGit(`Building ${projectType} project...`);
-        const buildCommands = BUILD_SCRIPT_MAKERS[projectType](".");
-        for (let i = 0; i < buildCommands.length; i++) {
-            const x = buildCommands[i];
-            await spawnPromise(x);
-        }
-    }
-    catch (e) {
-        throw e;
-    }
 }
 export function alignRight(str, width) {
     return str.length > width

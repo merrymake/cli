@@ -250,6 +250,21 @@ export function execStreamPromise(full, onData, cwd) {
         });
     });
 }
+export async function execute(command, alsoPrint = false) {
+    try {
+        const result = [];
+        const onData = (s) => {
+            result.push(s);
+            if (alsoPrint)
+                outputGit(s);
+        };
+        await execStreamPromise(command, onData);
+        return result.join("");
+    }
+    catch (e) {
+        throw e;
+    }
+}
 export function spawnPromise(str) {
     return new Promise((resolve, reject) => {
         const [cmd, ...args] = str.split(" ");

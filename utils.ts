@@ -302,6 +302,19 @@ export function execStreamPromise(
     });
   });
 }
+export async function execute(command: string, alsoPrint = false) {
+  try {
+    const result: string[] = [];
+    const onData = (s: string) => {
+      result.push(s);
+      if (alsoPrint) outputGit(s);
+    };
+    await execStreamPromise(command, onData);
+    return result.join("");
+  } catch (e) {
+    throw e;
+  }
+}
 
 export function spawnPromise(str: string) {
   return new Promise<void>((resolve, reject) => {

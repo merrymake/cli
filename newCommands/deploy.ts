@@ -1,8 +1,10 @@
+import { existsSync } from "node:fs";
 import { choice, Formatting, output, shortText } from "../prompt.js";
 import { PathToRepository } from "../types.js";
 import {
   addToExecuteQueue,
   execStreamPromise,
+  execute,
   finish,
   outputGit,
   spawnPromise,
@@ -43,19 +45,6 @@ async function do_deploy_internal(commit: string) {
     throw e;
   }
 }
-async function executeAndPrint(command: string) {
-  try {
-    const result: string[] = [];
-    const onData = (s: string) => {
-      result.push(s);
-      outputGit(s);
-    };
-    await execStreamPromise(command, onData);
-    return result.join("");
-  } catch (e) {
-    throw e;
-  }
-}
 
 export async function do_deploy(pathToService: PathToRepository) {
   try {
@@ -81,12 +70,17 @@ function redeploy() {
   return finish();
 }
 
-async function rebaseOntoMain() {
+async function rebaseOntoMain(monorepo: boolean) {
   try {
-    const output = await executeAndPrint(
-      `git fetch && ({ ! git ls-remote --exit-code origin main; } || git rebase origin/main) && git push origin HEAD:main 2>&1`
+    const remoteHead = ((a) => {
+      const mat = a.match(/ref: refs\/heads\/(.+)\t/);
+      return mat === null ? undefined : mat[1];
+    })(await execute(`git ls-remote --symref origin HEAD 2>&1`));
+    const output = await execute(
+      `git fetch && ({ ! git ls-remote --exit-code origin ${remoteHead} >/dev/null; } || git rebase origin/${remoteHead}) && git push origin HEAD:${remoteHead} 2>&1`,
+      true
     );
-    if (output.trimEnd().endsWith("Everything up-to-date"))
+    if (output.trimEnd().endsWith("Everything up-to-date") && !monorepo) {
       return choice(
         "Would you like to redeploy?",
         [
@@ -98,15 +92,16 @@ async function rebaseOntoMain() {
         ],
         { disableAutoPick: true }
       );
+    }
     return finish();
   } catch (e) {
     throw e;
   }
 }
 
-async function getMessage() {
+async function getMessage(monorepo: boolean) {
   try {
-    output("Describe your changes (optional):\n");
+    output("Describe your changes (optional):");
     const message = await shortText(
       "This commit will ",
       "Write in future tense 'refactor module X'",
@@ -118,13 +113,13 @@ async function getMessage() {
         ? "[No message]"
         : message[0].toUpperCase() + message.substring(1);
     await spawnPromise(`git commit -m "${msg}"`);
-    return rebaseOntoMain();
+    return rebaseOntoMain(monorepo);
   } catch (e) {
     throw e;
   }
 }
 
-export async function deploy() {
+export async function deploy(monorepo: boolean) {
   try {
     const dirty = await (async () => {
       try {
@@ -136,21 +131,7 @@ export async function deploy() {
         return true;
       }
     })();
-    return dirty ? getMessage() : rebaseOntoMain();
-    // const didDeploy = await do_deploy(new PathToRepository("."));
-    // if (didDeploy) return finish();
-    // else
-    //   return choice(
-    //     "Would you like to redeploy?",
-    //     [
-    //       {
-    //         long: "again",
-    //         text: "deploy again",
-    //         action: () => redeploy(),
-    //       },
-    //     ],
-    //     { disableAutoPick: true }
-    //   );
+    return dirty ? getMessage(monorepo) : rebaseOntoMain(monorepo);
   } catch (e) {
     throw e;
   }

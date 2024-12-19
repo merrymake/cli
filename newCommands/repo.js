@@ -1,4 +1,4 @@
-import { VERSION_CMD } from "@merrymake/detect-project-type";
+import { ProjectTypes } from "@merrymake/detect-project-type";
 import fs from "fs";
 import { GIT_HOST } from "../config.js";
 import { choice, shortText } from "../prompt.js";
@@ -75,12 +75,17 @@ export async function do_createService(organization, serviceGroup, folderName, d
 }
 export async function service_template(pathToService, organizationId, template) {
     try {
-        const langs = await Promise.all(templates[template].languages.map((x, i) => (async () => ({
-            ...languages[x],
-            weight: (await Promise.all(Object.keys(VERSION_CMD[languages[x].projectType]).map((k) => execPromise(VERSION_CMD[languages[x].projectType][k])
-                .then((r) => 1)
-                .catch((e) => -1)))).reduce((a, x) => a * x, i),
-        }))()));
+        const langs = await Promise.all(templates[template].languages.map((x, i) => (async () => {
+            const versionCommands = ProjectTypes[languages[x].projectType].versionCommands();
+            return {
+                ...languages[x],
+                weight: (await Promise.all(Object.keys(versionCommands).map((k) => versionCommands[k] === undefined
+                    ? 1
+                    : execPromise(versionCommands[k])
+                        .then((r) => 1)
+                        .catch((e) => 0)))).reduce((a, x) => a * x, i),
+            };
+        })()));
         langs.sort((a, b) => b.weight - a.weight);
         return await choice("Which programming language would you like to use?", langs.map((x) => ({
             long: x.long,
@@ -178,12 +183,17 @@ export async function repo_create(organization, serviceGroup) {
                 action: () => duplicate(pathToRepository, organization.id, serviceGroup.id),
             });
         }
-        const langs = await Promise.all(templates.basic.languages.map((x, i) => (async () => ({
-            ...languages[x],
-            weight: (await Promise.all(Object.keys(VERSION_CMD[languages[x].projectType]).map((k) => execPromise(VERSION_CMD[languages[x].projectType][k])
-                .then((r) => 1)
-                .catch((e) => -1)))).reduce((a, x) => a * x, i),
-        }))()));
+        const langs = await Promise.all(templates.basic.languages.map((x, i) => (async () => {
+            const versionCommands = ProjectTypes[languages[x].projectType].versionCommands();
+            return {
+                ...languages[x],
+                weight: (await Promise.all(Object.keys(versionCommands).map((k) => versionCommands[k] === undefined
+                    ? 1
+                    : execPromise(versionCommands[k])
+                        .then((r) => 1)
+                        .catch((e) => 0)))).reduce((a, x) => a * x, i),
+            };
+        })()));
         langs.sort((a, b) => b.weight - a.weight);
         langs.forEach((x) => options.push({
             long: x.long,
