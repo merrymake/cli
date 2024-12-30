@@ -13,7 +13,12 @@ const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 export async function do_attach_role(user: string, accessId: AccessId) {
   try {
     outputGit(
-      await sshReq(`user-assign`, user, `--accessId`, accessId.toString())
+      await sshReq(
+        `user-assign`,
+        `\\"${user}\\"`,
+        `--accessId`,
+        accessId.toString()
+      )
     );
   } catch (e) {
     throw e;
@@ -211,7 +216,7 @@ export async function pending(organization: Organization) {
   try {
     const users = await listUsers(organization.id);
     const options: Option[] = users
-      .filter((u) => u.roles[0] === "Pending")
+      .filter((u) => u.roles === "Pending")
       .map((user) => {
         return {
           long: user.email,
@@ -229,7 +234,7 @@ export async function role(organization: Organization) {
   try {
     const users = await listUsers(organization.id);
     const options: Option[] = users
-      .filter((u) => u.roles[0] !== "Pending")
+      .filter((u) => u.roles !== "Pending")
       .map((user) => {
         return {
           long: user.email,

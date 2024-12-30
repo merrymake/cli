@@ -6,6 +6,14 @@
 ## Fixes and improvements
 -
 
+# 4.6.0
+## Added features
+- `rapids` shows traces in intelligent groups, providing better overview in case of many events
+- `inspect` shows output from entire trace
+## Fixes and improvements
+- Hide pending users in `role`
+- If the first 0-9 options don't have letter triggers, they get a number
+
 # 4.5.1
 ## Fixes and improvements
 - CORS in `sim` to allow setting content-type

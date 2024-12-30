@@ -207,7 +207,7 @@ async function hosting_bitbucket(organization: Organization) {
       action: () => hosting_bitbucket_create(organization),
     });
     return await choice("Which service user would you like to use?", options, {
-      invertedQuiet: { cmd: false, select: true },
+      invertedQuiet: { cmd: false },
     }).then();
   } catch (e) {
     throw e;

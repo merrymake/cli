@@ -38,6 +38,13 @@ export function alignLeft(str: string, width: number) {
     : str.padEnd(width, " ");
 }
 
+export function alignCenter(str: string, width: number) {
+  const half = ~~((width - str.length) / 2);
+  return str.length > width
+    ? str.substring(0, width - 3) + "..."
+    : "".padStart(half, " ").concat(str).padEnd(width, " ");
+}
+
 export function printTableHeader(
   prefix: string,
   widths: { [key: string]: number }

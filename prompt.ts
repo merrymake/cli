@@ -129,7 +129,7 @@ function moveCursorTo(x: number, y: number) {
   moveCursor(x - xOffset, y - yOffset);
 }
 
-function moveToBottom() {
+export function moveToBottom() {
   moveCursor(-xOffset, maxYOffset - yOffset);
 }
 
@@ -198,7 +198,7 @@ export function choice(
   opts?: {
     def?: number;
     disableAutoPick?: boolean;
-    invertedQuiet?: { cmd: boolean; select: boolean };
+    invertedQuiet?: { cmd: boolean };
     errorMessage?: string;
   }
 ) {
@@ -207,6 +207,9 @@ export function choice(
       console.log(opts?.errorMessage || "There are no options.");
       process.exit(1);
     }
+    for (let i = 0; i < 9; i++)
+      if (options[i].short === undefined) options[i].short = (i + 1).toString();
+      else break;
     if (options.length === 1 && opts?.disableAutoPick !== true) {
       if (
         getArgs().length > 0 &&
@@ -247,13 +250,17 @@ export function choice(
       str.push(o.short || "_");
       str.push("] ");
       const index = o.text.indexOf(o.long);
-      const before = o.text.substring(0, index);
-      const after = o.text.substring(index + o.long.length);
-      str.push(before);
-      str.push(YELLOW);
-      str.push(o.long);
-      str.push(NORMAL_COLOR);
-      str.push(after);
+      if (index >= 0) {
+        const before = o.text.substring(0, index);
+        const after = o.text.substring(index + o.long.length);
+        str.push(before);
+        str.push(YELLOW);
+        str.push(o.long);
+        str.push(NORMAL_COLOR);
+        str.push(after);
+      } else {
+        str.push(o.text);
+      }
       str.push("\n");
     }
     let pos = opts?.def || 0;

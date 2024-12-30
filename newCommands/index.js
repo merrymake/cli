@@ -13,7 +13,7 @@ import { fetch } from "./fetch.js";
 import { deleteServiceGroup, group } from "./group.js";
 import { BITBUCKET_FILE, hosting } from "./hosting.js";
 import { orgAction, rename } from "./org.js";
-import { queue } from "./queue.js";
+import { queue } from "./rapids.js";
 import { register } from "./register.js";
 import { repo } from "./repo.js";
 import { role } from "./role.js";

@@ -35,6 +35,12 @@ export function alignLeft(str, width) {
         ? str.substring(0, width - 3) + "..."
         : str.padEnd(width, " ");
 }
+export function alignCenter(str, width) {
+    const half = ~~((width - str.length) / 2);
+    return str.length > width
+        ? str.substring(0, width - 3) + "..."
+        : "".padStart(half, " ").concat(str).padEnd(width, " ");
+}
 export function printTableHeader(prefix, widths) {
     if (getArgs().length > 0)
         return "";

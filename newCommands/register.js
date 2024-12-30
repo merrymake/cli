@@ -166,7 +166,7 @@ export async function register() {
             def = keys.length - 1;
         }
         return await choice("Which SSH key would you like to use?", keys, {
-            invertedQuiet: { cmd: false, select: true },
+            invertedQuiet: { cmd: false },
             def,
         }).then();
     }

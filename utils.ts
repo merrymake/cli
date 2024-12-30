@@ -167,7 +167,7 @@ export function fetchOrg() {
   return res;
 }
 
-export function printWithPrefix(str: string, prefix: string = "") {
+export function printWithPrefix_old(str: string, prefix: string = "") {
   const prefixLength = prefix.replace(REMOVE_INVISIBLE, "").length;
   console.log(
     prefix +
@@ -186,6 +186,31 @@ export function printWithPrefix(str: string, prefix: string = "") {
             ) || []
           ).map((x) => x.trimEnd())
         )
+        .join(`\n${prefix}`)
+  );
+}
+export function printWithPrefix(str: string, prefix = "") {
+  const prefixLength = prefix.replace(REMOVE_INVISIBLE, "").length;
+  const width = stdout.getWindowSize()[0] + 1;
+  console.log(
+    prefix +
+      str
+        .split("\n")
+        .flatMap((l) => {
+          const words = l.split(" ");
+          const result: string[][] = [];
+          let widthLeft = 0;
+          for (let i = 0; i < words.length; i++) {
+            const wLength = words[i].replace(REMOVE_INVISIBLE, "").length;
+            if (wLength >= widthLeft) {
+              result.push([]);
+              widthLeft = width - prefixLength;
+            }
+            widthLeft -= wLength + 1;
+            result[result.length - 1].push(words[i]);
+          }
+          return result.map((ws) => ws.join(" "));
+        })
         .join(`\n${prefix}`)
   );
 }
@@ -258,24 +283,27 @@ export function execPromise(cmd: string, cwd?: string) {
 const historyFolder = os.homedir() + "/.merrymake/";
 const historyFile = "history";
 const updateFile = "last_update_check";
+export async function checkVersionIfOutdated() {
+  try {
+    if (!fs.existsSync(historyFolder)) fs.mkdirSync(historyFolder);
+    const lastCheck = fs.existsSync(historyFolder + updateFile)
+      ? +fs.readFileSync(historyFolder + updateFile).toString()
+      : 0;
+    if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
+      await checkVersion();
+    }
+  } catch (e) {}
+}
 export async function checkVersion() {
-  if (!fs.existsSync(historyFolder)) fs.mkdirSync(historyFolder);
-  const lastCheck = fs.existsSync(historyFolder + updateFile)
-    ? +fs.readFileSync(historyFolder + updateFile).toString()
-    : 0;
-  if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
-    try {
-      const call = await execPromise(
-        "npm show @merrymake/cli dist-tags --json"
-      );
-      const version: { latest: string } = JSON.parse(call);
-      if (versionIsOlder(package_json.version, version.latest)) {
-        addExitMessage(`
+  try {
+    const call = await execPromise("npm show @merrymake/cli dist-tags --json");
+    const version: { latest: string } = JSON.parse(call);
+    if (versionIsOlder(package_json.version, version.latest)) {
+      addExitMessage(`
 New version of merrymake-cli available, ${process.env["UPDATE_MESSAGE"]}`);
-      }
-    } catch (e) {}
-    fs.writeFileSync(historyFolder + updateFile, "" + Date.now());
-  }
+    }
+  } catch (e) {}
+  fs.writeFileSync(historyFolder + updateFile, "" + Date.now());
 }
 
 export function typedKeys<T extends object>(o: T): Array<keyof T> {

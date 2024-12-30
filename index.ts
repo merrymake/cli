@@ -2,8 +2,14 @@ import { stdin } from "node:process";
 import { initializeArgs } from "./args.js";
 import { index } from "./newCommands/index.js";
 import { addKnownHost } from "./newCommands/register.js";
-import { CTRL_C, exit } from "./prompt.js";
-import { abort, checkVersion, package_json, setDryrun } from "./utils.js";
+import { CTRL_C, exit, moveToBottom } from "./prompt.js";
+import {
+  abort,
+  checkVersion,
+  checkVersionIfOutdated,
+  package_json,
+  setDryrun,
+} from "./utils.js";
 
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
@@ -48,10 +54,10 @@ if (stdin.isTTY) {
 // TODO roles
 
 (async () => {
-  checkVersion();
+  checkVersionIfOutdated();
   const token: never = await index();
 })().catch((e) => {
-  exit();
+  moveToBottom();
   const eStr = "" + e;
   if (eStr.includes("Permission denied")) {
     addKnownHost();
@@ -61,5 +67,6 @@ if (stdin.isTTY) {
     );
   }
   console.log(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
-  process.exit(0);
+  checkVersion();
+  abort();
 });
