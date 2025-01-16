@@ -311,7 +311,8 @@ export async function checkVersion() {
     const version: { latest: string } = JSON.parse(call);
     if (versionIsOlder(package_json.version, version.latest)) {
       addExitMessage(`
-New version of merrymake-cli available, ${process.env["UPDATE_MESSAGE"]}`);
+New version of merrymake-cli available, to update run the command:
+  ${YELLOW}npm install --global @merrymake/cli@latest${NORMAL_COLOR}`);
     }
   } catch (e) {}
   fs.writeFileSync(historyFolder + updateFile, "" + Date.now());

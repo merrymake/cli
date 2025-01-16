@@ -1,4 +1,4 @@
-import { Str, UnitType } from "@merrymake/utils";
+import { HOURS, Str, UnitType } from "@merrymake/utils";
 import {
   alignCenter,
   alignLeft,
@@ -133,7 +133,7 @@ export async function queue(organizationId: OrganizationId) {
     const arg = getArgs().splice(0, 1)[0];
     if (arg !== undefined) {
       if (["post", "-p"].includes(arg)) return post(organizationId);
-      else if (arg[0] !== "-") return queue_event(arg);
+      else if (arg[0] !== "-" && arg !== "x") return queue_event(arg);
       getArgs().splice(0, 0, arg);
     }
     const options: (Option & { weight: number })[] = [];
@@ -149,12 +149,12 @@ export async function queue(organizationId: OrganizationId) {
     const tableHeader =
       "\n" +
       printTableHeader("      ", {
-        Day: 3,
         Event: -5,
         "S/W/F": 7,
         Count: 5,
+        Day: 3,
         "Resp. Time Range": 17,
-        Latest: 8,
+        Latest: 9,
       });
     const buckets: {
       [key: string]: {
@@ -251,25 +251,36 @@ export async function queue(organizationId: OrganizationId) {
                 (+st[2] > 0 ? RED : "") +
                 st[2] +
                 NORMAL_COLOR;
+          const timeDiff = Date.now() - latest.l.getTime();
+          const time =
+            timeDiff < 4 * HOURS
+              ? Str.withUnit(timeDiff, UnitType.Duration) + " ago"
+              : latest.l.getHours().toString().padStart(2, " ") +
+                ":" +
+                latest.l.getMinutes().toString().padStart(2, "0") +
+                GRAY +
+                ":" +
+                latest.l.getSeconds().toString().padStart(2, "0") +
+                NORMAL_COLOR;
           options.push({
             long: latest.i,
-            text: `${
-              WEEKDAYS[latest.l.getDay()]
-            } ${GRAY}│${NORMAL_COLOR} ${alignRight(
+            text: `${alignRight(
               p.e,
               Math.max(
                 (typeof stdout.getWindowSize !== "function"
                   ? 80
                   : stdout.getWindowSize()[0]) -
-                  40 -
+                  41 -
                   "─┼──┼──┼──┼──┼─".length -
-                  "      ".length,
+                  "> [_] ".length,
                 5
               )
             )} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${alignRight(
               b.length === 1 ? "" : b.length.toString(),
               5
-            )} ${GRAY}│${NORMAL_COLOR} ${q1}${GRAY}¦${q2}¦${NORMAL_COLOR}${q3} ${GRAY}│${NORMAL_COLOR} ${latest.l.toLocaleTimeString()}`,
+            )} ${GRAY}│${NORMAL_COLOR} ${
+              WEEKDAYS[latest.l.getDay()]
+            } ${GRAY}│${NORMAL_COLOR} ${q1}${GRAY}¦${q2}¦${NORMAL_COLOR}${q3} ${GRAY}│${NORMAL_COLOR} ${time}`,
             action: () => queue_event(latest.i),
             weight: latest.l.getTime(),
           });

@@ -57,7 +57,7 @@ export function printTableHeader(
   const vals = Object.values(widths);
   const rest =
     totalWidth -
-    vals.reduce((acc, x) => acc + Math.max(x, 0)) -
+    vals.reduce((acc, x) => acc + Math.max(x, 0), 0) -
     3 * (vals.length - 1);
   const header =
     prefix +

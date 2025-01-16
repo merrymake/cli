@@ -6,6 +6,14 @@
 ## Fixes and improvements
 -
 
+# 4.8.0
+## Added features
+- `rapids` prints relative times for today
+## Fixes and improvements
+- Lock dependency versions, since we don't have control over deployment time (ie. when people install it)
+- `rapids` uses a 24h time format to avoid overflow from AM/PM
+- `rapids` move 'day' column to make it easier to see on wide terminals
+
 # 4.7.0
 ## Added features
 - `rapids` now also separates on days, and uses more data to provide even better groupings

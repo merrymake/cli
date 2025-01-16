@@ -1,6 +1,6 @@
 {
   "name": "@merrymake/cli",
-  "version": "4.7.0",
+  "version": "4.8.0",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -24,17 +24,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@merrymake/detect-project-type": "latest",
-    "@merrymake/ext2mime": "latest",
-    "@merrymake/secret-lib": "latest",
-    "@merrymake/utils": "latest",
-    "cookie-parser": "latest",
-    "express": "latest"
+    "@merrymake/detect-project-type": "^4.1.0",
+    "@merrymake/ext2mime": "^1.0.3",
+    "@merrymake/secret-lib": "^1.0.0",
+    "@merrymake/utils": "^8.0.2",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2"
   },
   "devDependencies": {
-    "@tsconfig/node-lts": "latest",
-    "@types/cookie-parser": "latest",
-    "@types/express": "latest",
-    "@types/node": "latest"
+    "@tsconfig/node-lts": "^22.0.1",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.7"
   }
 }

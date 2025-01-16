@@ -1,4 +1,4 @@
-import { Str, UnitType } from "@merrymake/utils";
+import { HOURS, Str, UnitType } from "@merrymake/utils";
 import { alignLeft, alignRight, printTableHeader, } from "../executors.js";
 import { choice, GRAY, GREEN, INVISIBLE, NORMAL_COLOR, RED, YELLOW, } from "../prompt.js";
 import { finish, outputGit, sshReq } from "../utils.js";
@@ -82,7 +82,7 @@ export async function queue(organizationId) {
         if (arg !== undefined) {
             if (["post", "-p"].includes(arg))
                 return post(organizationId);
-            else if (arg[0] !== "-")
+            else if (arg[0] !== "-" && arg !== "x")
                 return queue_event(arg);
             getArgs().splice(0, 0, arg);
         }
@@ -91,12 +91,12 @@ export async function queue(organizationId) {
         const parsed = JSON.parse(resp);
         const tableHeader = "\n" +
             printTableHeader("      ", {
-                Day: 3,
                 Event: -5,
                 "S/W/F": 7,
                 Count: 5,
+                Day: 3,
                 "Resp. Time Range": 17,
-                Latest: 8,
+                Latest: 9,
             });
         const buckets = {};
         parsed.forEach((p) => {
@@ -183,14 +183,24 @@ export async function queue(organizationId) {
                                     (+st[2] > 0 ? RED : "") +
                                     st[2] +
                                     NORMAL_COLOR;
+                    const timeDiff = Date.now() - latest.l.getTime();
+                    const time = timeDiff < 4 * HOURS
+                        ? Str.withUnit(timeDiff, UnitType.Duration) + " ago"
+                        : latest.l.getHours().toString().padStart(2, " ") +
+                            ":" +
+                            latest.l.getMinutes().toString().padStart(2, "0") +
+                            GRAY +
+                            ":" +
+                            latest.l.getSeconds().toString().padStart(2, "0") +
+                            NORMAL_COLOR;
                     options.push({
                         long: latest.i,
-                        text: `${WEEKDAYS[latest.l.getDay()]} ${GRAY}│${NORMAL_COLOR} ${alignRight(p.e, Math.max((typeof stdout.getWindowSize !== "function"
+                        text: `${alignRight(p.e, Math.max((typeof stdout.getWindowSize !== "function"
                             ? 80
                             : stdout.getWindowSize()[0]) -
-                            40 -
+                            41 -
                             "─┼──┼──┼──┼──┼─".length -
-                            "      ".length, 5))} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${alignRight(b.length === 1 ? "" : b.length.toString(), 5)} ${GRAY}│${NORMAL_COLOR} ${q1}${GRAY}¦${q2}¦${NORMAL_COLOR}${q3} ${GRAY}│${NORMAL_COLOR} ${latest.l.toLocaleTimeString()}`,
+                            "> [_] ".length, 5))} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${alignRight(b.length === 1 ? "" : b.length.toString(), 5)} ${GRAY}│${NORMAL_COLOR} ${WEEKDAYS[latest.l.getDay()]} ${GRAY}│${NORMAL_COLOR} ${q1}${GRAY}¦${q2}¦${NORMAL_COLOR}${q3} ${GRAY}│${NORMAL_COLOR} ${time}`,
                         action: () => queue_event(latest.i),
                         weight: latest.l.getTime(),
                     });
