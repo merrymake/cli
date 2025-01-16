@@ -17,15 +17,13 @@ import {
   YELLOW,
   exit,
   output,
-  spinner_start,
-  spinner_stop,
-  timer_start,
-  timer_stop,
 } from "./prompt.js";
 import { PathTo } from "./types.js";
 
 import { createRequire } from "node:module";
 import { stdout } from "process";
+import { Str } from "@merrymake/utils";
+import { getCommand, getShortCommand } from "./mmCommand.js";
 const require = createRequire(import.meta.url);
 export const package_json = require("./package.json");
 
@@ -215,13 +213,15 @@ export function printWithPrefix(str: string, prefix = "") {
   );
 }
 
+let timer: ReturnType<typeof Str.Timer.start> | undefined;
 export function outputGit(str: string) {
   const st = (str || "").trimEnd();
   if (st.endsWith("elapsed")) {
     return;
-  } else {
-    const wasRunning = timer_stop();
-    if (wasRunning) process.stdout.write(`\n`);
+  } else if (timer !== undefined) {
+    timer.stop();
+    timer = undefined;
+    process.stdout.write(`\n`);
   }
   console.log(
     st
@@ -242,7 +242,7 @@ export function outputGit(str: string) {
           const ind = commands[i].indexOf("'");
           const cmd = commands[i].substring(0, ind);
           const rest = commands[i].substring(ind);
-          commands[i] = `'${YELLOW}mm ${cmd}${color}${rest}`;
+          commands[i] = `'${YELLOW}${getShortCommand()}${cmd}${color}${rest}`;
         }
         lineParts[lineParts.length - 1] =
           color + commands.join("") + NORMAL_COLOR;
@@ -251,8 +251,8 @@ export function outputGit(str: string) {
       .join("\n")
   );
   if (st.endsWith("(this may take a few minutes)...")) {
-    process.stdout.write(`${GRAY}remote: ${NORMAL_COLOR} `);
-    timer_start("s elapsed");
+    process.stdout.write(`${GRAY}remote: ${NORMAL_COLOR}    `);
+    timer = Str.Timer.start(new Str.Timer.Seconds("s elapsed"));
   }
 }
 
@@ -266,17 +266,28 @@ function versionIsOlder(old: string, new_: string) {
   else if (+os[2] < +ns[2]) return true;
   return false;
 }
+const BYTES = 1;
+const KILOBYTES = 1024 * BYTES;
+const MEGABYTES = 1024 * KILOBYTES;
+const GIGABYTES = 1024 * MEGABYTES;
+const TERABYTES = 1024 * GIGABYTES;
+const PETABYTES = 1024 * TERABYTES;
+const EXABYTES = 1024 * PETABYTES;
 
 export function execPromise(cmd: string, cwd?: string) {
   return new Promise<string>((resolve, reject) => {
-    const a = exec(cmd, { cwd }, (error, stdout, stderr) => {
-      const err = error?.message || stderr;
-      if (err) {
-        reject(stderr || stdout);
-      } else {
-        resolve(stdout);
+    const a = exec(
+      cmd,
+      { cwd, maxBuffer: 10 * MEGABYTES },
+      (error, stdout, stderr) => {
+        const err = error?.message || stderr;
+        if (err) {
+          reject(stderr || stdout);
+        } else {
+          resolve(stdout);
+        }
       }
-    });
+    );
   });
 }
 
@@ -369,17 +380,18 @@ function sshReqInternal(cmd: string) {
   return execPromise(`ssh -o ConnectTimeout=10 mist@${SSH_HOST} "${cmd}"`);
 }
 export async function sshReq(...cmd: string[]) {
+  const spinner = Str.Spinner.start();
   try {
-    spinner_start();
     const result = await sshReqInternal(
       cmd
         .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
         .join(" ")
     );
-    spinner_stop();
     return result;
   } catch (e) {
     throw e;
+  } finally {
+    spinner.stop();
   }
 }
 

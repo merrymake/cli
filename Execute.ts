@@ -11,7 +11,7 @@ import cookieParser from "cookie-parser";
 import express, { Request, RequestHandler, Response } from "express";
 import fs from "fs";
 import net from "net";
-import { GRAY, NORMAL_COLOR, RED, WHITE, YELLOW } from "./prompt.js";
+import { GRAY, INVISIBLE, NORMAL_COLOR, RED, WHITE, YELLOW } from "./prompt.js";
 import {
   addToExecuteQueue,
   all,
@@ -20,6 +20,7 @@ import {
   printWithPrefix,
 } from "./utils.js";
 import { PathTo, PathToOrganization, PathToRepository } from "./types.js";
+import { Str } from "@merrymake/utils";
 
 interface Envelope {
   messageId: string;
@@ -49,7 +50,7 @@ interface ReplyBody {
 let spacerTimer: undefined | NodeJS.Timeout;
 function timedOutput(str: string, prefix?: string) {
   if (spacerTimer !== undefined) clearTimeout(spacerTimer);
-  printWithPrefix(str, prefix);
+  Str.print(str, prefix, INVISIBLE, undefined, true);
   spacerTimer = setTimeout(() => console.log(""), 10000);
 }
 
@@ -69,16 +70,10 @@ async function prep(
     };
     const p = spawn(cmd, args, options);
     p.stdout.on("data", (data: Buffer) => {
-      timedOutput(
-        `${data.toString()}`,
-        `${GRAY}${displayFolder}: ${NORMAL_COLOR}`
-      );
+      timedOutput(`${data.toString()}`, displayFolder);
     });
     p.stderr.on("data", (data: Buffer) => {
-      timedOutput(
-        `${data.toString()}${NORMAL_COLOR}`,
-        `${GRAY}${displayFolder}: ${RED}`
-      );
+      timedOutput(`${RED}${data.toString()}${NORMAL_COLOR}`, displayFolder);
     });
     return p;
   } catch (e) {
@@ -447,7 +442,7 @@ ${NORMAL_COLOR}`);
     if (rivers.length === 0 && event[0] !== "$") {
       timedOutput(
         `${YELLOW}Warning: No hooks for '${event}'${NORMAL_COLOR}`,
-        `${GRAY}${traceId}: `
+        traceId
       );
     }
 
@@ -521,10 +516,7 @@ ${NORMAL_COLOR}`);
     };
     if (conf !== undefined && conf.waitFor !== undefined) {
       setTimeout(() => {
-        timedOutput(
-          `Reply timeout for trace${NORMAL_COLOR}`,
-          `${GRAY}${traceId}: `
-        );
+        timedOutput(`Reply timeout for trace${NORMAL_COLOR}`, traceId);
       }, conf.waitFor);
     }
     if (conf !== undefined && conf.streaming === true) {

@@ -36,7 +36,7 @@ export const BgWhite = "\x1b[47m";
 export const BgGray = "\x1b[100m";
 export const STRIKE = "\x1b[9m";
 export const NOSTRIKE = "\x1b[29m";
-export const INVISIBLE = [
+export const INVISIBLE = new Set([
     HIDE_CURSOR,
     SHOW_CURSOR,
     NORMAL_COLOR,
@@ -60,8 +60,10 @@ export const INVISIBLE = [
     BgGray,
     STRIKE,
     NOSTRIKE,
-];
-export const REMOVE_INVISIBLE = new RegExp(INVISIBLE.map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?")).join("|"), "gi");
+]);
+export const REMOVE_INVISIBLE = new RegExp([...INVISIBLE]
+    .map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?"))
+    .join("|"), "gi");
 let xOffset = 0;
 let yOffset = 0;
 let maxYOffset = 0;
@@ -167,9 +169,9 @@ export function choice(heading, options, opts) {
             console.log(opts?.errorMessage || "There are no options.");
             process.exit(1);
         }
-        for (let i = 0; i < 9; i++)
+        for (let i = 0; i < Math.min(10, options.length); i++)
             if (options[i].short === undefined)
-                options[i].short = (i + 1).toString();
+                options[i].short = ((i + 1) % 10).toString();
             else
                 break;
         if (options.length === 1 && opts?.disableAutoPick !== true) {
@@ -184,12 +186,13 @@ export function choice(heading, options, opts) {
             prom.catch(reject);
             return;
         }
-        options.push({
-            short: "x",
-            long: "x",
-            text: "exit",
-            action: () => abort(),
-        });
+        if (!["x", "-x"].includes(getArgs()[0]))
+            options.push({
+                short: "x",
+                long: "x",
+                text: "exit",
+                action: () => abort(),
+            });
         const quick = {};
         const str = [heading + "\n"];
         for (let i = 0; i < options.length; i++) {
@@ -205,9 +208,9 @@ export function choice(heading, options, opts) {
             }
             if (o.short)
                 quick[o.short] = o;
-            str.push("  [");
+            str.push(`  ${GRAY}[`);
             str.push(o.short || "_");
-            str.push("] ");
+            str.push(`]${NORMAL_COLOR} `);
             const index = o.text.indexOf(o.long);
             if (index >= 0) {
                 const before = o.text.substring(0, index);
@@ -226,7 +229,20 @@ export function choice(heading, options, opts) {
         let pos = opts?.def || 0;
         if (getArgs().length > 0) {
             const arg = getArgs().splice(0, 1)[0];
-            if (arg === "_") {
+            if (arg === "x") {
+                output(" \n");
+                output(str.join(""));
+                const prom = makeSelectionQuietly({
+                    short: "x",
+                    long: "x",
+                    text: "exit",
+                    action: () => abort(),
+                });
+                prom.then(resolve);
+                prom.catch(reject);
+                return;
+            }
+            else if (arg === "_") {
                 const prom = opts?.invertedQuiet?.cmd === true
                     ? makeSelection(options[pos])
                     : makeSelectionQuietly(options[pos]);
@@ -454,24 +470,23 @@ export function multiSelect(selection, after, errorMessage) {
         }));
     });
 }
-let interval;
-let spinnerIndex = 0;
-const SPINNER = ["│", "/", "─", "\\"];
-export function spinner_start() {
-    if (!stdout.isTTY)
-        return;
-    interval = setInterval(spin, 200);
-}
-function spin() {
-    output(SPINNER[(spinnerIndex = (spinnerIndex + 1) % SPINNER.length)]);
-    moveCursor(-1, 0);
-}
-export function spinner_stop() {
-    if (interval !== undefined) {
-        clearInterval(interval);
-        interval = undefined;
-    }
-}
+// let interval: NodeJS.Timeout | undefined;
+// let spinnerIndex = 0;
+// const SPINNER = ["│", "/", "─", "\\"];
+// export function spinner_start() {
+//   if (!stdout.isTTY) return;
+//   interval = setInterval(spin, 200);
+// }
+// function spin() {
+//   output(SPINNER[(spinnerIndex = (spinnerIndex + 1) % SPINNER.length)]);
+//   moveCursor(-1, 0);
+// }
+// export function spinner_stop() {
+//   if (interval !== undefined) {
+//     clearInterval(interval);
+//     interval = undefined;
+//   }
+// }
 export var Visibility;
 (function (Visibility) {
     Visibility[Visibility["Secret"] = 0] = "Secret";
@@ -621,29 +636,28 @@ export function shortText(prompt, description, defaultValueArg, options) {
         }));
     });
 }
-let seconds = 0;
-export function timer_start(suffix = "") {
-    if (!stdout.isTTY)
-        return;
-    seconds = 0;
-    const out = seconds.toString().padStart(3, " ") + suffix;
-    output(out);
-    interval = setInterval(() => time(suffix), 1000);
-}
-function time(suffix) {
-    seconds++;
-    const out = seconds.toString().padStart(3, " ") + suffix;
-    moveCursor(-out.length, 0);
-    output(out);
-}
-export function timer_stop() {
-    if (interval !== undefined) {
-        clearInterval(interval);
-        interval = undefined;
-        return true;
-    }
-    return false;
-}
+// let seconds = 0;
+// export function timer_start(suffix = "") {
+//   if (!stdout.isTTY) return;
+//   seconds = 0;
+//   const out = seconds.toString().padStart(3, " ") + suffix;
+//   output(out);
+//   interval = setInterval(() => time(suffix), 1000);
+// }
+// function time(suffix: string) {
+//   seconds++;
+//   const out = seconds.toString().padStart(3, " ") + suffix;
+//   moveCursor(-out.length, 0);
+//   output(out);
+// }
+// export function timer_stop() {
+//   if (interval !== undefined) {
+//     clearInterval(interval);
+//     interval = undefined;
+//     return true;
+//   }
+//   return false;
+// }
 export function exit() {
     moveToBottom();
     cleanup();

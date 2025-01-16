@@ -2,7 +2,7 @@ import { stdin } from "node:process";
 import { initializeArgs } from "./args.js";
 import { index } from "./newCommands/index.js";
 import { addKnownHost } from "./newCommands/register.js";
-import { CTRL_C, exit, moveToBottom } from "./prompt.js";
+import { CTRL_C, moveToBottom } from "./prompt.js";
 import {
   abort,
   checkVersion,
@@ -67,6 +67,5 @@ if (stdin.isTTY) {
     );
   }
   console.log(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
-  checkVersion();
   abort();
 });

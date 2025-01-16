@@ -3,7 +3,7 @@ import { initializeArgs } from "./args.js";
 import { index } from "./newCommands/index.js";
 import { addKnownHost } from "./newCommands/register.js";
 import { CTRL_C, moveToBottom } from "./prompt.js";
-import { abort, checkVersion, checkVersionIfOutdated, package_json, setDryrun, } from "./utils.js";
+import { abort, checkVersionIfOutdated, package_json, setDryrun, } from "./utils.js";
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
 if (process.argv.length > 0 && process.argv[0].endsWith("version")) {
@@ -49,6 +49,5 @@ if (stdin.isTTY) {
         console.log("\x1b[31mAn error occurred, please try again. If the problem persists reach out on http://discord.merrymake.eu \x1b[0m", e);
     }
     console.log(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
-    checkVersion();
     abort();
 });

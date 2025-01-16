@@ -6,6 +6,17 @@
 ## Fixes and improvements
 -
 
+# 4.7.0
+## Added features
+- `rapids` now also separates on days, and uses more data to provide even better groupings
+- `rapids` colored to make important information more easily discernable
+- `inspect` and `sim` outputs less clutter and breaks lines better, also supports color
+## Fixes and improvements
+- Commands print the final choice when passing `x` on the commandline (useful for scripting)
+- Fix crashes when there were very few options, which didn't have a short key
+- Fix crash on large `rapids` output (~3k requests, increased to ~10k)
+- Speed up `rapids post`
+
 # 4.6.0
 ## Added features
 - `rapids` shows traces in intelligent groups, providing better overview in case of many events

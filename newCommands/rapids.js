@@ -1,8 +1,10 @@
-import { stringWithUnit, UnitType } from "@merrymake/utils";
-import { alignCenter, alignLeft, alignRight, printTableHeader, } from "../executors.js";
-import { choice, GRAY, GREEN, NORMAL_COLOR, RED, YELLOW, } from "../prompt.js";
-import { finish, outputGit, printWithPrefix, sshReq } from "../utils.js";
+import { Str, UnitType } from "@merrymake/utils";
+import { alignLeft, alignRight, printTableHeader, } from "../executors.js";
+import { choice, GRAY, GREEN, INVISIBLE, NORMAL_COLOR, RED, YELLOW, } from "../prompt.js";
+import { finish, outputGit, sshReq } from "../utils.js";
 import { post } from "./post.js";
+import { stdout } from "process";
+import { getArgs } from "../args.js";
 export async function do_queue_time(org, time) {
     try {
         const resp = await sshReq(`queue`, `--org`, org, `--time`, "" + time);
@@ -25,7 +27,7 @@ async function queue_event(id) {
         const res = JSON.parse(await sshReq(`rapids-inspect-trace`, `\\"${id}\\"`));
         res.forEach((r, i) => {
             console.log(" ");
-            const prefix = `${GRAY}${r.repo}: ${NORMAL_COLOR}`;
+            const prefix = r.repo;
             const color = {
                 success: GREEN,
                 failure: RED,
@@ -38,8 +40,8 @@ async function queue_event(id) {
             const out = r.output.trimEnd();
             if (out.length > 0)
                 output.push(out);
-            output.push(`${color}${r.status}${GRAY} after ${stringWithUnit(r.executionDuration, UnitType.Duration)} (billing ${stringWithUnit(r.billingDuration, UnitType.Duration)}) used ${stringWithUnit(r.memoryKilobytes, UnitType.Memory, "kb")} ram${NORMAL_COLOR}`);
-            printWithPrefix(output.join("\n"), prefix);
+            output.push(`${color}${r.status}${GRAY} after ${Str.withUnit(r.executionDuration, UnitType.Duration)} (billing ${Str.withUnit(r.billingDuration, UnitType.Duration)}) used ${Str.withUnit(r.memoryKilobytes, UnitType.Memory, "kb")} ram${NORMAL_COLOR}`);
+            Str.print(output.join("\n"), prefix, INVISIBLE, undefined);
         });
         return finish();
         // return choice(
@@ -58,18 +60,43 @@ async function queue_event(id) {
         throw e;
     }
 }
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+function calcQuartile(a, f, q) {
+    // Work out the position in the array of the percentile point
+    const p = (a.length - 1) * q;
+    const b = Math.floor(p);
+    // Work out what we rounded off (if anything)
+    const remainder = p - b;
+    // See whether that data exists directly
+    return a[b + 1] === undefined
+        ? f(a[b]) !== null
+            ? f(a[b])
+            : Number.POSITIVE_INFINITY
+        : f(a[b + 1]) !== null && Number.isFinite(f(a[b + 1]))
+            ? f(a[b]) + remainder * (f(a[b + 1]) - f(a[b]))
+            : Number.POSITIVE_INFINITY;
+}
 export async function queue(organizationId) {
     try {
+        const arg = getArgs().splice(0, 1)[0];
+        if (arg !== undefined) {
+            if (["post", "-p"].includes(arg))
+                return post(organizationId);
+            else if (arg[0] !== "-")
+                return queue_event(arg);
+            getArgs().splice(0, 0, arg);
+        }
         const options = [];
         const resp = await sshReq(`rapids-view-trace`, organizationId.toString());
         const parsed = JSON.parse(resp);
         const tableHeader = "\n" +
             printTableHeader("      ", {
-                "Initiating Event": 16,
+                Day: 3,
+                Event: -5,
                 "S/W/F": 7,
                 Count: 5,
-                "Resp. Times": 11,
-                Latest: 22,
+                "Resp. Time Range": 17,
+                Latest: 8,
             });
         const buckets = {};
         parsed.forEach((p) => {
@@ -82,9 +109,14 @@ export async function queue(organizationId) {
             });
         });
         Object.values(buckets).forEach((p) => {
-            const RESOLUTION = 100;
+            p.points.sort((a, b) => a.d - b.d);
+            const q1 = calcQuartile(p.points, (a) => a.d, 0.25);
+            const q3 = calcQuartile(p.points, (a) => a.d, 0.75);
+            const IQR = q3 - q1;
+            // Freedman–Diaconis rule
+            const RESOLUTION = (2 * IQR) / Math.pow(p.points.length, 1 / 3);
             const histogram = [];
-            const min = p.points.reduce((a, x) => Math.min(a, x.d), Number.POSITIVE_INFINITY);
+            const min = p.points[0].d;
             p.points.forEach((x) => {
                 const i = ~~((x.d - min) / RESOLUTION);
                 histogram[i] = (histogram[i] || 0) + 1;
@@ -103,39 +135,70 @@ export async function queue(organizationId) {
                 }
                 prev = t;
             }
-            const buckets = new Array(sep.length + 1)
+            const buckets = new Array(7)
                 .fill(null)
-                .map((x) => []);
+                .map((x) => new Array(sep.length + 1).fill(null).map((x) => []));
             p.points.forEach((x) => {
                 let i = 0;
                 while (i < sep.length && sep[i] < x.d)
                     i++;
-                buckets[i].push(x);
+                buckets[x.l.getDay()][i].push(x);
             });
-            buckets.forEach((b) => {
-                b.sort((a, b) => a.d - b.d);
-                const latest = b.reduce((a, x) => (x.l > a.l ? x : a), b[0]);
-                const min = b[0].d === null ? "∞" : b[0].d.toString();
-                const max = "" + b[0].d === "" + b[b.length - 1].d
-                    ? ""
-                    : b[b.length - 1].d === null
-                        ? "-∞"
-                        : "-" + b[b.length - 1].d.toString();
-                const status = p.s === "1/0/0"
-                    ? "succ"
-                    : p.s === "0/1/0"
-                        ? "warn"
-                        : p.s === "0/0/1"
-                            ? "fail"
-                            : p.s;
-                options.push({
-                    long: latest.i,
-                    text: `${alignRight(p.e, 16)} │ ${alignCenter(status, 7)} │ ${alignRight(b.length === 1 ? "" : b.length.toString(), 5)} │ ${alignRight(min, 5)}${alignLeft(max, 6)} │ ${new Date(latest.l).toLocaleString()}`,
-                    action: () => queue_event(latest.i),
-                    weight: latest.l.getTime(),
+            buckets.forEach((bw) => {
+                bw.forEach((b) => {
+                    if (b.length === 0)
+                        return;
+                    b.sort((a, b) => a.d - b.d);
+                    const latest = b.reduce((a, x) => (x.l > a.l ? x : a), b[0]);
+                    const t = [
+                        // b[0].d,
+                        b[Math.round((b.length - 1) / 4)].d,
+                        b[Math.round((b.length - 1) / 2)].d,
+                        b[Math.round((3 * (b.length - 1)) / 4)].d,
+                        // b[b.length - 1].d,
+                    ];
+                    const times = t.map((x) => alignRight(Number.isFinite(x) ? Str.withUnit(x, UnitType.Duration) : "", 5));
+                    const empty = alignRight("", 5);
+                    const [q1, q2, q3] = b.length === 1
+                        ? [empty, NORMAL_COLOR + times[0] + GRAY, empty]
+                        : b.length === 2
+                            ? [times[0], empty, times[1]]
+                            : [times[0], times[1], times[2]];
+                    const st = p.s.split("/");
+                    const status = p.s === "1/0/0"
+                        ? GREEN + "succ" + NORMAL_COLOR + "   "
+                        : p.s === "0/1/0"
+                            ? YELLOW + "warn" + NORMAL_COLOR + "   "
+                            : p.s === "0/0/1"
+                                ? RED + "fail" + NORMAL_COLOR + "   "
+                                : " ".repeat(7 - p.s.length) +
+                                    (+st[0] > 0 ? GREEN : GRAY) +
+                                    st[0] +
+                                    GRAY +
+                                    "/" +
+                                    (+st[1] > 0 ? YELLOW : "") +
+                                    st[1] +
+                                    GRAY +
+                                    "/" +
+                                    (+st[2] > 0 ? RED : "") +
+                                    st[2] +
+                                    NORMAL_COLOR;
+                    options.push({
+                        long: latest.i,
+                        text: `${WEEKDAYS[latest.l.getDay()]} ${GRAY}│${NORMAL_COLOR} ${alignRight(p.e, Math.max((typeof stdout.getWindowSize !== "function"
+                            ? 80
+                            : stdout.getWindowSize()[0]) -
+                            40 -
+                            "─┼──┼──┼──┼──┼─".length -
+                            "      ".length, 5))} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${alignRight(b.length === 1 ? "" : b.length.toString(), 5)} ${GRAY}│${NORMAL_COLOR} ${q1}${GRAY}¦${q2}¦${NORMAL_COLOR}${q3} ${GRAY}│${NORMAL_COLOR} ${latest.l.toLocaleTimeString()}`,
+                        action: () => queue_event(latest.i),
+                        weight: latest.l.getTime(),
+                    });
                 });
             });
         });
+        options.sort((a, b) => b.weight - a.weight);
+        options.splice(15, options.length);
         options.push({
             long: "post",
             short: "p",
@@ -143,8 +206,7 @@ export async function queue(organizationId) {
             action: () => post(organizationId),
             weight: 0,
         });
-        options.sort((a, b) => b.weight - a.weight);
-        return await choice("Which event would you like to inspect?" + tableHeader, options).then();
+        return await choice("Which trace would you like to inspect?" + tableHeader, options).then();
     }
     catch (e) {
         throw e;

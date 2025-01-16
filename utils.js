@@ -7,9 +7,11 @@ import os from "os";
 import path from "path";
 import { SSH_HOST } from "./config.js";
 // IN THE FUTURE: import conf from "./package.json" with {type:"json"};
-import { BLUE, GRAY, GREEN, NORMAL_COLOR, RED, REMOVE_INVISIBLE, YELLOW, exit, output, spinner_start, spinner_stop, timer_start, timer_stop, } from "./prompt.js";
+import { BLUE, GRAY, GREEN, NORMAL_COLOR, RED, REMOVE_INVISIBLE, YELLOW, exit, output, } from "./prompt.js";
 import { createRequire } from "node:module";
 import { stdout } from "process";
+import { Str } from "@merrymake/utils";
+import { getShortCommand } from "./mmCommand.js";
 const require = createRequire(import.meta.url);
 export const package_json = require("./package.json");
 export const lowercase = "abcdefghijklmnopqrstuvwxyz";
@@ -163,15 +165,16 @@ export function printWithPrefix(str, prefix = "") {
         })
             .join(`\n${prefix}`));
 }
+let timer;
 export function outputGit(str) {
     const st = (str || "").trimEnd();
     if (st.endsWith("elapsed")) {
         return;
     }
-    else {
-        const wasRunning = timer_stop();
-        if (wasRunning)
-            process.stdout.write(`\n`);
+    else if (timer !== undefined) {
+        timer.stop();
+        timer = undefined;
+        process.stdout.write(`\n`);
     }
     console.log(st
         .split("\n")
@@ -190,7 +193,7 @@ export function outputGit(str) {
             const ind = commands[i].indexOf("'");
             const cmd = commands[i].substring(0, ind);
             const rest = commands[i].substring(ind);
-            commands[i] = `'${YELLOW}mm ${cmd}${color}${rest}`;
+            commands[i] = `'${YELLOW}${getShortCommand()}${cmd}${color}${rest}`;
         }
         lineParts[lineParts.length - 1] =
             color + commands.join("") + NORMAL_COLOR;
@@ -198,8 +201,8 @@ export function outputGit(str) {
     })
         .join("\n"));
     if (st.endsWith("(this may take a few minutes)...")) {
-        process.stdout.write(`${GRAY}remote: ${NORMAL_COLOR} `);
-        timer_start("s elapsed");
+        process.stdout.write(`${GRAY}remote: ${NORMAL_COLOR}    `);
+        timer = Str.Timer.start(new Str.Timer.Seconds("s elapsed"));
     }
 }
 function versionIsOlder(old, new_) {
@@ -217,9 +220,16 @@ function versionIsOlder(old, new_) {
         return true;
     return false;
 }
+const BYTES = 1;
+const KILOBYTES = 1024 * BYTES;
+const MEGABYTES = 1024 * KILOBYTES;
+const GIGABYTES = 1024 * MEGABYTES;
+const TERABYTES = 1024 * GIGABYTES;
+const PETABYTES = 1024 * TERABYTES;
+const EXABYTES = 1024 * PETABYTES;
 export function execPromise(cmd, cwd) {
     return new Promise((resolve, reject) => {
-        const a = exec(cmd, { cwd }, (error, stdout, stderr) => {
+        const a = exec(cmd, { cwd, maxBuffer: 10 * MEGABYTES }, (error, stdout, stderr) => {
             const err = error?.message || stderr;
             if (err) {
                 reject(stderr || stdout);
@@ -320,16 +330,18 @@ function sshReqInternal(cmd) {
     return execPromise(`ssh -o ConnectTimeout=10 mist@${SSH_HOST} "${cmd}"`);
 }
 export async function sshReq(...cmd) {
+    const spinner = Str.Spinner.start();
     try {
-        spinner_start();
         const result = await sshReqInternal(cmd
             .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
             .join(" "));
-        spinner_stop();
         return result;
     }
     catch (e) {
         throw e;
+    }
+    finally {
+        spinner.stop();
     }
 }
 export function partition(str, radix) {

@@ -4,6 +4,7 @@ import fs from "fs";
 import { stdout } from "process";
 import { getArgs } from "./args.js";
 import { outputGit, sshReq } from "./utils.js";
+import { GRAY, NORMAL_COLOR } from "./prompt.js";
 
 function spawnPromise(str: string) {
   return new Promise<void>((resolve, reject) => {
@@ -49,7 +50,6 @@ export function printTableHeader(
   prefix: string,
   widths: { [key: string]: number }
 ) {
-  if (getArgs().length > 0) return "";
   const totalWidth =
     (typeof stdout.getWindowSize !== "function"
       ? 80
@@ -63,9 +63,9 @@ export function printTableHeader(
     prefix +
     Object.keys(widths)
       .map((k) =>
-        k.trim().padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
+        k.padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
       )
-      .join(" │ ");
+      .join(` ${GRAY}│${NORMAL_COLOR} `);
   let result = header + "\n";
   const divider =
     prefix +
@@ -74,7 +74,7 @@ export function printTableHeader(
         "─".repeat(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
       )
       .join("─┼─");
-  result += divider;
+  result += GRAY + divider + NORMAL_COLOR;
   return result;
 }
 

@@ -1,8 +1,8 @@
 import { spawn } from "child_process";
 import fs from "fs";
 import { stdout } from "process";
-import { getArgs } from "./args.js";
 import { outputGit, sshReq } from "./utils.js";
+import { GRAY, NORMAL_COLOR } from "./prompt.js";
 function spawnPromise(str) {
     return new Promise((resolve, reject) => {
         const [cmd, ...args] = str.split(" ");
@@ -42,8 +42,6 @@ export function alignCenter(str, width) {
         : "".padStart(half, " ").concat(str).padEnd(width, " ");
 }
 export function printTableHeader(prefix, widths) {
-    if (getArgs().length > 0)
-        return "";
     const totalWidth = (typeof stdout.getWindowSize !== "function"
         ? 80
         : stdout.getWindowSize()[0]) - prefix.length;
@@ -53,14 +51,14 @@ export function printTableHeader(prefix, widths) {
         3 * (vals.length - 1);
     const header = prefix +
         Object.keys(widths)
-            .map((k) => k.trim().padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
-            .join(" │ ");
+            .map((k) => k.padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
+            .join(` ${GRAY}│${NORMAL_COLOR} `);
     let result = header + "\n";
     const divider = prefix +
         Object.keys(widths)
             .map((k) => "─".repeat(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
             .join("─┼─");
-    result += divider;
+    result += GRAY + divider + NORMAL_COLOR;
     return result;
 }
 // export async function do_help() {
