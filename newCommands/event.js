@@ -1,6 +1,8 @@
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { choice, multiSelect } from "../prompt.js";
-import { addToExecuteQueue, finish, outputGit, sshReq } from "../utils.js";
+import { sshReq } from "../utils.js";
 import { key_create } from "./apikey.js";
+import { outputGit } from "../printUtils.js";
 export async function do_event(apikeyId, events) {
     try {
         const selected = Object.keys(events).filter((x) => events[x]);
@@ -21,7 +23,7 @@ async function event_key(apikeyId) {
         const parsed = JSON.parse(resp);
         const events = {};
         parsed.forEach((x) => (events[x.event] = x.allowed));
-        return await multiSelect(events, (s) => event_key_events(apikeyId, s), "No events in event-catalogue. Make sure you have added events to the event-catalogue and deployed it.");
+        return await multiSelect("Which events do you want to allow and disallow?", events, (s) => event_key_events(apikeyId, s), "No events in event-catalogue. Make sure you have added events to the event-catalogue and deployed it.");
     }
     catch (e) {
         throw e;

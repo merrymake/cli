@@ -1,15 +1,10 @@
 import { stdin } from "node:process";
 import { initializeArgs } from "./args.js";
+import { abort, setDryrun } from "./exitMessages.js";
 import { index } from "./newCommands/index.js";
 import { addKnownHost } from "./newCommands/register.js";
 import { CTRL_C, moveToBottom } from "./prompt.js";
-import {
-  abort,
-  checkVersion,
-  checkVersionIfOutdated,
-  package_json,
-  setDryrun,
-} from "./utils.js";
+import { checkVersionIfOutdated, package_json } from "./printUtils.js";
 
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index

@@ -3,29 +3,22 @@ import fs from "fs";
 import http from "http";
 import https from "https";
 import { readdirSync } from "node:fs";
-import os from "os";
 import path from "path";
 import { SSH_HOST } from "./config.js";
-// IN THE FUTURE: import conf from "./package.json" with {type:"json"};
-import { BLUE, GRAY, GREEN, NORMAL_COLOR, RED, REMOVE_INVISIBLE, YELLOW, exit, output, } from "./prompt.js";
-import { createRequire } from "node:module";
-import { stdout } from "process";
 import { Str } from "@merrymake/utils";
-import { getShortCommand } from "./mmCommand.js";
-const require = createRequire(import.meta.url);
-export const package_json = require("./package.json");
 export const lowercase = "abcdefghijklmnopqrstuvwxyz";
 export const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 export const digits = "0123456789";
 export const underscore = "_";
 export const dash = "-";
 export const all = lowercase + uppercase + digits + underscore + dash;
-export function generateString(length, alphabet) {
-    let result = "";
+export function generateString(length, ...alphabets) {
+    const alphabet = alphabets.join("");
+    const result = new Array(length);
     for (let i = 0; i < length; i++) {
-        result += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+        result.push(alphabet.charAt(Math.floor(Math.random() * alphabet.length)));
     }
-    return result;
+    return result.join("");
 }
 export class Path {
     offset;
@@ -58,55 +51,6 @@ function getFiles_internal(path, prefix) {
         ? getFiles_internal(path.with(x.name), prefix + x.name + "/")
         : [prefix + x.name]);
 }
-const toExecute = [];
-let dryrun = false;
-export function setDryrun() {
-    outputGit(`${BLUE}Dryrun mode, changes will not be performed.${NORMAL_COLOR}`);
-    dryrun = true;
-}
-export function addToExecuteQueue(f) {
-    if (!dryrun)
-        toExecute.push(f);
-}
-let printOnExit = [];
-export function addExitMessage(str) {
-    printOnExit.push(str);
-}
-function printExitMessages() {
-    printOnExit.forEach((x) => output(x + "\n"));
-}
-export function abort() {
-    exit();
-    printExitMessages();
-    process.exit(0);
-}
-export async function finish() {
-    try {
-        exit();
-        for (let i = 0; i < toExecute.length; i++) {
-            await toExecute[i]();
-        }
-        printExitMessages();
-        process.exit(0);
-    }
-    catch (e) {
-        throw e;
-    }
-}
-export function TODO() {
-    console.log("TODO");
-    exit();
-    process.exit(0);
-}
-export function getCache() {
-    if (!fs.existsSync(`${historyFolder}cache`)) {
-        return { registered: false, hasOrgs: false };
-    }
-    return JSON.parse(fs.readFileSync(`${historyFolder}cache`).toString());
-}
-export function saveCache(cache) {
-    fs.writeFileSync(`${historyFolder}cache`, JSON.stringify(cache));
-}
 export function fetchOrgRaw() {
     if (fs.existsSync(path.join(".merrymake", "conf.json"))) {
         const org = JSON.parse("" + fs.readFileSync(path.join(".merrymake", "conf.json")));
@@ -133,93 +77,6 @@ export function fetchOrg() {
         throw "Not inside a Merrymake organization";
     return res;
 }
-export function printWithPrefix_old(str, prefix = "") {
-    const prefixLength = prefix.replace(REMOVE_INVISIBLE, "").length;
-    console.log(prefix +
-        str
-            .trimEnd()
-            .split("\n")
-            .flatMap((x) => (x.match(new RegExp(`.{1,${stdout.getWindowSize()[0] - prefixLength}}( |$)|.{1,${stdout.getWindowSize()[0] - prefixLength}}`, "g")) || []).map((x) => x.trimEnd()))
-            .join(`\n${prefix}`));
-}
-export function printWithPrefix(str, prefix = "") {
-    const prefixLength = prefix.replace(REMOVE_INVISIBLE, "").length;
-    const width = stdout.getWindowSize()[0] + 1;
-    console.log(prefix +
-        str
-            .split("\n")
-            .flatMap((l) => {
-            const words = l.split(" ");
-            const result = [];
-            let widthLeft = 0;
-            for (let i = 0; i < words.length; i++) {
-                const wLength = words[i].replace(REMOVE_INVISIBLE, "").length;
-                if (wLength >= widthLeft) {
-                    result.push([]);
-                    widthLeft = width - prefixLength;
-                }
-                widthLeft -= wLength + 1;
-                result[result.length - 1].push(words[i]);
-            }
-            return result.map((ws) => ws.join(" "));
-        })
-            .join(`\n${prefix}`));
-}
-let timer;
-export function outputGit(str) {
-    const st = (str || "").trimEnd();
-    if (st.endsWith("elapsed")) {
-        return;
-    }
-    else if (timer !== undefined) {
-        timer.stop();
-        timer = undefined;
-        process.stdout.write(`\n`);
-    }
-    console.log(st
-        .split("\n")
-        .map((x) => {
-        const lineParts = x.trimEnd().split("remote: ");
-        const line = lineParts[lineParts.length - 1];
-        const color = line.match(/fail|error|fatal/i) !== null
-            ? RED
-            : line.match(/warn/i) !== null
-                ? YELLOW
-                : line.match(/succe/i) !== null
-                    ? GREEN
-                    : NORMAL_COLOR;
-        const commands = line.split("'mm");
-        for (let i = 1; i < commands.length; i++) {
-            const ind = commands[i].indexOf("'");
-            const cmd = commands[i].substring(0, ind);
-            const rest = commands[i].substring(ind);
-            commands[i] = `'${YELLOW}${getShortCommand()}${cmd}${color}${rest}`;
-        }
-        lineParts[lineParts.length - 1] =
-            color + commands.join("") + NORMAL_COLOR;
-        return lineParts.join(`${GRAY}remote: `);
-    })
-        .join("\n"));
-    if (st.endsWith("(this may take a few minutes)...")) {
-        process.stdout.write(`${GRAY}remote: ${NORMAL_COLOR}    `);
-        timer = Str.Timer.start(new Str.Timer.Seconds("s elapsed"));
-    }
-}
-function versionIsOlder(old, new_) {
-    const os = old.split(".");
-    const ns = new_.split(".");
-    if (+os[0] < +ns[0])
-        return true;
-    else if (+os[0] > +ns[0])
-        return false;
-    else if (+os[1] < +ns[1])
-        return true;
-    else if (+os[1] > +ns[1])
-        return false;
-    else if (+os[2] < +ns[2])
-        return true;
-    return false;
-}
 const BYTES = 1;
 const KILOBYTES = 1024 * BYTES;
 const MEGABYTES = 1024 * KILOBYTES;
@@ -240,35 +97,6 @@ export function execPromise(cmd, cwd) {
         });
     });
 }
-const historyFolder = os.homedir() + "/.merrymake/";
-const historyFile = "history";
-const updateFile = "last_update_check";
-export async function checkVersionIfOutdated() {
-    try {
-        if (!fs.existsSync(historyFolder))
-            fs.mkdirSync(historyFolder);
-        const lastCheck = fs.existsSync(historyFolder + updateFile)
-            ? +fs.readFileSync(historyFolder + updateFile).toString()
-            : 0;
-        if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
-            await checkVersion();
-        }
-    }
-    catch (e) { }
-}
-export async function checkVersion() {
-    try {
-        const call = await execPromise("npm show @merrymake/cli dist-tags --json");
-        const version = JSON.parse(call);
-        if (versionIsOlder(package_json.version, version.latest)) {
-            addExitMessage(`
-New version of merrymake-cli available, to update run the command:
-  ${YELLOW}npm install --global @merrymake/cli@latest${NORMAL_COLOR}`);
-        }
-    }
-    catch (e) { }
-    fs.writeFileSync(historyFolder + updateFile, "" + Date.now());
-}
 export function typedKeys(o) {
     return Object.keys(o);
 }
@@ -287,43 +115,6 @@ export function execStreamPromise(full, onData, cwd) {
                 reject("subprocess failed");
             else
                 resolve();
-        });
-    });
-}
-export async function execute(command, alsoPrint = false) {
-    try {
-        const result = [];
-        const onData = (s) => {
-            result.push(s);
-            if (alsoPrint)
-                outputGit(s);
-        };
-        await execStreamPromise(command, onData);
-        return result.join("");
-    }
-    catch (e) {
-        throw e;
-    }
-}
-export function spawnPromise(str) {
-    return new Promise((resolve, reject) => {
-        const [cmd, ...args] = str.split(" ");
-        const options = {
-            cwd: ".",
-            shell: "sh",
-        };
-        const ls = spawn(cmd, args, options);
-        ls.stdout.on("data", (data) => {
-            outputGit(data.toString());
-        });
-        ls.stderr.on("data", (data) => {
-            outputGit(data.toString());
-        });
-        ls.on("close", (code) => {
-            if (code === 0)
-                resolve();
-            else
-                reject();
         });
     });
 }

@@ -1,18 +1,17 @@
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { Option, choice, shortText } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
 import {
-  addToExecuteQueue,
   digits,
-  finish,
   generateString,
   lowercase,
-  outputGit,
   sshReq,
   toFolderName,
 } from "../utils.js";
 import { ADJECTIVE, NOUN } from "../words.js";
 import { checkout, checkout_org, do_clone } from "./clone.js";
 import { group } from "./group.js";
+import { outputGit } from "../printUtils.js";
 
 export async function do_createOrganization(
   folderName: string,

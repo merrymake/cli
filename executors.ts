@@ -1,31 +1,9 @@
-import { detectProjectType } from "@merrymake/detect-project-type";
 import { ExecOptions, spawn } from "child_process";
 import fs from "fs";
 import { stdout } from "process";
-import { getArgs } from "./args.js";
-import { outputGit, sshReq } from "./utils.js";
+import { outputGit } from "./printUtils.js";
 import { GRAY, NORMAL_COLOR } from "./prompt.js";
-
-function spawnPromise(str: string) {
-  return new Promise<void>((resolve, reject) => {
-    const [cmd, ...args] = str.split(" ");
-    const options: ExecOptions = {
-      cwd: ".",
-      shell: "sh",
-    };
-    const ls = spawn(cmd, args, options);
-    ls.stdout.on("data", (data: Buffer | string) => {
-      outputGit(data.toString());
-    });
-    ls.stderr.on("data", (data: Buffer | string) => {
-      outputGit(data.toString());
-    });
-    ls.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject();
-    });
-  });
-}
+import { sshReq } from "./utils.js";
 
 export function alignRight(str: string, width: number) {
   return str.length > width
@@ -63,7 +41,7 @@ export function printTableHeader(
     prefix +
     Object.keys(widths)
       .map((k) =>
-        k.padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
+        k.padEnd(widths[k] < 0 ? Math.min(rest, -widths[k]) : widths[k])
       )
       .join(` ${GRAY}│${NORMAL_COLOR} `);
   let result = header + "\n";
@@ -71,7 +49,7 @@ export function printTableHeader(
     prefix +
     Object.keys(widths)
       .map((k) =>
-        "─".repeat(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k])
+        "─".repeat(widths[k] < 0 ? Math.min(rest, -widths[k]) : widths[k])
       )
       .join("─┼─");
   result += GRAY + divider + NORMAL_COLOR;

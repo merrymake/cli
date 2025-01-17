@@ -2,6 +2,7 @@ import {
   detectProjectType,
   ProjectTypes,
 } from "@merrymake/detect-project-type";
+import { Str } from "@merrymake/utils";
 import {
   ChildProcessWithoutNullStreams,
   ExecOptions,
@@ -11,16 +12,10 @@ import cookieParser from "cookie-parser";
 import express, { Request, RequestHandler, Response } from "express";
 import fs from "fs";
 import net from "net";
+import { addToExecuteQueue, finish } from "./exitMessages.js";
 import { GRAY, INVISIBLE, NORMAL_COLOR, RED, WHITE, YELLOW } from "./prompt.js";
-import {
-  addToExecuteQueue,
-  all,
-  finish,
-  generateString,
-  printWithPrefix,
-} from "./utils.js";
 import { PathTo, PathToOrganization, PathToRepository } from "./types.js";
-import { Str } from "@merrymake/utils";
+import { all, generateString } from "./utils.js";
 
 interface Envelope {
   messageId: string;

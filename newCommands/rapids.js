@@ -1,10 +1,12 @@
 import { HOURS, Str, UnitType } from "@merrymake/utils";
-import { alignLeft, alignRight, printTableHeader, } from "../executors.js";
-import { choice, GRAY, GREEN, INVISIBLE, NORMAL_COLOR, RED, YELLOW, } from "../prompt.js";
-import { finish, outputGit, sshReq } from "../utils.js";
-import { post } from "./post.js";
 import { stdout } from "process";
 import { getArgs } from "../args.js";
+import { alignLeft, alignRight, printTableHeader } from "../executors.js";
+import { choice, GRAY, GREEN, INVISIBLE, NORMAL_COLOR, RED, YELLOW, } from "../prompt.js";
+import { sshReq } from "../utils.js";
+import { post } from "./post.js";
+import { finish } from "../exitMessages.js";
+import { outputGit } from "../printUtils.js";
 export async function do_queue_time(org, time) {
     try {
         const resp = await sshReq(`queue`, `--org`, org, `--time`, "" + time);
@@ -87,11 +89,12 @@ export async function queue(organizationId) {
             getArgs().splice(0, 0, arg);
         }
         const options = [];
-        const resp = await sshReq(`rapids-view-trace`, organizationId.toString());
+        const resp = await sshReq(`rapids-compact-trace`, organizationId.toString());
         const parsed = JSON.parse(resp);
+        const longestEvent = parsed.events.reduce((acc, x) => Math.max(acc, x.length), 5);
         const tableHeader = "\n" +
             printTableHeader("      ", {
-                Event: -5,
+                Event: -longestEvent,
                 "S/W/F": 7,
                 Count: 5,
                 Day: 3,
@@ -99,13 +102,17 @@ export async function queue(organizationId) {
                 Latest: 9,
             });
         const buckets = {};
-        parsed.forEach((p) => {
-            if (buckets[p.e + p.s + p.h] === undefined)
-                buckets[p.e + p.s + p.h] = { e: p.e, s: p.s, points: [] };
-            buckets[p.e + p.s + p.h].points.push({
-                i: p.i,
-                l: new Date(p.l),
-                d: p.d,
+        parsed.is.forEach((p, i) => {
+            if (buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] === undefined)
+                buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] = {
+                    e: parsed.events[parsed.es[i]],
+                    s: parsed.ss[i],
+                    points: [],
+                };
+            buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].points.push({
+                i: parsed.is[i],
+                l: new Date(parsed.ls[i]),
+                d: parsed.ds[i],
             });
         });
         Object.values(buckets).forEach((p) => {
@@ -195,12 +202,12 @@ export async function queue(organizationId) {
                             NORMAL_COLOR;
                     options.push({
                         long: latest.i,
-                        text: `${alignRight(p.e, Math.max((typeof stdout.getWindowSize !== "function"
+                        text: `${alignRight(p.e, Math.min((typeof stdout.getWindowSize !== "function"
                             ? 80
                             : stdout.getWindowSize()[0]) -
                             41 -
                             "─┼──┼──┼──┼──┼─".length -
-                            "> [_] ".length, 5))} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${alignRight(b.length === 1 ? "" : b.length.toString(), 5)} ${GRAY}│${NORMAL_COLOR} ${WEEKDAYS[latest.l.getDay()]} ${GRAY}│${NORMAL_COLOR} ${q1}${GRAY}¦${q2}¦${NORMAL_COLOR}${q3} ${GRAY}│${NORMAL_COLOR} ${time}`,
+                            "> [_] ".length, longestEvent))} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${alignRight(b.length === 1 ? "" : b.length.toString(), 5)} ${GRAY}│${NORMAL_COLOR} ${WEEKDAYS[latest.l.getDay()]} ${GRAY}│${NORMAL_COLOR} ${q1}${GRAY}¦${q2}¦${NORMAL_COLOR}${q3} ${GRAY}│${NORMAL_COLOR} ${time}`,
                         action: () => queue_event(latest.i),
                         weight: latest.l.getTime(),
                     });

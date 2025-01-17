@@ -17,8 +17,12 @@ import { queue } from "./rapids.js";
 import { register } from "./register.js";
 import { repo } from "./repo.js";
 import { role } from "./role.js";
+import { update } from "./update.js";
+import { upgrade } from "./upgrade.js";
+import { rollback } from "./rollback.js";
 async function getContext() {
-    let repository;
+    let repositoryPath;
+    let repositoryId;
     let serviceGroup;
     let organization;
     let inGit = false;
@@ -30,16 +34,12 @@ async function getContext() {
         if (fs.existsSync(path.join(out, "merrymake.json"))) {
             if (fs.existsSync(path.join(out, ".git"))) {
                 const repositoryUrl = await execPromise(`git ls-remote --get-url origin`);
-                const buffer = repositoryUrl.split("/");
-                repository = {
-                    id: new RepositoryId(buffer[buffer.length - 1]),
-                    pathTo: new PathToRepository(out),
-                };
+                const buffer = repositoryUrl.trim().split("/");
+                repositoryId = new RepositoryId(buffer[buffer.length - 1].substring(1));
+                repositoryPath = new PathToRepository(out);
             }
             else {
-                repository = {
-                    pathTo: new PathToRepository(out),
-                };
+                repositoryPath = new PathToRepository(out);
             }
         }
         else if (fs.existsSync(path.join(out, ".group-id"))) {
@@ -55,12 +55,20 @@ async function getContext() {
                 pathTo: new PathToOrganization(out),
             };
             const monorepo = fs.existsSync(path.join(out, ".git"));
-            return { repository, serviceGroup, organization, inGit, monorepo };
+            return {
+                repositoryId,
+                repositoryPath,
+                serviceGroup,
+                organization,
+                inGit,
+                monorepo,
+            };
         }
         out = path.join(out, "..");
     }
     return {
-        repository,
+        repositoryId,
+        repositoryPath,
         serviceGroup,
         organization,
         inGit,
@@ -70,7 +78,7 @@ async function getContext() {
 export async function index() {
     try {
         const options = [];
-        const { repository, serviceGroup, organization, inGit, monorepo } = await getContext();
+        const { repositoryId, repositoryPath, serviceGroup, organization, inGit, monorepo, } = await getContext();
         if (inGit) {
             options.push({
                 long: "deploy",
@@ -80,13 +88,36 @@ export async function index() {
                 action: () => deploy(monorepo),
             });
         }
-        if (repository !== undefined) {
+        if (repositoryId !== undefined) {
+            options.push({
+                long: "rollback",
+                short: "r",
+                text: "rollback individual hooks or entire service to stable version",
+                weight: 800,
+                action: () => rollback(repositoryId),
+            });
+        }
+        if (repositoryPath !== undefined) {
             options.push({
                 long: "build",
                 short: "b",
                 text: "build service locally",
                 weight: 800,
                 action: () => build(),
+            });
+            options.push({
+                long: "update",
+                short: "u",
+                text: "upgrade dependencies no breaking changes (Minor)",
+                weight: 800,
+                action: () => update(),
+            });
+            options.push({
+                long: "upgrade",
+                short: "g",
+                text: "upgrade dependencies including breaking changes (Major)",
+                weight: 800,
+                action: () => upgrade(),
             });
         }
         if (serviceGroup !== undefined) {

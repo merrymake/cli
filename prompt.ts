@@ -1,8 +1,8 @@
 import { stdin, stdout } from "node:process";
 import { getArgs } from "./args.js";
 import { CONTEXTS } from "./contexts.js";
-import { abort } from "./utils.js";
 import { getCommand } from "./mmCommand.js";
+import { abort } from "./exitMessages.js";
 
 export const CTRL_C = "\u0003";
 // const CR = "\u000D";
@@ -365,6 +365,7 @@ const SELECTED_MARK = "✔";
 const NOT_SELECTED_MARK = "_";
 
 export function multiSelect(
+  heading: string,
   selection: { [key: string]: boolean },
   after: (selection: { [key: string]: boolean }) => Promise<never>,
   errorMessage?: string
@@ -402,7 +403,7 @@ export function multiSelect(
       prom.catch(reject);
       return;
     }
-    const str: string[] = [];
+    const str: string[] = [heading + "\n"];
     for (let i = 0; i < keys.length; i++) {
       str.push("  ");
       str.push(selection[keys[i]] === true ? SELECTED_MARK : NOT_SELECTED_MARK);
@@ -412,8 +413,8 @@ export function multiSelect(
     }
 
     // Add submit and exit
-    str.push(`  [s] submit\n`);
-    str.push(`  [x] exit\n`);
+    str.push(`  ${GRAY}[s]${NORMAL_COLOR} submit\n`);
+    str.push(`  ${GRAY}[x]${NORMAL_COLOR} exit\n`);
 
     output(" \n");
     output(HIDE_CURSOR);

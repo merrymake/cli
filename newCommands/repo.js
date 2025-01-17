@@ -1,10 +1,11 @@
 import { ProjectTypes } from "@merrymake/detect-project-type";
 import fs from "fs";
 import { GIT_HOST } from "../config.js";
+import { TODO, finish } from "../exitMessages.js";
 import { choice, shortText } from "../prompt.js";
 import { languages, templates } from "../templates.js";
 import { RepositoryId, } from "../types.js";
-import { Path, TODO, execPromise, finish, sshReq, toFolderName, } from "../utils.js";
+import { Path, execPromise, sshReq, toFolderName } from "../utils.js";
 import { do_deploy } from "./deploy.js";
 import { BITBUCKET_FILE, bitbucketStep } from "./hosting.js";
 import { post } from "./post.js";

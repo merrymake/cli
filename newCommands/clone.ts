@@ -2,17 +2,11 @@ import fs from "fs";
 import { GIT_HOST } from "../config.js";
 import { choice } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
-import {
-  OrgFile,
-  addToExecuteQueue,
-  execPromise,
-  finish,
-  outputGit,
-  sshReq,
-  toFolderName,
-} from "../utils.js";
+import { OrgFile, execPromise, sshReq, toFolderName } from "../utils.js";
+import { outputGit } from "../printUtils.js";
 import { ToBeStructure, ensureGroupStructure } from "./fetch.js";
 import { listOrgs } from "./org.js";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 
 export async function do_clone(
   struct: ToBeStructure,

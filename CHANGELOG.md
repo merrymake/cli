@@ -1,3 +1,4 @@
+<!--
 # NEXT:
 ## Breaking changes
 -
@@ -5,10 +6,20 @@
 -
 ## Fixes and improvements
 -
+-->
+
+# 4.9.0
+## Added features
+- Add `update` command, used to update dependencies in service repositories. No breaking changes (ie. minor)
+- Add `upgrade` command, used to upgrade dependencies in service repositories, _including_ breaking changes (ie. major)
+## Fixes and improvements
+- Link release notes in the update message
+- Lock dependency version even harder, made possible by the two new commands described above
+- Make the 'Event' column of `rapids` fit the width of events, without slowing it down
 
 # 4.8.0
 ## Added features
-- `rapids` prints relative times for today
+- `rapids` prints relative times for recent events
 ## Fixes and improvements
 - Lock dependency versions, since we don't have control over deployment time (ie. when people install it)
 - `rapids` uses a 24h time format to avoid overflow from AM/PM

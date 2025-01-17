@@ -1,10 +1,7 @@
 import { HOURS, Str, UnitType } from "@merrymake/utils";
-import {
-  alignCenter,
-  alignLeft,
-  alignRight,
-  printTableHeader,
-} from "../executors.js";
+import { stdout } from "process";
+import { getArgs } from "../args.js";
+import { alignLeft, alignRight, printTableHeader } from "../executors.js";
 import {
   choice,
   GRAY,
@@ -16,10 +13,10 @@ import {
   YELLOW,
 } from "../prompt.js";
 import { OrganizationId } from "../types.js";
-import { finish, outputGit, printWithPrefix, sshReq } from "../utils.js";
+import { sshReq } from "../utils.js";
 import { post } from "./post.js";
-import { stdout } from "process";
-import { getArgs } from "../args.js";
+import { finish } from "../exitMessages.js";
+import { outputGit } from "../printUtils.js";
 
 export async function do_queue_time(org: string, time: number) {
   try {
@@ -137,19 +134,27 @@ export async function queue(organizationId: OrganizationId) {
       getArgs().splice(0, 0, arg);
     }
     const options: (Option & { weight: number })[] = [];
-    const resp = await sshReq(`rapids-view-trace`, organizationId.toString());
+    const resp = await sshReq(
+      `rapids-compact-trace`,
+      organizationId.toString()
+    );
     const parsed: {
-      i: string;
-      e: string;
-      s: string;
-      l: string;
-      d: number;
-      h: number;
-    }[] = JSON.parse(resp);
+      events: string[];
+      is: string[];
+      es: number[];
+      ss: string[];
+      ls: string[];
+      ds: number[];
+      hs: number[];
+    } = JSON.parse(resp);
+    const longestEvent = parsed.events.reduce(
+      (acc, x) => Math.max(acc, x.length),
+      5
+    );
     const tableHeader =
       "\n" +
       printTableHeader("      ", {
-        Event: -5,
+        Event: -longestEvent,
         "S/W/F": 7,
         Count: 5,
         Day: 3,
@@ -163,13 +168,17 @@ export async function queue(organizationId: OrganizationId) {
         points: { i: string; l: Date; d: number }[];
       };
     } = {};
-    parsed.forEach((p) => {
-      if (buckets[p.e + p.s + p.h] === undefined)
-        buckets[p.e + p.s + p.h] = { e: p.e, s: p.s, points: [] };
-      buckets[p.e + p.s + p.h].points.push({
-        i: p.i,
-        l: new Date(p.l),
-        d: p.d,
+    parsed.is.forEach((p, i) => {
+      if (buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] === undefined)
+        buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] = {
+          e: parsed.events[parsed.es[i]],
+          s: parsed.ss[i],
+          points: [],
+        };
+      buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].points.push({
+        i: parsed.is[i],
+        l: new Date(parsed.ls[i]),
+        d: parsed.ds[i],
       });
     });
     Object.values(buckets).forEach((p) => {
@@ -266,14 +275,14 @@ export async function queue(organizationId: OrganizationId) {
             long: latest.i,
             text: `${alignRight(
               p.e,
-              Math.max(
+              Math.min(
                 (typeof stdout.getWindowSize !== "function"
                   ? 80
                   : stdout.getWindowSize()[0]) -
                   41 -
                   "─┼──┼──┼──┼──┼─".length -
                   "> [_] ".length,
-                5
+                longestEvent
               )
             )} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${alignRight(
               b.length === 1 ? "" : b.length.toString(),

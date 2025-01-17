@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import { API_URL, FINGERPRINT, HTTP_HOST, SSH_USER } from "../config.js";
+import { addExitMessage } from "../exitMessages.js";
 import {
   choice,
   NORMAL_COLOR,
@@ -9,13 +10,7 @@ import {
   shortText,
   YELLOW,
 } from "../prompt.js";
-import {
-  addExitMessage,
-  execPromise,
-  getFiles,
-  Path,
-  urlReq,
-} from "../utils.js";
+import { execPromise, getFiles, Path, urlReq } from "../utils.js";
 import { orgAction } from "./org.js";
 import { wait } from "./wait.js";
 

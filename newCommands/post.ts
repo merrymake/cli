@@ -1,16 +1,12 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 import fs, { readdirSync } from "fs";
 import { RAPIDS_HOST } from "../config.js";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { Option, choice, shortText } from "../prompt.js";
 import { OrganizationId } from "../types.js";
-import {
-  addToExecuteQueue,
-  finish,
-  outputGit,
-  sshReq,
-  urlReq,
-} from "../utils.js";
+import { sshReq, urlReq } from "../utils.js";
 import { key_create } from "./apikey.js";
+import { outputGit } from "../printUtils.js";
 
 export async function do_post(
   eventType: string,

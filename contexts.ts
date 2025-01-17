@@ -87,6 +87,8 @@ export const CONTEXTS: { [cmd: string]: (cmd: string) => string } = {
   clone: NOT_ORGANIZATION_CONTEXT,
   clean: SERVICE_CONTEXT,
   build: SERVICE_CONTEXT,
+  update: SERVICE_CONTEXT,
+  upgrade: SERVICE_CONTEXT,
   deploy: SERVICE_CONTEXT,
   envvar: SERVICE_GROUP_CONTEXT,
   event: ORGANIZATION_CONTEXT,

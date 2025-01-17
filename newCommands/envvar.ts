@@ -1,19 +1,15 @@
 import { MerrymakeCrypto } from "@merrymake/secret-lib";
 import fs from "fs";
 import { GIT_HOST } from "../config.js";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { Option, Visibility, choice, shortText } from "../prompt.js";
 import {
   OrganizationId,
   PathToOrganization,
   ServiceGroupId,
 } from "../types.js";
-import {
-  addToExecuteQueue,
-  execPromise,
-  finish,
-  outputGit,
-  sshReq,
-} from "../utils.js";
+import { execPromise, sshReq } from "../utils.js";
+import { outputGit } from "../printUtils.js";
 
 async function do_envvar(
   pathToOrganization: PathToOrganization,

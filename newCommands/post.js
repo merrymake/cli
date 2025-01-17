@@ -1,9 +1,11 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 import fs, { readdirSync } from "fs";
 import { RAPIDS_HOST } from "../config.js";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { choice, shortText } from "../prompt.js";
-import { addToExecuteQueue, finish, outputGit, sshReq, urlReq, } from "../utils.js";
+import { sshReq, urlReq } from "../utils.js";
 import { key_create } from "./apikey.js";
+import { outputGit } from "../printUtils.js";
 export async function do_post(eventType, key, contentType, payload) {
     try {
         outputGit(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);

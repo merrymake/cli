@@ -1,7 +1,9 @@
 import fs from "fs";
 import { GIT_HOST } from "../config.js";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { RepositoryId, ServiceGroupId, } from "../types.js";
-import { addToExecuteQueue, directoryNames, execPromise, finish, outputGit, sshReq, toFolderName, } from "../utils.js";
+import { directoryNames, execPromise, sshReq, toFolderName } from "../utils.js";
+import { outputGit } from "../printUtils.js";
 async function getCurrentStructure(pathToOrganization) {
     const folders = directoryNames(pathToOrganization, [
         "event-catalogue",

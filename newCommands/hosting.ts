@@ -1,5 +1,6 @@
 import fs from "fs";
 import { API_URL, FINGERPRINT, GIT_HOST, SPECIAL_FOLDERS } from "../config.js";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { Option, choice, shortText } from "../prompt.js";
 import {
   Organization,
@@ -10,16 +11,9 @@ import {
   ServiceGroup,
   ServiceGroupId,
 } from "../types.js";
-import {
-  addToExecuteQueue,
-  execPromise,
-  finish,
-  getFiles,
-  outputGit,
-  sshReq,
-  toFolderName,
-} from "../utils.js";
+import { execPromise, getFiles, sshReq, toFolderName } from "../utils.js";
 import { do_fetch } from "./fetch.js";
+import { outputGit } from "../printUtils.js";
 
 export async function do_create_deployment_agent(
   organization: Organization,

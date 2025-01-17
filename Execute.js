@@ -1,12 +1,13 @@
 import { detectProjectType, ProjectTypes, } from "@merrymake/detect-project-type";
+import { Str } from "@merrymake/utils";
 import { spawn, } from "child_process";
 import cookieParser from "cookie-parser";
 import express from "express";
 import fs from "fs";
 import net from "net";
+import { addToExecuteQueue, finish } from "./exitMessages.js";
 import { GRAY, INVISIBLE, NORMAL_COLOR, RED, WHITE, YELLOW } from "./prompt.js";
-import { addToExecuteQueue, all, finish, generateString, } from "./utils.js";
-import { Str } from "@merrymake/utils";
+import { all, generateString } from "./utils.js";
 let spacerTimer;
 function timedOutput(str, prefix) {
     if (spacerTimer !== undefined)

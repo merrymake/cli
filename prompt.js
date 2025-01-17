@@ -1,8 +1,8 @@
 import { stdin, stdout } from "node:process";
 import { getArgs } from "./args.js";
 import { CONTEXTS } from "./contexts.js";
-import { abort } from "./utils.js";
 import { getCommand } from "./mmCommand.js";
+import { abort } from "./exitMessages.js";
 export const CTRL_C = "\u0003";
 // const CR = "\u000D";
 export const BACKSPACE = "\b";
@@ -316,7 +316,7 @@ export function choice(heading, options, opts) {
 }
 const SELECTED_MARK = "✔";
 const NOT_SELECTED_MARK = "_";
-export function multiSelect(selection, after, errorMessage) {
+export function multiSelect(heading, selection, after, errorMessage) {
     return new Promise((resolve, reject) => {
         // options.push({
         //   short: "x",
@@ -347,7 +347,7 @@ export function multiSelect(selection, after, errorMessage) {
             prom.catch(reject);
             return;
         }
-        const str = [];
+        const str = [heading + "\n"];
         for (let i = 0; i < keys.length; i++) {
             str.push("  ");
             str.push(selection[keys[i]] === true ? SELECTED_MARK : NOT_SELECTED_MARK);
@@ -356,8 +356,8 @@ export function multiSelect(selection, after, errorMessage) {
             str.push("\n");
         }
         // Add submit and exit
-        str.push(`  [s] submit\n`);
-        str.push(`  [x] exit\n`);
+        str.push(`  ${GRAY}[s]${NORMAL_COLOR} submit\n`);
+        str.push(`  ${GRAY}[x]${NORMAL_COLOR} exit\n`);
         output(" \n");
         output(HIDE_CURSOR);
         output(str.join(""));

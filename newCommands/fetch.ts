@@ -1,5 +1,6 @@
 import fs from "fs";
 import { GIT_HOST } from "../config.js";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import {
   Organization,
   OrganizationId,
@@ -9,15 +10,8 @@ import {
   ServiceGroup,
   ServiceGroupId,
 } from "../types.js";
-import {
-  addToExecuteQueue,
-  directoryNames,
-  execPromise,
-  finish,
-  outputGit,
-  sshReq,
-  toFolderName,
-} from "../utils.js";
+import { directoryNames, execPromise, sshReq, toFolderName } from "../utils.js";
+import { outputGit } from "../printUtils.js";
 
 type DisplayName = string;
 type RepositoryStructure = { [repositoryId: string]: DisplayName };

@@ -1,7 +1,8 @@
 import fs from "fs";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { choice, shortText } from "../prompt.js";
 import { PathToServiceGroup, ServiceGroupId, } from "../types.js";
-import { addToExecuteQueue, finish, sshReq, toFolderName } from "../utils.js";
+import { sshReq, toFolderName } from "../utils.js";
 import { repo_create } from "./repo.js";
 export async function do_deleteServiceGroup(serviceGroup, displayName) {
     try {

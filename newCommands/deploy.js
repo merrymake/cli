@@ -1,5 +1,7 @@
+import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { choice, Formatting, output, shortText } from "../prompt.js";
-import { addToExecuteQueue, execStreamPromise, execute, finish, outputGit, spawnPromise, } from "../utils.js";
+import { execStreamPromise } from "../utils.js";
+import { execute, outputGit, spawnPromise } from "../printUtils.js";
 /*
 [remove .gitignored files]
 [clean workspace]

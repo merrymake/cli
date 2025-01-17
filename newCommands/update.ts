@@ -5,11 +5,11 @@ import {
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit, spawnPromise } from "../printUtils.js";
 
-async function do_build() {
+async function do_update() {
   try {
     const projectType = await detectProjectType(".");
-    outputGit(`Building ${projectType} project...`);
-    const commands = await ProjectTypes[projectType].build(".");
+    outputGit(`Updating ${projectType} dependencies...`);
+    const commands = await ProjectTypes[projectType].update(".");
     for (let i = 0; i < commands.length; i++) {
       const x = commands[i];
       await spawnPromise(x);
@@ -19,7 +19,7 @@ async function do_build() {
   }
 }
 
-export function build() {
-  addToExecuteQueue(() => do_build());
+export function update() {
+  addToExecuteQueue(() => do_update());
   return finish();
 }

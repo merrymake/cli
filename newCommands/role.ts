@@ -1,13 +1,9 @@
 import { Option, choice, shortText } from "../prompt.js";
 import { AccessId, Organization, OrganizationId } from "../types.js";
-import {
-  addToExecuteQueue,
-  finish,
-  outputGit,
-  sshReq,
-  toFolderName,
-} from "../utils.js";
+import { sshReq, toFolderName } from "../utils.js";
 import { do_create_deployment_agent } from "./hosting.js";
+import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { outputGit } from "../printUtils.js";
 
 const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 export async function do_attach_role(user: string, accessId: AccessId) {

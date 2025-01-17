@@ -1,11 +1,11 @@
 import { detectProjectType, ProjectTypes, } from "@merrymake/detect-project-type";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit, spawnPromise } from "../printUtils.js";
-async function do_build() {
+async function do_upgrade() {
     try {
         const projectType = await detectProjectType(".");
-        outputGit(`Building ${projectType} project...`);
-        const commands = await ProjectTypes[projectType].build(".");
+        outputGit(`Upgrading ${projectType} dependencies...`);
+        const commands = await ProjectTypes[projectType].upgrade(".");
         for (let i = 0; i < commands.length; i++) {
             const x = commands[i];
             await spawnPromise(x);
@@ -15,7 +15,7 @@ async function do_build() {
         throw e;
     }
 }
-export function build() {
-    addToExecuteQueue(() => do_build());
+export function upgrade() {
+    addToExecuteQueue(() => do_upgrade());
     return finish();
 }

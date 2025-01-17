@@ -1,30 +1,8 @@
-import { spawn } from "child_process";
 import fs from "fs";
 import { stdout } from "process";
-import { outputGit, sshReq } from "./utils.js";
+import { outputGit } from "./printUtils.js";
 import { GRAY, NORMAL_COLOR } from "./prompt.js";
-function spawnPromise(str) {
-    return new Promise((resolve, reject) => {
-        const [cmd, ...args] = str.split(" ");
-        const options = {
-            cwd: ".",
-            shell: "sh",
-        };
-        const ls = spawn(cmd, args, options);
-        ls.stdout.on("data", (data) => {
-            outputGit(data.toString());
-        });
-        ls.stderr.on("data", (data) => {
-            outputGit(data.toString());
-        });
-        ls.on("close", (code) => {
-            if (code === 0)
-                resolve();
-            else
-                reject();
-        });
-    });
-}
+import { sshReq } from "./utils.js";
 export function alignRight(str, width) {
     return str.length > width
         ? str.substring(0, width - 3) + "..."
@@ -51,12 +29,12 @@ export function printTableHeader(prefix, widths) {
         3 * (vals.length - 1);
     const header = prefix +
         Object.keys(widths)
-            .map((k) => k.padEnd(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
+            .map((k) => k.padEnd(widths[k] < 0 ? Math.min(rest, -widths[k]) : widths[k]))
             .join(` ${GRAY}│${NORMAL_COLOR} `);
     let result = header + "\n";
     const divider = prefix +
         Object.keys(widths)
-            .map((k) => "─".repeat(widths[k] < 0 ? Math.max(rest, -widths[k]) : widths[k]))
+            .map((k) => "─".repeat(widths[k] < 0 ? Math.min(rest, -widths[k]) : widths[k]))
             .join("─┼─");
     result += GRAY + divider + NORMAL_COLOR;
     return result;

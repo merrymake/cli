@@ -1,7 +1,9 @@
 import { stdout } from "process";
 import { alignLeft, printTableHeader } from "../executors.js";
+import { finish } from "../exitMessages.js";
 import { NORMAL_COLOR, RED, YELLOW, choice, output, shortText, } from "../prompt.js";
-import { finish, outputGit, sshReq } from "../utils.js";
+import { sshReq } from "../utils.js";
+import { outputGit } from "../printUtils.js";
 export async function do_key_create(organizationId, description, duration) {
     try {
         const cmd = [
