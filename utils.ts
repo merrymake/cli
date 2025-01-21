@@ -148,7 +148,10 @@ function sshReqInternal(cmd: string) {
   return execPromise(`ssh -o ConnectTimeout=10 mist@${SSH_HOST} "${cmd}"`);
 }
 export async function sshReq(...cmd: string[]) {
-  const spinner = Str.Spinner.start();
+  const spinner =
+    typeof process.stdout.moveCursor === "function"
+      ? Str.Spinner.start()
+      : undefined;
   try {
     const result = await sshReqInternal(
       cmd
@@ -159,7 +162,7 @@ export async function sshReq(...cmd: string[]) {
   } catch (e) {
     throw e;
   } finally {
-    spinner.stop();
+    spinner?.stop();
   }
 }
 

@@ -20,6 +20,7 @@ import { role } from "./role.js";
 import { update } from "./update.js";
 import { upgrade } from "./upgrade.js";
 import { rollback } from "./rollback.js";
+import { help } from "./help.js";
 async function getContext() {
     let repositoryPath;
     let repositoryId;
@@ -78,7 +79,8 @@ async function getContext() {
 export async function index() {
     try {
         const options = [];
-        const { repositoryId, repositoryPath, serviceGroup, organization, inGit, monorepo, } = await getContext();
+        const context = await getContext();
+        const { repositoryId, repositoryPath, serviceGroup, organization, inGit, monorepo, } = context;
         if (inGit) {
             options.push({
                 long: "deploy",
@@ -221,6 +223,12 @@ export async function index() {
                 action: () => orgAction(),
             });
         }
+        options.push({
+            long: "help",
+            text: "display helpful information",
+            weight: 1,
+            action: () => help(context),
+        });
         options.sort((a, b) => b.weight - a.weight);
         return choice("What would you like to do?", options);
     }

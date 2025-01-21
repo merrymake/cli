@@ -35,7 +35,7 @@ export async function rollback(repositoryId: RepositoryId) {
     );
     const river_events = Obj.Sync.map(resp.hooks, (k, v) => true);
     return await multiSelect(
-      "Which hooks do you want to roll back?",
+      "Which hooks would you like to roll back?",
       river_events,
       (s) =>
         rollback_hooks(

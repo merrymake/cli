@@ -122,7 +122,9 @@ function sshReqInternal(cmd) {
     return execPromise(`ssh -o ConnectTimeout=10 mist@${SSH_HOST} "${cmd}"`);
 }
 export async function sshReq(...cmd) {
-    const spinner = Str.Spinner.start();
+    const spinner = typeof process.stdout.moveCursor === "function"
+        ? Str.Spinner.start()
+        : undefined;
     try {
         const result = await sshReqInternal(cmd
             .map((x) => (x.length === 0 || x.includes(" ") ? `\\"${x}\\"` : x))
@@ -133,7 +135,7 @@ export async function sshReq(...cmd) {
         throw e;
     }
     finally {
-        spinner.stop();
+        spinner?.stop();
     }
 }
 export function partition(str, radix) {

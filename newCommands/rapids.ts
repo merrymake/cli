@@ -1,4 +1,4 @@
-import { HOURS, Str, UnitType } from "@merrymake/utils";
+import { HOURS, is, Str, UnitType } from "@merrymake/utils";
 import { stdout } from "process";
 import { getArgs } from "../args.js";
 import { alignLeft, alignRight, printTableHeader } from "../executors.js";
@@ -39,10 +39,16 @@ export async function do_queue_time(org: string, time: number) {
     );
     queue.forEach((x) =>
       outputGit(
-        `${x.id} │ ${alignRight(x.r, 12)} │ ${alignLeft(x.e, 12)} │ ${alignLeft(
+        `${x.id} ${GRAY}│${NORMAL_COLOR} ${alignRight(
+          x.r,
+          12
+        )} ${GRAY}│${NORMAL_COLOR} ${alignLeft(
+          x.e,
+          12
+        )} ${GRAY}│${NORMAL_COLOR} ${alignLeft(
           x.s,
           7
-        )} │ ${new Date(x.q).toLocaleString()}`
+        )} ${GRAY}│${NORMAL_COLOR} ${new Date(x.q).toLocaleString()}`
       )
     );
   } catch (e) {
@@ -95,7 +101,7 @@ async function queue_event(id: string) {
     });
     return finish();
     // return choice(
-    //   "Do you want to replay this service invocation?",
+    //   "Would you like to replay this service invocation?",
     //   [
     //     {
     //       long: "replay",
@@ -110,7 +116,7 @@ async function queue_event(id: string) {
   }
 }
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-function calcQuartile<T>(a: T[], f: (_: T) => number, q: number) {
+function calcQuartile(a: { d: number }[], q: number) {
   // Work out the position in the array of the percentile point
   const p = (a.length - 1) * q;
   const b = Math.floor(p);
@@ -118,13 +124,123 @@ function calcQuartile<T>(a: T[], f: (_: T) => number, q: number) {
   const remainder = p - b;
   // See whether that data exists directly
   return a[b + 1] === undefined
-    ? f(a[b]) !== null
-      ? f(a[b])
+    ? a[b].d !== null
+      ? a[b].d
       : Number.POSITIVE_INFINITY
-    : f(a[b + 1]) !== null && Number.isFinite(f(a[b + 1]))
-    ? f(a[b]) + remainder * (f(a[b + 1]) - f(a[b]))
+    : a[b + 1].d !== null && Number.isFinite(a[b + 1].d)
+    ? a[b].d + remainder * (a[b + 1].d - a[b].d)
     : Number.POSITIVE_INFINITY;
 }
+
+enum Interest {
+  BORING = 1,
+  MILDLY_INTERESTING = 2,
+  MODERATELY_INTERESTING = 3,
+  INTERESTING = 4,
+}
+
+function knuthBinWidth(sortedData: { d: number }[]): number {
+  // Sort the data
+  const n = sortedData.length;
+  const range = sortedData[n - 1].d - sortedData[0].d;
+
+  // Implementation of the negative log likelihood function
+  function negLogLikelihood(M: number): number {
+    const binWidth = range / M;
+    const bins = new Array(M).fill(0);
+
+    // Count data points in each bin
+    for (const x of sortedData) {
+      const binIndex = Math.min(
+        Math.floor((x.d - sortedData[0].d) / binWidth),
+        M - 1
+      );
+      bins[binIndex]++;
+    }
+
+    // Calculate the log likelihood using Knuth's formula
+    let logL =
+      n * Math.log(M) +
+      logGamma(M / 2) -
+      M * logGamma(1 / 2) -
+      logGamma((2 * n + M) / 2);
+
+    for (const nk of bins) {
+      if (nk > 0) {
+        logL += logGamma(nk + 0.5);
+      }
+    }
+
+    return -logL;
+  }
+
+  // Helper function for log gamma
+  function logGamma(x: number): number {
+    return (
+      Math.log(Math.sqrt(2 * Math.PI)) +
+      (x - 0.5) * Math.log(x) -
+      x +
+      1 / (12 * x) -
+      1 / (360 * Math.pow(x, 3))
+    );
+  }
+
+  // Find optimal number of bins using golden section search
+  let a = 1;
+  let b = Math.ceil(Math.sqrt(n));
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const resphi = 2 - phi;
+
+  let c = Math.floor(b - (b - a) * resphi);
+  let d = Math.floor(a + (b - a) * resphi);
+  let fc = negLogLikelihood(c);
+  let fd = negLogLikelihood(d);
+
+  while (b - a > 1) {
+    if (fc < fd) {
+      b = d;
+      d = c;
+      fd = fc;
+      c = Math.floor(b - (b - a) * resphi);
+      fc = negLogLikelihood(c);
+    } else {
+      a = c;
+      c = d;
+      fc = fd;
+      d = Math.floor(a + (b - a) * resphi);
+      fd = negLogLikelihood(d);
+    }
+  }
+
+  const optimalBins = Math.round((a + b) / 2);
+  return range / optimalBins;
+}
+
+function histogram(
+  data: { d: number }[],
+  min: number,
+  max: number,
+  numBins: number = Math.ceil(Math.sqrt(data.length))
+): [number[], number] {
+  // p.points.sort((a, b) => a.d - b.d);
+  // Freedman–Diaconis rule
+  // const q1 = calcQuartile(p.points, 0.25);
+  // const q3 = calcQuartile(p.points, 0.75);
+  // const IQR = q3 - q1;
+  // const RESOLUTION = (2 * IQR) / Math.pow(p.points.length, 1 / 3);
+  // Knuth's rule
+  // const RESOLUTION = knuthBinWidth(p.points);
+  // Google sheets' method
+  const resolution = (max - min) / (numBins - 1);
+  const result: number[] = new Array(numBins).fill(0);
+  data.forEach((x) => {
+    const i = ~~((x.d - min) / resolution);
+    if (!(0 <= i && i < numBins)) console.log(i, x.d, min, resolution);
+    result[i]++;
+  });
+  return [result, resolution];
+}
+
 export async function queue(organizationId: OrganizationId) {
   try {
     const arg = getArgs().splice(0, 1)[0];
@@ -133,11 +249,11 @@ export async function queue(organizationId: OrganizationId) {
       else if (arg[0] !== "-" && arg !== "x") return queue_event(arg);
       getArgs().splice(0, 0, arg);
     }
-    const options: (Option & { weight: number })[] = [];
-    const resp = await sshReq(
-      `rapids-compact-trace`,
-      organizationId.toString()
-    );
+    const options: (Option & { weight: number } & {
+      day: number;
+      interest: number;
+    })[] = [];
+    const resp = await sshReq(`rapids-all-traces`, organizationId.toString());
     const parsed: {
       events: string[];
       is: string[];
@@ -151,10 +267,19 @@ export async function queue(organizationId: OrganizationId) {
       (acc, x) => Math.max(acc, x.length),
       5
     );
+    const size =
+      typeof stdout.getWindowSize !== "function"
+        ? [80, 15]
+        : stdout.getWindowSize();
+    const varColumn = Math.min(
+      size[0] - 41 - "─┼──┼──┼──┼──┼─".length - "> [_] ".length,
+      longestEvent + 1
+    );
+    const height = size[1] - 7;
     const tableHeader =
       "\n" +
       printTableHeader("      ", {
-        Event: -longestEvent,
+        Event: varColumn,
         "S/W/F": 7,
         Count: 5,
         Day: 3,
@@ -165,6 +290,8 @@ export async function queue(organizationId: OrganizationId) {
       [key: string]: {
         e: string;
         s: string;
+        max: number;
+        min: number;
         points: { i: string; l: Date; d: number }[];
       };
     } = {};
@@ -173,8 +300,18 @@ export async function queue(organizationId: OrganizationId) {
         buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] = {
           e: parsed.events[parsed.es[i]],
           s: parsed.ss[i],
+          max: parsed.ds[i],
+          min: parsed.ds[i],
           points: [],
         };
+      if (
+        buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].max < parsed.ds[i]
+      )
+        buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].max = parsed.ds[i];
+      if (
+        buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].min > parsed.ds[i]
+      )
+        buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].min = parsed.ds[i];
       buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].points.push({
         i: parsed.is[i],
         l: new Date(parsed.ls[i]),
@@ -182,28 +319,18 @@ export async function queue(organizationId: OrganizationId) {
       });
     });
     Object.values(buckets).forEach((p) => {
-      p.points.sort((a, b) => a.d - b.d);
-      const q1 = calcQuartile(p.points, (a) => a.d, 0.25);
-      const q3 = calcQuartile(p.points, (a) => a.d, 0.75);
-      const IQR = q3 - q1;
-      // Freedman–Diaconis rule
-      const RESOLUTION = (2 * IQR) / Math.pow(p.points.length, 1 / 3);
-      const histogram: number[] = [];
-      const min = p.points[0].d;
-      p.points.forEach((x) => {
-        const i = ~~((x.d - min) / RESOLUTION);
-        histogram[i] = (histogram[i] || 0) + 1;
-      });
+      // Str.print(JSON.stringify(p.points.map((x) => x.d)));
+      const [hg, resolution] = histogram(p.points, p.min, p.max);
       const sep: number[] = [];
-      let prev = histogram[0];
+      let prev = hg[0];
       let increasing = true;
-      for (let i = 0; i < histogram.length; i++) {
-        const t = histogram[i] || 0;
+      for (let i = 0; i < hg.length; i++) {
+        const t = hg[i] || 0;
         if (increasing && t < prev) {
           increasing = false;
         } else if (!increasing && t > prev) {
           increasing = true;
-          sep.push((i - 0.5) * RESOLUTION + min);
+          sep.push((i - 0.5) * resolution + p.min);
         }
         prev = t;
       }
@@ -212,37 +339,88 @@ export async function queue(organizationId: OrganizationId) {
         .map((x) => new Array(sep.length + 1).fill(null).map((x) => []));
       p.points.forEach((x) => {
         let i = 0;
-        while (i < sep.length && sep[i] < x.d) i++;
+        while (i < sep.length && sep[i] < +x.d) i++;
         buckets[x.l.getDay()][i].push(x);
       });
       buckets.forEach((bw) => {
         bw.forEach((b) => {
           if (b.length === 0) return;
-          b.sort((a, b) => a.d - b.d);
+          b.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
           const latest = b.reduce((a, x) => (x.l > a.l ? x : a), b[0]);
-          const t = [
-            // b[0].d,
-            b[Math.round((b.length - 1) / 4)].d,
-            b[Math.round((b.length - 1) / 2)].d,
-            b[Math.round((3 * (b.length - 1)) / 4)].d,
-            // b[b.length - 1].d,
-          ];
-          const times = t.map((x) =>
-            alignRight(
-              Number.isFinite(x) ? Str.withUnit(x, UnitType.Duration) : "",
-              5
-            )
-          );
-          const empty = alignRight("", 5);
-          const [q1, q2, q3] =
-            b.length === 1
-              ? [empty, NORMAL_COLOR + times[0] + GRAY, empty]
-              : b.length === 2
-              ? [times[0], empty, times[1]]
-              : [times[0], times[1], times[2]];
+          const responseTime = (() => {
+            const empty = " ".repeat(5);
+            const mid = ~~((b.length - 1) / 2);
+            const t = [
+              b[Math.floor((b.length - 1) / 4)].d,
+              (b[mid].d + b[b.length - 1 - mid].d) / 2,
+              b[Math.ceil((3 * (b.length - 1)) / 4)].d,
+            ];
+            const times = t.map((x) =>
+              Number.isFinite(x) ? Str.withUnit(x, UnitType.Duration) : ""
+            );
+            const [q1, q2, q3] =
+              times[0] === times[2]
+                ? [empty, Str.alignRight(times[0], 5), empty]
+                : b.length === 2
+                ? [
+                    Str.alignRight(times[0], 5),
+                    empty,
+                    Str.alignRight(times[1], 5),
+                  ]
+                : b.length === 3
+                ? [
+                    Str.alignRight(times[0], 5),
+                    Str.alignRight(GRAY + times[1], 5),
+                    Str.alignRight(times[2], 5),
+                  ]
+                : [
+                    Str.alignRight(times[0], 5),
+                    /*[
+                      `${GRAY}<<   `,
+                      ` ${GRAY}<   `,
+                      `  ${GRAY}|  `,
+                      `   ${GRAY}> `,
+                      `   ${GRAY}>>`,
+                    ]*/
+                    GRAY +
+                      ["▇▄▃▁▁", "▅▇▄▃▁", "▁▄▇▄▁", "▁▃▄▇▅", "▁▁▃▄▇"][
+                        ~~((t[1] - t[0]) / ((t[2] - t[0]) / 5))
+                      ],
+                    // (() => {
+                    //   const slic = b; // b.slice(p[0], p[2]);
+                    //   const [hg] = histogram(
+                    //     slic,
+                    //     slic[0].d,
+                    //     slic[slic.length - 1].d,
+                    //     5
+                    //   );
+                    //   console.log(hg);
+                    //   const [min, max] = hg.reduce(
+                    //     (a, x) => [Math.min(a[0], x), Math.max(a[1], x)],
+                    //     [Number.POSITIVE_INFINITY, 0]
+                    //   );
+                    //   const yStep = (max - min) / 5;
+                    //   return hg
+                    //     .map((x) => "▁▃▄▅▆▇"[~~((x - min) / yStep)])
+                    //     .join("");
+                    // })(),
+                    Str.alignRight(times[2], 5),
+                  ];
+            return `${q1}${GRAY}¦${NORMAL_COLOR}${q2}${GRAY}¦${NORMAL_COLOR}${q3}`;
+          })();
           const st = p.s.split("/");
+          const interest =
+            st.length === 1
+              ? Interest.BORING
+              : +st[2] + +st[1] > 0
+              ? Interest.INTERESTING
+              : b.length === 1
+              ? Interest.MODERATELY_INTERESTING
+              : Interest.MILDLY_INTERESTING;
           const status =
-            p.s === "1/0/0"
+            st.length === 1
+              ? RED + p.s + NORMAL_COLOR + " ".repeat(7 - p.s.length)
+              : p.s === "1/0/0"
               ? GREEN + "succ" + NORMAL_COLOR + "   "
               : p.s === "0/1/0"
               ? YELLOW + "warn" + NORMAL_COLOR + "   "
@@ -263,51 +441,58 @@ export async function queue(organizationId: OrganizationId) {
           const timeDiff = Date.now() - latest.l.getTime();
           const time =
             timeDiff < 4 * HOURS
-              ? Str.withUnit(timeDiff, UnitType.Duration) + " ago"
+              ? Str.alignRight(Str.withUnit(timeDiff, UnitType.Duration), 5) +
+                " ago"
               : latest.l.getHours().toString().padStart(2, " ") +
                 ":" +
                 latest.l.getMinutes().toString().padStart(2, "0") +
                 GRAY +
                 ":" +
                 latest.l.getSeconds().toString().padStart(2, "0") +
-                NORMAL_COLOR;
+                NORMAL_COLOR +
+                " ";
           options.push({
             long: latest.i,
             text: `${alignRight(
               p.e,
-              Math.min(
-                (typeof stdout.getWindowSize !== "function"
-                  ? 80
-                  : stdout.getWindowSize()[0]) -
-                  41 -
-                  "─┼──┼──┼──┼──┼─".length -
-                  "> [_] ".length,
-                longestEvent
-              )
+              varColumn
             )} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${alignRight(
               b.length === 1 ? "" : b.length.toString(),
               5
             )} ${GRAY}│${NORMAL_COLOR} ${
               WEEKDAYS[latest.l.getDay()]
-            } ${GRAY}│${NORMAL_COLOR} ${q1}${GRAY}¦${q2}¦${NORMAL_COLOR}${q3} ${GRAY}│${NORMAL_COLOR} ${time}`,
+            } ${GRAY}│${NORMAL_COLOR} ${responseTime} ${GRAY}│${NORMAL_COLOR} ${time}`,
             action: () => queue_event(latest.i),
             weight: latest.l.getTime(),
+            day: latest.l.getDay(),
+            interest,
           });
         });
       });
     });
     options.sort((a, b) => b.weight - a.weight);
-    options.splice(15, options.length);
-    options.push({
+    options.splice(height, options.length);
+    let mostInteresting = 0;
+    for (let i = 0; i < options.length - 1; i++) {
+      if (options[mostInteresting].interest < options[i + 1].interest)
+        mostInteresting = i + 1;
+      if (options[i].day !== options[i + 1].day)
+        options[i].text = options[i].text.replace(
+          /( +)/g,
+          (s) => `${GRAY}${"_".repeat(s.length)}${NORMAL_COLOR}`
+        );
+    }
+    const opts: Option[] = options;
+    opts.push({
       long: "post",
       short: "p",
       text: "post message to rapids using an api-key",
       action: () => post(organizationId),
-      weight: 0,
     });
     return await choice(
       "Which trace would you like to inspect?" + tableHeader,
-      options
+      opts,
+      { def: mostInteresting }
     ).then();
   } catch (e) {
     throw e;

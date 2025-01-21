@@ -1,7 +1,7 @@
 import { stdout } from "process";
 import { alignLeft, printTableHeader } from "../executors.js";
 import { finish } from "../exitMessages.js";
-import { NORMAL_COLOR, RED, YELLOW, choice, output, shortText, } from "../prompt.js";
+import { GRAY, NORMAL_COLOR, RED, YELLOW, choice, output, shortText, } from "../prompt.js";
 import { sshReq } from "../utils.js";
 import { outputGit } from "../printUtils.js";
 export async function do_key_create(organizationId, description, duration) {
@@ -85,13 +85,13 @@ export async function key(organizationId) {
             const n = x.name || "";
             return {
                 long: x.id,
-                text: `${x.id} │ ${alignLeft(n, Math.max((typeof stdout.getWindowSize !== "function"
+                text: `${x.id} ${GRAY}│${NORMAL_COLOR} ${alignLeft(n, Math.max((typeof stdout.getWindowSize !== "function"
                     ? 80
                     : stdout.getWindowSize()[0]) -
                     8 -
                     23 -
                     "─┼──┼─".length -
-                    "      ".length, 12))} │ ${ds}`,
+                    "      ".length, 12))} ${GRAY}│${NORMAL_COLOR} ${ds}`,
                 action: () => key_key(x.name, (description, duration) => composeAwait(finish, do_key_modify(x.id, description, duration))),
             };
         });

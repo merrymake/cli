@@ -305,7 +305,7 @@ export async function envvar(
         envvar_new(pathToOrganization, organizationId, serviceGroupId),
     });
     return await choice(
-      "Which environment variable do you want to edit?",
+      "Which environment variable would you like to edit?",
       options
     ).then();
   } catch (e) {

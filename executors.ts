@@ -195,13 +195,19 @@ export async function do_spending(org: string) {
       }
       const hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
       outputGit(
-        `${alignLeft(group, 11)} │ ${alignLeft(service, 11)} │ ${alignLeft(
+        `${alignLeft(group, 11)} ${GRAY}│${NORMAL_COLOR} ${alignLeft(
+          service,
+          11
+        )} ${GRAY}│${NORMAL_COLOR} ${alignLeft(
           hook,
           20
-        )} │ ${alignRight("" + count_str + " " + count_unit, 7)} │ ${alignRight(
+        )} ${GRAY}│${NORMAL_COLOR} ${alignRight(
+          "" + count_str + " " + count_unit,
+          7
+        )} ${GRAY}│${NORMAL_COLOR} ${alignRight(
           "" + time_str + " " + time_unit,
           7
-        )} │ € ${alignRight(x.cost_eur, 7)}`
+        )} ${GRAY}│${NORMAL_COLOR} € ${alignRight(x.cost_eur, 7)}`
       );
     });
   } catch (e) {

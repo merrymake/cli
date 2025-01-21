@@ -37,7 +37,7 @@ async function event_key(apikeyId: string) {
     const events: { [keyt: string]: boolean } = {};
     parsed.forEach((x) => (events[x.event] = x.allowed));
     return await multiSelect(
-      "Which events do you want to allow and disallow?",
+      "Which events would you like to allow and disallow?",
       events,
       (s) => event_key_events(apikeyId, s),
       "No events in event-catalogue. Make sure you have added events to the event-catalogue and deployed it."

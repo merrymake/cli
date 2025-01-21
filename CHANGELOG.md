@@ -8,6 +8,17 @@
 -
 -->
 
+# 4.10.0
+## Added features
+- Can select which email to `join` with
+- Can time limit `role` assignment
+- `rapids` shows dead-letter requests
+## Fixes and improvements
+- Reenabled `help`
+- After implementing two very complex grouping algorithms for `rapids` (Freedman–Diaconis rule and Knuth's rule) we discovered that a simple square root rule gave better results
+- `rapids` shows visualization instead of median
+- `rapids` prints lines to separate days
+
 # 4.9.0
 ## Added features
 - Add `update` command, used to update dependencies in service repositories. No breaking changes (ie. minor)

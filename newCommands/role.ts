@@ -4,18 +4,26 @@ import { sshReq, toFolderName } from "../utils.js";
 import { do_create_deployment_agent } from "./hosting.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
+import { Arr, Obj } from "@merrymake/utils";
 
 const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
-export async function do_attach_role(user: string, accessId: AccessId) {
+export async function do_attach_role(
+  user: string,
+  accessId: AccessId,
+  accessEmail: string,
+  duration: string
+) {
   try {
-    outputGit(
-      await sshReq(
-        `user-assign`,
-        `\\"${user}\\"`,
-        `--accessId`,
-        accessId.toString()
-      )
-    );
+    const cmd = [
+      `user-assign`,
+      `\\"${user}\\"`,
+      `--accessId`,
+      accessId.toString(),
+      `--accessEmail`,
+      accessEmail,
+    ];
+    if (duration !== "") cmd.push(`--duration`, duration);
+    outputGit(await sshReq(...cmd));
   } catch (e) {
     throw e;
   }
@@ -49,9 +57,33 @@ export async function do_remove_auto_approve(
   }
 }
 
-function role_user_attach_role(user: string, accessId: AccessId) {
-  addToExecuteQueue(() => do_attach_role(user, accessId));
+function role_user_attach_role_expiry(
+  user: string,
+  accessId: AccessId,
+  accessEmail: string,
+  duration: string
+) {
+  addToExecuteQueue(() =>
+    do_attach_role(user, accessId, accessEmail, duration)
+  );
   return finish();
+}
+
+async function role_user_attach_role(
+  user: string,
+  accessId: AccessId,
+  accessEmail: string
+) {
+  try {
+    const duration = await shortText(
+      "Duration",
+      "How long should the user have the role? Ex. 3 days",
+      null
+    );
+    return role_user_attach_role_expiry(user, accessId, accessEmail, duration);
+  } catch (e) {
+    throw e;
+  }
 }
 
 function role_auto_domain_role(domain: string, accessId: AccessId) {
@@ -64,7 +96,7 @@ function role_auto_remove(organizationId: OrganizationId, domain: string) {
   return finish();
 }
 
-let roleListCache: { name: string; id: string }[] | undefined;
+let roleListCache: { name: string; id: string; desc: string }[] | undefined;
 export async function listRoles(organizationId: OrganizationId) {
   if (roleListCache === undefined) {
     const resp = await sshReq(`role-list`, organizationId.toString());
@@ -74,7 +106,11 @@ export async function listRoles(organizationId: OrganizationId) {
   return roleListCache!;
 }
 
-async function role_user_attach(organizationId: OrganizationId, user: string) {
+async function role_user_attach(
+  organizationId: OrganizationId,
+  user: string,
+  accessEmail: string
+) {
   try {
     const roles = await listRoles(organizationId);
     const options: Option[] = roles
@@ -82,8 +118,9 @@ async function role_user_attach(organizationId: OrganizationId, user: string) {
       .map((role) => {
         return {
           long: role.id,
-          text: `assign ${role.name} (${role.id})`,
-          action: () => role_user_attach_role(user, new AccessId(role.id)),
+          text: `${role.name} -- ${role.desc}`,
+          action: () =>
+            role_user_attach_role(user, new AccessId(role.id), accessEmail),
         };
       });
     return await choice("Which role would you like to assign?", options).then(
@@ -94,7 +131,11 @@ async function role_user_attach(organizationId: OrganizationId, user: string) {
   }
 }
 
-async function role_user(organizationId: OrganizationId, user: string) {
+async function role_user(
+  organizationId: OrganizationId,
+  user: string,
+  accessEmail: string
+) {
   try {
     const roles = await listRoles(organizationId);
     const pendingId = roles.find((x) => x.name === "Pending")!.id;
@@ -103,13 +144,14 @@ async function role_user(organizationId: OrganizationId, user: string) {
       long: `assign`,
       short: `a`,
       text: `assign an additional role to user`,
-      action: () => role_user_attach(organizationId, user),
+      action: () => role_user_attach(organizationId, user, accessEmail),
     });
     options.push({
       long: `remove`,
       short: `r`,
       text: `remove all roles and access`,
-      action: () => role_user_attach_role(user, new AccessId(pendingId)),
+      action: () =>
+        role_user_attach_role(user, new AccessId(pendingId), accessEmail),
     });
     return await choice("What would you like to do?", options).then();
   } catch (e) {
@@ -128,7 +170,7 @@ async function role_auto_new_domain(
       .map((role) => {
         return {
           long: role.id,
-          text: `auto assign ${role.name} (${role.id})`,
+          text: `${role.name} -- ${role.desc}`,
           action: () => role_auto_domain_role(domain, new AccessId(role.id)),
         };
       });
@@ -198,29 +240,71 @@ async function service_user(organization: Organization) {
   }
 }
 
-let userListCache: { email: string; id: string; roles: string }[] | undefined;
-export async function listUsers(organizationId: OrganizationId) {
-  if (userListCache === undefined) {
+let activeUsersCache:
+  | {
+      yes: {
+        email: string;
+        id: string;
+        roleExpiry: { [role: string]: Date | null | undefined };
+      }[];
+      no: {
+        email: string;
+        id: string;
+        roleExpiry: { [role: string]: Date | null | undefined };
+      }[];
+    }
+  | undefined;
+async function initializeCache(organizationId: OrganizationId) {
+  if (activeUsersCache === undefined) {
     const resp = await sshReq(`user-list`, organizationId.toString());
+    outputGit(resp);
     if (!resp.startsWith("[")) throw resp;
-    userListCache = JSON.parse(resp);
+    const parsed: {
+      email: string;
+      id: string;
+      roleExpiry: { [role: string]: Date | null | undefined };
+    }[] = Arr.Sync.map(
+      JSON.parse(resp),
+      (u: {
+        email: string;
+        id: string;
+        roleExpiry: { [role: string]: string | null };
+      }) => ({
+        email: u.email,
+        id: u.id,
+        roleExpiry: Obj.Sync.filter(
+          Obj.Sync.map(u.roleExpiry, (k, v) =>
+            v === null ? null : new Date(v)
+          ),
+          (k, v) => v === null || v.getTime() > Date.now()
+        ),
+      })
+    );
+    outputGit(JSON.stringify(parsed));
+    activeUsersCache = Arr.Sync.partition(parsed, (x) =>
+      Obj.Sync.some(x.roleExpiry, (k, v) => k !== "Pending")
+    );
   }
-  return userListCache!;
+  return activeUsersCache;
+}
+export async function listActiveUsers(organizationId: OrganizationId) {
+  return (await initializeCache(organizationId)).yes;
+}
+export async function listPendingUsers(organizationId: OrganizationId) {
+  return (await initializeCache(organizationId)).no;
 }
 
 export async function pending(organization: Organization) {
   try {
-    const users = await listUsers(organization.id);
-    const options: Option[] = users
-      .filter((u) => u.roles === "Pending")
-      .map((user) => {
-        return {
-          long: user.email,
-          text: `${user.email}: ${user.roles}`,
-          action: () => role_user(organization.id, user.id),
-        };
-      });
-    return await choice("Which user do you want to allow?", options).then();
+    const users = await listPendingUsers(organization.id);
+    const options: Option[] = users.map((user) => {
+      return {
+        long: user.email,
+        text: user.email,
+        action: () => role_user(organization.id, user.id, user.email),
+      };
+    });
+    return await choice("Which user would you like to allow?", options).then();
   } catch (e) {
     throw e;
   }
@@ -228,16 +312,19 @@ export async function pending(organization: Organization) {
 
 export async function role(organization: Organization) {
   try {
-    const users = await listUsers(organization.id);
-    const options: Option[] = users
-      .filter((u) => u.roles !== "Pending")
-      .map((user) => {
-        return {
-          long: user.email,
-          text: `${user.email}: ${user.roles}`,
-          action: () => role_user(organization.id, user.id),
-        };
-      });
+    const users = await listActiveUsers(organization.id);
+    const options: Option[] = users.map((user) => {
+      return {
+        long: user.id,
+        text: `${user.email}: ${Obj.Sync.toArray(
+          user.roleExpiry,
+          (k, v) =>
+            k +
+            (v === null || v === undefined ? "" : ` (${v.toLocaleString()})`)
+        ).join(", ")}`,
+        action: () => role_user(organization.id, user.id, user.email),
+      };
+    });
     // options.push({
     //   long: `new`,
     //   short: `n`,
@@ -262,7 +349,7 @@ export async function role(organization: Organization) {
       text: `configure domain auto approval`,
       action: () => role_auto(organization.id),
     });
-    return await choice("Which user do you want to manage?", options).then();
+    return await choice("Which user would you like to manage?", options).then();
   } catch (e) {
     throw e;
   }

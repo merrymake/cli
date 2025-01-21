@@ -35,7 +35,7 @@ if (stdin.isTTY) {
   // unless an error or process.exit() happens)
   stdin.resume();
   // i don't want binary, do you?
-  stdin.setEncoding("utf8");
+  // stdin.setEncoding("utf8");
   // You can always exit with crtl-c
   stdin.on("data", (key) => {
     const k = key.toString();

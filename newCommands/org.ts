@@ -12,6 +12,8 @@ import { ADJECTIVE, NOUN } from "../words.js";
 import { checkout, checkout_org, do_clone } from "./clone.js";
 import { group } from "./group.js";
 import { outputGit } from "../printUtils.js";
+import { wait } from "./wait.js";
+import { getArgs } from "../args.js";
 
 export async function do_createOrganization(
   folderName: string,
@@ -100,17 +102,57 @@ export async function org() {
   }
 }
 
-export async function do_join(org: string) {
+function do_join_email_wait() {
+  return wait("Wait for an admin to admit you.", () => checkout());
+}
+
+async function do_join_email(org: string, email: string) {
   try {
-    outputGit(await sshReq(`me-join`, org));
+    outputGit(await sshReq(`me-join`, org, `--email`, email));
+    return do_join_email_wait();
   } catch (e) {
     throw e;
   }
 }
 
-function join_org(name: string) {
-  // TODO join, wait, then checkout
-  addToExecuteQueue(() => do_join(name));
+async function do_join(org: string) {
+  try {
+    const out = await sshReq(`me-join`, org);
+    if (out) {
+      if (out.startsWith("{")) {
+        getArgs().splice(0, getArgs().length, org);
+        const status:
+          | { done: true; pending: false; msg: string }
+          | { done: true; pending: true; msg: string }
+          | { done: false; pending: true; emails: [] } = JSON.parse(out);
+        if (status.pending === false) {
+          outputGit(status.msg);
+          return checkout();
+        }
+        if (status.done === true) {
+          outputGit(status.msg);
+          return do_join_email_wait();
+        }
+        return choice(
+          `Which email would you like to join with?`,
+          status.emails.map((e) => ({
+            long: e,
+            text: e,
+            action: () => do_join_email(org, e),
+          }))
+        );
+      } else {
+        outputGit(out);
+        return finish();
+      }
+    }
+  } catch (e) {
+    throw e;
+  }
+}
+
+function join_org(org: string) {
+  addToExecuteQueue(() => do_join(org));
   return finish();
 }
 

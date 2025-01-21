@@ -2,6 +2,7 @@ import { stdout } from "process";
 import { alignLeft, printTableHeader } from "../executors.js";
 import { finish } from "../exitMessages.js";
 import {
+  GRAY,
   NORMAL_COLOR,
   Option,
   RED,
@@ -132,7 +133,7 @@ export async function key(organizationId: OrganizationId) {
       const n = x.name || "";
       return {
         long: x.id,
-        text: `${x.id} │ ${alignLeft(
+        text: `${x.id} ${GRAY}│${NORMAL_COLOR} ${alignLeft(
           n,
           Math.max(
             (typeof stdout.getWindowSize !== "function"
@@ -144,7 +145,7 @@ export async function key(organizationId: OrganizationId) {
               "      ".length,
             12
           )
-        )} │ ${ds}`,
+        )} ${GRAY}│${NORMAL_COLOR} ${ds}`,
         action: () =>
           key_key(x.name, (description, duration) =>
             composeAwait(finish, do_key_modify(x.id, description, duration))

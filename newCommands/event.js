@@ -23,7 +23,7 @@ async function event_key(apikeyId) {
         const parsed = JSON.parse(resp);
         const events = {};
         parsed.forEach((x) => (events[x.event] = x.allowed));
-        return await multiSelect("Which events do you want to allow and disallow?", events, (s) => event_key_events(apikeyId, s), "No events in event-catalogue. Make sure you have added events to the event-catalogue and deployed it.");
+        return await multiSelect("Which events would you like to allow and disallow?", events, (s) => event_key_events(apikeyId, s), "No events in event-catalogue. Make sure you have added events to the event-catalogue and deployed it.");
     }
     catch (e) {
         throw e;

@@ -99,7 +99,7 @@
 //     const resp = await sshReq(`list-teams`, `--org`, org);
 //     const orgs: string[] = JSON.parse(resp);
 //     return await choice(
-//       "Which service GROUP do you want to delete?",
+//       "Which service GROUP would you like to delete?",
 //       orgs.map((x) => ({
 //         long: x,
 //         text: `delete ${x}`,
@@ -117,7 +117,7 @@
 //     const resp = await sshReq(`list-organizations`);
 //     const orgs: string[] = JSON.parse(resp);
 //     return await choice(
-//       "Which ORGANIZATION do you want to delete?",
+//       "Which ORGANIZATION would you like to delete?",
 //       orgs.map((x) => ({
 //         long: x,
 //         text: `delete ${x}`,

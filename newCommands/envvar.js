@@ -117,7 +117,7 @@ export async function envvar(pathToOrganization, organizationId, serviceGroupId)
             text: `add a new environment variable`,
             action: () => envvar_new(pathToOrganization, organizationId, serviceGroupId),
         });
-        return await choice("Which environment variable do you want to edit?", options).then();
+        return await choice("Which environment variable would you like to edit?", options).then();
     }
     catch (e) {
         throw e;

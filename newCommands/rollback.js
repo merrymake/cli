@@ -23,7 +23,7 @@ export async function rollback(repositoryId) {
     try {
         const resp = JSON.parse(await readFile("merrymake.json", "utf-8"));
         const river_events = Obj.Sync.map(resp.hooks, (k, v) => true);
-        return await multiSelect("Which hooks do you want to roll back?", river_events, (s) => rollback_hooks(repositoryId, Obj.keys(s).filter((x) => s[x])), "No hooks found in merrymake.json.");
+        return await multiSelect("Which hooks would you like to roll back?", river_events, (s) => rollback_hooks(repositoryId, Obj.keys(s).filter((x) => s[x])), "No hooks found in merrymake.json.");
     }
     catch (e) {
         throw e;
