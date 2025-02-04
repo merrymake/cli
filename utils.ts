@@ -4,7 +4,7 @@ import http from "http";
 import https from "https";
 import { readdirSync } from "node:fs";
 import path from "path";
-import { SSH_HOST } from "./config.js";
+import { SSH_HOST, SSH_USER } from "./config.js";
 import { Str } from "@merrymake/utils";
 import { PathTo } from "./types.js";
 
@@ -104,18 +104,14 @@ const EXABYTES = 1024 * PETABYTES;
 
 export function execPromise(cmd: string, cwd?: string) {
   return new Promise<string>((resolve, reject) => {
-    const a = exec(
-      cmd,
-      { cwd, maxBuffer: 10 * MEGABYTES },
-      (error, stdout, stderr) => {
-        const err = error?.message || stderr;
-        if (err) {
-          reject(stderr || stdout);
-        } else {
-          resolve(stdout);
-        }
+    exec(cmd, { cwd, maxBuffer: 10 * MEGABYTES }, (error, stdout, stderr) => {
+      const err = error?.message || stderr;
+      if (err) {
+        reject(stderr || stdout);
+      } else {
+        resolve(stdout);
       }
-    );
+    });
   });
 }
 
@@ -145,7 +141,9 @@ export function execStreamPromise(
 }
 
 function sshReqInternal(cmd: string) {
-  return execPromise(`ssh -o ConnectTimeout=10 mist@${SSH_HOST} "${cmd}"`);
+  return execPromise(
+    `ssh -o ConnectTimeout=10 ${SSH_USER}@${SSH_HOST} "${cmd}"`
+  );
 }
 export async function sshReq(...cmd: string[]) {
   const spinner =
@@ -232,4 +230,11 @@ export function directoryNames(path: PathTo, exclude: string[]) {
 
 export function toFolderName(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9\-_]/g, "-");
+}
+
+export function toSubdomain(displayName: string) {
+  return displayName
+    .toLowerCase()
+    .replace(/[ _]/g, "-")
+    .replace(/[^a-z0-9\-]/g, ""); // Remove special characters
 }

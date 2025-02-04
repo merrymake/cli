@@ -32,6 +32,7 @@ import { update } from "./update.js";
 import { upgrade } from "./upgrade.js";
 import { rollback } from "./rollback.js";
 import { help } from "./help.js";
+import { getArgs } from "../args.js";
 
 async function getContext() {
   let repositoryPath: PathToRepository | undefined;
@@ -93,6 +94,10 @@ async function getContext() {
 
 export async function index() {
   try {
+    if (getArgs()[0] === "start") {
+      getArgs().splice(0, 1);
+      return register();
+    }
     const options: (Option & { weight: number })[] = [];
     const context = await getContext();
     const {

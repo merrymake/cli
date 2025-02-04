@@ -8,6 +8,13 @@
 -
 -->
 
+# 4.10.1
+## Fixes and improvements
+- `rapids` now buckets cached-requests together
+- Try harder to avoid fingerprint question from SSH
+- Don't fail `deploy` in new repos
+- Don't suggest duplicating the `repo` you are creating
+
 # 4.10.0
 ## Added features
 - Can select which email to `join` with

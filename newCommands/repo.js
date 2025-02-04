@@ -164,10 +164,10 @@ export async function repo_create(organization, serviceGroup) {
         const displayName = await shortText("Repository name", "This is where the code lives.", "repo-" + num).then();
         const folderName = toFolderName(displayName);
         const pathToRepository = serviceGroup.pathTo.with(folderName);
+        const repositories = await listRepos(serviceGroup.id);
         const repositoryId = await do_createService(organization, serviceGroup, folderName, displayName);
         const options = [];
-        const repositories = await listRepos(serviceGroup.id);
-        console.log(repositories);
+        // console.log(repositories);
         if (repositories.length === 1) {
             options.push({
                 long: "duplicate",

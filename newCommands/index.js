@@ -21,6 +21,7 @@ import { update } from "./update.js";
 import { upgrade } from "./upgrade.js";
 import { rollback } from "./rollback.js";
 import { help } from "./help.js";
+import { getArgs } from "../args.js";
 async function getContext() {
     let repositoryPath;
     let repositoryId;
@@ -78,6 +79,10 @@ async function getContext() {
 }
 export async function index() {
     try {
+        if (getArgs()[0] === "start") {
+            getArgs().splice(0, 1);
+            return register();
+        }
         const options = [];
         const context = await getContext();
         const { repositoryId, repositoryPath, serviceGroup, organization, inGit, monorepo, } = context;

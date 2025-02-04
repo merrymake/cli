@@ -11,10 +11,7 @@ function saveSSHConfig(path) {
     let changed = false;
     let foundHost = false;
     if (fs.existsSync(`${os.homedir()}/.ssh/config`)) {
-        lines = fs
-            .readFileSync(`${os.homedir()}/.ssh/config`)
-            .toString()
-            .split("\n");
+        lines = fs.readFileSync(`${os.homedir()}/.ssh/config`, "utf-8").split("\n");
         let inHost = false;
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
@@ -48,7 +45,9 @@ function saveSSHConfig(path) {
         changed = true;
     }
     if (changed) {
-        output(`Saving preference...\n`);
+        output(`Saving key preference...\n`);
+        if (!fs.existsSync(os.homedir() + "/.ssh"))
+            fs.mkdirSync(os.homedir() + "/.ssh");
         fs.writeFileSync(`${os.homedir()}/.ssh/config`, lines.join("\n"));
     }
 }
@@ -57,7 +56,7 @@ export async function useExistingKey(path) {
         saveSSHConfig(path);
         output(`Reading ${path}.pub...\n`);
         return {
-            key: "" + fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`),
+            key: fs.readFileSync(os.homedir() + `/.ssh/${path}.pub`, "utf-8"),
             keyFile: path,
         };
     }
@@ -73,7 +72,7 @@ export async function generateNewKey() {
         await execPromise(`ssh-keygen -t rsa -b 4096 -f "${os.homedir()}/.ssh/merrymake" -N ""`);
         saveSSHConfig("merrymake");
         return {
-            key: "" + fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub"),
+            key: fs.readFileSync(os.homedir() + "/.ssh/merrymake.pub", "utf-8"),
             keyFile: "merrymake",
         };
     }
@@ -84,7 +83,9 @@ export async function generateNewKey() {
 export function addKnownHost() {
     let isKnownHost = false;
     if (fs.existsSync(`${os.homedir()}/.ssh/known_hosts`)) {
-        const lines = ("" + fs.readFileSync(`${os.homedir()}/.ssh/known_hosts`)).split("\n");
+        const lines = fs
+            .readFileSync(`${os.homedir()}/.ssh/known_hosts`, "utf-8")
+            .split("\n");
         isKnownHost = lines.some((x) => x.includes(`${API_URL} ssh-ed25519 ${FINGERPRINT}`));
     }
     if (!isKnownHost) {
@@ -97,12 +98,12 @@ export function addKnownHost() {
 export async function do_register(keyAction, email) {
     try {
         const { key, keyFile } = await keyAction();
-        output(`Registering ${email === "" ? "anonymous account" : email}...\n`);
         addKnownHost();
         if (email === "") {
             addExitMessage(`Notice: Anonymous accounts are automatically deleted permanently after ~2 weeks, without warning. To add an email and avoid automatic deletion, run the command:
-  ${YELLOW}${process.env["COMMAND"]} register ${keyFile}${NORMAL_COLOR}`);
+        ${YELLOW}${process.env["COMMAND"]} register ${keyFile}${NORMAL_COLOR}`);
         }
+        output(`Registering ${email === "" ? "anonymous account" : email}...\n`);
         const result = await urlReq(`${HTTP_HOST}/admin/user`, "POST", JSON.stringify({
             email,
             key,
@@ -146,26 +147,26 @@ export async function register() {
             const f = x.substring(0, x.length - ".pub".length);
             return {
                 long: f,
-                text: `use key ${f}`,
+                text: `use the key ${f}`,
                 action: () => register_key(() => useExistingKey(f)),
             };
-        });
-        keys.push({
-            long: "add",
-            short: "a",
-            text: "manually add key",
-            action: () => register_manual(),
         });
         let def = keyfiles.indexOf("merrymake.pub");
         if (def < 0) {
             keys.push({
                 long: "new",
                 short: "n",
-                text: "setup new key specifically for Merrymake",
+                text: "setup a new key specifically for Merrymake",
                 action: () => register_key(generateNewKey),
             });
             def = keys.length - 1;
         }
+        keys.push({
+            long: "add",
+            short: "a",
+            text: "manually add a key",
+            action: () => register_manual(),
+        });
         return await choice("Which SSH key would you like to use?", keys, {
             invertedQuiet: { cmd: false },
             def,

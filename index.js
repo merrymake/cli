@@ -3,8 +3,8 @@ import { initializeArgs } from "./args.js";
 import { abort, setDryrun } from "./exitMessages.js";
 import { index } from "./newCommands/index.js";
 import { addKnownHost } from "./newCommands/register.js";
-import { CTRL_C, moveToBottom } from "./prompt.js";
-import { checkVersionIfOutdated, package_json } from "./printUtils.js";
+import { CTRL_C, moveToBottom, NORMAL_COLOR } from "./prompt.js";
+import { checkVersionIfOutdated, outputGit, package_json, } from "./printUtils.js";
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
 if (process.argv.length > 0 && process.argv[0].endsWith("version")) {
@@ -45,10 +45,17 @@ if (stdin.isTTY) {
 })().catch((e) => {
     moveToBottom();
     const eStr = "" + e;
-    if (eStr.includes("Permission denied")) {
+    if (eStr.includes("Permission denied (publickey)")) {
         addKnownHost();
-        console.log("\x1b[31mAn error occurred, please try again. If the problem persists reach out on http://discord.merrymake.eu \x1b[0m", e);
+        outputGit(`A permission error occurred. Please try these solutions:
+1. Make sure you have registered the device with the correct email using 'mm start'
+2. Run 'mm help'
+3. Run this command again.
+4. If the problem persists reach out on http://discord.merrymake.eu` +
+            NORMAL_COLOR);
     }
-    console.log(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
+    else {
+        console.error(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
+    }
     abort();
 });

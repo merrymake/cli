@@ -279,6 +279,7 @@ export async function repo_create(
     ).then();
     const folderName = toFolderName(displayName);
     const pathToRepository = serviceGroup.pathTo.with(folderName);
+    const repositories = await listRepos(serviceGroup.id);
     const repositoryId = await do_createService(
       organization,
       serviceGroup,
@@ -286,8 +287,7 @@ export async function repo_create(
       displayName
     );
     const options: Option[] = [];
-    const repositories = await listRepos(serviceGroup.id);
-    console.log(repositories);
+    // console.log(repositories);
     if (repositories.length === 1) {
       options.push({
         long: "duplicate",

@@ -9,7 +9,7 @@ import {
   toFolderName,
 } from "../utils.js";
 import { ADJECTIVE, NOUN } from "../words.js";
-import { checkout, checkout_org, do_clone } from "./clone.js";
+import { checkout, checkout_org, checkoutName, do_clone } from "./clone.js";
 import { group } from "./group.js";
 import { outputGit } from "../printUtils.js";
 import { wait } from "./wait.js";
@@ -102,14 +102,14 @@ export async function org() {
   }
 }
 
-function do_join_email_wait() {
-  return wait("Wait for an admin to admit you.", () => checkout());
+function do_join_email_wait(org: string) {
+  return wait("Wait for an admin to admit you.", () => checkoutName(org));
 }
 
 async function do_join_email(org: string, email: string) {
   try {
     outputGit(await sshReq(`me-join`, org, `--email`, email));
-    return do_join_email_wait();
+    return do_join_email_wait(org);
   } catch (e) {
     throw e;
   }
@@ -120,18 +120,17 @@ async function do_join(org: string) {
     const out = await sshReq(`me-join`, org);
     if (out) {
       if (out.startsWith("{")) {
-        getArgs().splice(0, getArgs().length, org);
         const status:
           | { done: true; pending: false; msg: string }
           | { done: true; pending: true; msg: string }
           | { done: false; pending: true; emails: [] } = JSON.parse(out);
         if (status.pending === false) {
           outputGit(status.msg);
-          return checkout();
+          return checkoutName(org);
         }
         if (status.done === true) {
           outputGit(status.msg);
-          return do_join_email_wait();
+          return do_join_email_wait(org);
         }
         return choice(
           `Which email would you like to join with?`,
@@ -161,7 +160,7 @@ async function join() {
     const name = await shortText(
       "Organization to join",
       "Name of the organization you wish to request access to.",
-      null
+      "Acme Corp"
     ).then();
     return join_org(name);
   } catch (e) {
@@ -186,7 +185,7 @@ export async function orgAction() {
     if (orgs.length > 0) {
       options.push({
         long: orgs[0].id,
-        text: `checkout ${orgs[0].name} (${orgs[0].id})`,
+        text: `checkout '${orgs[0].name}'`,
         action: () =>
           checkout_org(orgs[0].name, new OrganizationId(orgs[0].id)),
       });
@@ -202,13 +201,13 @@ export async function orgAction() {
     options.push({
       long: "new",
       short: "n",
-      text: `create new organization`,
+      text: `create a new organization`,
       action: () => org(),
     });
     options.push({
       long: "join",
       short: "j",
-      text: `join an existing organization`,
+      text: `join someone else's organization`,
       action: () => join(),
     });
     return choice("Which organization will you work with?", options);

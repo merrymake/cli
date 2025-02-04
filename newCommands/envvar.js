@@ -95,7 +95,7 @@ function envvar_key(pathToOrganization, organizationId, serviceGroupId, key, sec
 }
 async function envvar_new(pathToOrganization, organizationId, serviceGroupId) {
     try {
-        const key = await shortText("Key", "Key for the key-value pair", "key").then();
+        const key = await shortText("Key", "Key for the key-value pair", "DB").then();
         return envvar_key(pathToOrganization, organizationId, serviceGroupId, key, true, true, true);
     }
     catch (e) {

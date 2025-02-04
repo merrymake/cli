@@ -58,7 +58,9 @@ async function rebaseOntoMain(monorepo) {
             const mat = a.match(/ref: refs\/heads\/(.+)\t/);
             return mat === null ? undefined : mat[1];
         })(await execute(`git ls-remote --symref origin HEAD 2>&1`));
-        const output = await execute(`git fetch && ({ ! git ls-remote --exit-code origin ${remoteHead} >/dev/null; } || git rebase origin/${remoteHead}) && git push origin HEAD:${remoteHead} 2>&1`, true);
+        const output = await execute((remoteHead !== undefined
+            ? `git fetch && ({ ! git ls-remote --exit-code origin ${remoteHead} >/dev/null; } || git rebase origin/${remoteHead}) && `
+            : "") + `git push origin HEAD:${remoteHead || "main"} 2>&1`, true);
         if (output.trimEnd().endsWith("Everything up-to-date") && !monorepo) {
             return choice("Would you like to redeploy?", [
                 {

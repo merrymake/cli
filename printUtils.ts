@@ -147,3 +147,7 @@ export function getCache(): CacheFile {
 export function saveCache(cache: CacheFile) {
   writeFileSync(`${historyFolder}cache`, JSON.stringify(cache));
 }
+
+export function debugLog(msg: string) {
+  if ((process.env.ASDF_DEBUG || "").toLowerCase() === "true") console.log(msg);
+}

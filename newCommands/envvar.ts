@@ -258,7 +258,7 @@ async function envvar_new(
     const key = await shortText(
       "Key",
       "Key for the key-value pair",
-      "key"
+      "DB"
     ).then();
     return envvar_key(
       pathToOrganization,
