@@ -1,9 +1,8 @@
-import { stdout } from "process";
-import { alignLeft, printTableHeader } from "../executors.js";
+import { Str } from "@merrymake/utils";
 import { finish } from "../exitMessages.js";
-import { GRAY, NORMAL_COLOR, RED, YELLOW, choice, output, shortText, } from "../prompt.js";
-import { sshReq } from "../utils.js";
 import { outputGit } from "../printUtils.js";
+import { NORMAL_COLOR, RED, YELLOW, choice, output, shortText, } from "../prompt.js";
+import { sshReq } from "../utils.js";
 export async function do_key_create(organizationId, description, duration) {
     try {
         const cmd = [
@@ -77,40 +76,32 @@ export async function key(organizationId) {
     try {
         const resp = await sshReq(`apikey-list`, organizationId.toString());
         const keys = JSON.parse(resp);
-        const options = keys.map((x) => {
+        const options = [];
+        const tableHeader = Str.AsciiTable.advanced({
+            Key: 8,
+            "Display name>": -12,
+            "<Expiry time": 23,
+        }, keys, (x) => {
             const d = new Date(x.expiresOn);
             const ds = d.getTime() < Date.now()
                 ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
                 : d.toLocaleString();
             const n = x.name || "";
-            return {
+            return [x.id, n, ds];
+        }, (text, x) => {
+            options.push({
                 long: x.id,
-                text: `${x.id} ${GRAY}│${NORMAL_COLOR} ${alignLeft(n, Math.max((typeof stdout.getWindowSize !== "function"
-                    ? 80
-                    : stdout.getWindowSize()[0]) -
-                    8 -
-                    23 -
-                    "─┼──┼─".length -
-                    "      ".length, 12))} ${GRAY}│${NORMAL_COLOR} ${ds}`,
+                text,
                 action: () => key_key(x.name, (description, duration) => composeAwait(finish, do_key_modify(x.id, description, duration))),
-            };
-        });
+            });
+        }, "      ");
         options.push({
             long: `new`,
             short: `n`,
             text: `add a new apikey`,
             action: () => key_create(organizationId, finish),
         });
-        let tableHeader = "";
-        if (options.length > 1)
-            tableHeader =
-                "\n" +
-                    printTableHeader("      ", {
-                        Key: 8,
-                        "Display name": -12,
-                        "Expiry time": 23,
-                    });
-        return await choice("Which apikey would you like to edit?" + tableHeader, options).then();
+        return await choice("Which apikey would you like to edit?\n" + tableHeader, options).then();
     }
     catch (e) {
         throw e;

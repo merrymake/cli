@@ -1,13 +1,14 @@
 import { detectProjectType, ProjectTypes, } from "@merrymake/detect-project-type";
-import { Str } from "@merrymake/utils";
+import { Arr, Str } from "@merrymake/utils";
 import { spawn, } from "child_process";
 import cookieParser from "cookie-parser";
 import express from "express";
-import fs from "fs";
+import { existsSync } from "fs";
 import net from "net";
 import { addToExecuteQueue, finish } from "./exitMessages.js";
 import { GRAY, INVISIBLE, NORMAL_COLOR, RED, WHITE, YELLOW } from "./prompt.js";
 import { all, generateString } from "./utils.js";
+import { readdir, readFile } from "fs/promises";
 let spacerTimer;
 function timedOutput(str, prefix) {
     if (spacerTimer !== undefined)
@@ -105,8 +106,8 @@ async function execute(handle, pathToRoot, group, repo, action, envelope, payloa
         server.listen(() => { });
         const env = process.env || {};
         env.RAPIDS = `localhost:${server.address().port}`;
-        if (fs.existsSync(pathToRoot.with(group).with("env.kv").toString())) {
-            fs.readFileSync(pathToRoot.with(group).with("env.kv").toString(), "utf-8")
+        if (existsSync(pathToRoot.with(group).with("env.kv").toString())) {
+            (await readFile(pathToRoot.with(group).with("env.kv").toString(), "utf-8"))
                 .split(/\r?\n/)
                 .forEach((x) => {
                 if (!x.includes("="))
@@ -124,43 +125,49 @@ async function execute(handle, pathToRoot, group, repo, action, envelope, payloa
         throw e;
     }
 }
-function parseMerrymakeJson(folder, event) {
-    if (!fs.existsSync(folder.with("merrymake.json").toString()))
-        throw "Missing merrymake.json";
-    const config = JSON.parse(fs.readFileSync(folder.with("merrymake.json").toString(), "utf-8"));
-    return Object.keys(config.hooks)
-        .filter((x) => x.endsWith(`/${event}`))
-        .map((x) => {
-        const hook = config.hooks[x];
-        const action = typeof hook === "object" ? hook.action : hook;
-        return [x.split("/")[0], action];
-    });
+async function parseMerrymakeJson(folder, event) {
+    try {
+        if (!existsSync(folder.with("merrymake.json").toString()))
+            throw "Missing merrymake.json";
+        const config = JSON.parse(await readFile(folder.with("merrymake.json").toString(), "utf-8"));
+        return Object.keys(config.hooks)
+            .filter((x) => x.endsWith(`/${event}`))
+            .map((x) => {
+            const hook = config.hooks[x];
+            const action = typeof hook === "object" ? hook.action : hook;
+            return [x.split("/")[0], action];
+        });
+    }
+    catch (e) {
+        throw e;
+    }
 }
-function processFolders(pathToRoot, event) {
-    const rivers = {};
-    fs.readdirSync(pathToRoot.toString(), { withFileTypes: true })
-        .filter((x) => x.isDirectory() &&
-        !x.name.startsWith("(deleted) ") &&
-        !x.name.endsWith(".DS_Store"))
-        .forEach((g) => {
-        const group = g.name;
-        fs.readdirSync(pathToRoot.with(group).toString())
-            .filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"))
-            .forEach((repo) => {
-            if (!fs.existsSync(pathToRoot
-                .with(group)
-                .with(repo)
-                .with("merrymake.json")
-                .toString()))
-                return;
-            parseMerrymakeJson(pathToRoot.with(group).with(repo), event).forEach(([river, action]) => {
-                if (rivers[river] === undefined)
-                    rivers[river] = [];
-                rivers[river].push({ group, repo, action });
+async function processFolders(pathToRoot, event) {
+    try {
+        const rivers = {};
+        await Arr.Async().forEach((await readdir(pathToRoot.toString(), { withFileTypes: true })).filter((x) => x.isDirectory() &&
+            !x.name.startsWith("(deleted) ") &&
+            !x.name.endsWith(".DS_Store")), async (g) => {
+            const group = g.name;
+            await Arr.Async().forEach((await readdir(pathToRoot.with(group).toString())).filter((x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store")), async (repo) => {
+                if (!existsSync(pathToRoot
+                    .with(group)
+                    .with(repo)
+                    .with("merrymake.json")
+                    .toString()))
+                    return;
+                (await parseMerrymakeJson(pathToRoot.with(group).with(repo), event)).forEach(([river, action]) => {
+                    if (rivers[river] === undefined)
+                        rivers[river] = [];
+                    rivers[river].push({ group, repo, action });
+                });
             });
         });
-    });
-    return rivers;
+        return rivers;
+    }
+    catch (e) {
+        throw e;
+    }
 }
 var Mode;
 (function (Mode) {
@@ -261,9 +268,9 @@ class Simulator {
     }
     start() {
         return new Promise((resolve) => {
-            const app = express();
             const withSession = cookieParser();
-            app.use((req, res, next) => {
+            const rapids = express();
+            rapids.use((req, res, next) => {
                 if (req.is("multipart/form-data") ||
                     req.is("application/x-www-form-urlencoded")) {
                     express.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
@@ -273,18 +280,18 @@ class Simulator {
                 }
             });
             // CORS
-            app.options("*", withSession, async (req, res) => {
+            rapids.options("*", withSession, async (req, res) => {
                 res.set("Access-Control-Allow-Origin", "*");
                 res.set("Access-Control-Allow-Headers", "Content-Type");
                 res.send("Ok");
             });
             // NORMAL EVENTS
-            app.get("/:event", withSession, (req, res) => {
+            rapids.get("/:event", withSession, (req, res) => {
                 let event = req.params.event;
                 let payload = Buffer.from(JSON.stringify(req.query));
                 this.handleEndpoint(req, res, event, payload);
             });
-            app.all("/:event", withSession, (req, res) => {
+            rapids.all("/:event", withSession, (req, res) => {
                 let event = req.params.event;
                 let payload = !Buffer.isBuffer(req.body)
                     ? typeof req.body === "object"
@@ -293,21 +300,40 @@ class Simulator {
                     : req.body;
                 this.handleEndpoint(req, res, event, payload);
             });
-            app.all("/", (req, res) => {
+            rapids.all("/", (req, res) => {
                 res.send("Simulator ready.");
             });
-            const port = 3000;
-            app.listen(port, () => {
-                console.log(`
+            console.log(`
 ${WHITE}███${GRAY}╗   ${WHITE}███${GRAY}╗${WHITE}███████${GRAY}╗${WHITE}██████${GRAY}╗ ${WHITE}██████${GRAY}╗ ${WHITE}██${GRAY}╗   ${WHITE}██${GRAY}╗${WHITE}███${GRAY}╗   ${WHITE}███${GRAY}╗ ${WHITE}█████${GRAY}╗ ${WHITE}██${GRAY}╗  ${WHITE}██${GRAY}╗${WHITE}███████${GRAY}╗
 ${WHITE}████${GRAY}╗ ${WHITE}████${GRAY}║${WHITE}██${GRAY}╔════╝${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗╚${WHITE}██${GRAY}╗ ${WHITE}██${GRAY}╔╝${WHITE}████${GRAY}╗ ${WHITE}████${GRAY}║${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}║ ${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}╔════╝
 ${WHITE}██${GRAY}╔${WHITE}████${GRAY}╔${WHITE}██${GRAY}║${WHITE}█████${GRAY}╗  ${WHITE}██████${GRAY}╔╝${WHITE}██████${GRAY}╔╝ ╚${WHITE}████${GRAY}╔╝ ${WHITE}██${GRAY}╔${WHITE}████${GRAY}╔${WHITE}██${GRAY}║${WHITE}███████${GRAY}║${WHITE}█████${GRAY}╔╝ ${WHITE}█████${GRAY}╗
 ${WHITE}██${GRAY}║╚${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}║${WHITE}██${GRAY}╔══╝  ${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗  ╚${WHITE}██${GRAY}╔╝  ${WHITE}██${GRAY}║╚${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}║${WHITE}██${GRAY}╔══${WHITE}██${GRAY}║${WHITE}██${GRAY}╔═${WHITE}██${GRAY}╗ ${WHITE}██${GRAY}╔══╝
 ${WHITE}██${GRAY}║ ╚═╝ ${WHITE}██${GRAY}║${WHITE}███████${GRAY}╗${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║   ${WHITE}██${GRAY}║   ${WHITE}██${GRAY}║ ╚═╝ ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}╗${WHITE}███████${GRAY}╗
 ${GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝
-
-Local simulator running on http://localhost:${port}/
-Use ctrl+c to exit
+`);
+            const rapidsPort = 3000;
+            const publicPort = 3001;
+            const waitFor = [];
+            waitFor.push(new Promise((resolve) => {
+                rapids.listen(rapidsPort, () => {
+                    console.log(`Local rapids running on http://localhost:${rapidsPort}/`);
+                    resolve();
+                });
+            }));
+            const pub = express();
+            pub.get("/*", withSession, (req, res) => {
+                res.sendFile(req.path, {
+                    root: this.pathToRoot.with("public").toString(),
+                });
+            });
+            waitFor.push(new Promise((resolve) => {
+                pub.listen(publicPort, () => {
+                    console.log(`Local public running on http://localhost:${publicPort}/`);
+                    resolve();
+                });
+            }));
+            Promise.all(waitFor).then(() => {
+                console.log(`Use ctrl+c to exit
 ${NORMAL_COLOR}`);
             });
         });
@@ -319,62 +345,67 @@ ${NORMAL_COLOR}`);
             reply(rs.resp, Buffer.from(body.content), body["content-type"], body["status-code"] || 200, body.headers || {});
         }
     }
-    processEvent(evnt, payload, envelope) {
-        const [spawn, event] = evnt[0] === "<" ? [true, evnt.substring(1)] : [false, evnt];
-        // TODO spawn
-        const traceId = envelope.traceId;
-        if (event === "$reply") {
-            const body = JSON.parse(payload.toString());
-            this.reply(traceId, body);
-        }
-        else if (event === "$join") {
-            const to = payload.toString();
-            const rs = this.pendingReplies[traceId];
-            if (rs !== undefined) {
-                if (this.channels[to] === undefined)
-                    this.channels[to] = new Set();
-                this.channels[to].add(rs.resp);
-                rs.channels.add(to);
+    async processEvent(evnt, payload, envelope) {
+        try {
+            const [spawn, event] = evnt[0] === "<" ? [true, evnt.substring(1)] : [false, evnt];
+            // TODO spawn
+            const traceId = envelope.traceId;
+            if (event === "$reply") {
+                const body = JSON.parse(payload.toString());
+                this.reply(traceId, body);
             }
-        }
-        else if (event === "$broadcast") {
-            const p = JSON.parse(payload.toString());
-            const cs = this.channels[p.to] || [];
-            cs.forEach((c) => {
-                c.write(`event: ${p.event}\n`);
-                p.payload.split("\n").forEach((x) => c.write(`data: ${x}\n`));
-                c.write(`\n`);
+            else if (event === "$join") {
+                const to = payload.toString();
+                const rs = this.pendingReplies[traceId];
+                if (rs !== undefined) {
+                    if (this.channels[to] === undefined)
+                        this.channels[to] = new Set();
+                    this.channels[to].add(rs.resp);
+                    rs.channels.add(to);
+                }
+            }
+            else if (event === "$broadcast") {
+                const p = JSON.parse(payload.toString());
+                const cs = this.channels[p.to] || [];
+                cs.forEach((c) => {
+                    c.write(`event: ${p.event}\n`);
+                    p.payload.split("\n").forEach((x) => c.write(`data: ${x}\n`));
+                    c.write(`\n`);
+                });
+            }
+            const riverConfigs = await processFolders(this.pathToRoot, event);
+            const rivers = Object.keys(riverConfigs);
+            if (rivers.length === 0 && event[0] !== "$") {
+                timedOutput(`${YELLOW}Warning: No hooks for '${event}'${NORMAL_COLOR}`, traceId);
+            }
+            rivers.forEach((r) => {
+                const actions = riverConfigs[r];
+                const action = (() => {
+                    if (actions.length === 1) {
+                        return actions[0];
+                        // } else if (mode === Mode.RECORDING) {
+                        // TODO Ask user which to choose
+                        // } else if (mode === Mode.PLAYING) {
+                        // TODO Choose same as recording
+                    }
+                    else {
+                        return actions[~~(actions.length * Math.random())];
+                    }
+                })();
+                const subEventCount = {};
+                execute((event, payload) => {
+                    this.processEvent(event, payload, {
+                        ...envelope,
+                        messageId: envelope.messageId +
+                            event +
+                            (subEventCount[event] = (subEventCount[event] || -1) + 1),
+                    });
+                }, this.pathToRoot, action.group, action.repo, action.action, envelope, payload);
             });
         }
-        const riverConfigs = processFolders(this.pathToRoot, event);
-        const rivers = Object.keys(riverConfigs);
-        if (rivers.length === 0 && event[0] !== "$") {
-            timedOutput(`${YELLOW}Warning: No hooks for '${event}'${NORMAL_COLOR}`, traceId);
+        catch (e) {
+            throw e;
         }
-        rivers.forEach((r) => {
-            const actions = riverConfigs[r];
-            const action = (() => {
-                if (actions.length === 1) {
-                    return actions[0];
-                    // } else if (mode === Mode.RECORDING) {
-                    // TODO Ask user which to choose
-                    // } else if (mode === Mode.PLAYING) {
-                    // TODO Choose same as recording
-                }
-                else {
-                    return actions[~~(actions.length * Math.random())];
-                }
-            })();
-            const subEventCount = {};
-            execute((event, payload) => {
-                this.processEvent(event, payload, {
-                    ...envelope,
-                    messageId: envelope.messageId +
-                        event +
-                        (subEventCount[event] = (subEventCount[event] || -1) + 1),
-                });
-            }, this.pathToRoot, action.group, action.repo, action.action, envelope, payload);
-        });
     }
     async handleEndpoint(req, resp, event, payload) {
         resp.set("Access-Control-Allow-Origin", "*");
@@ -392,7 +423,7 @@ ${NORMAL_COLOR}`);
             sessionId = "s" + Math.random();
             resp.cookie("sessionId", sessionId);
         }
-        const api_json = JSON.parse(fs.readFileSync(this.pathToRoot.with("event-catalogue").with("api.json").toString(), "utf-8"));
+        const api_json = JSON.parse(await readFile(this.pathToRoot.with("event-catalogue").with("api.json").toString(), "utf-8"));
         const conf = api_json[event];
         const traceId = generateString(3, all);
         this.pendingReplies[traceId] = {

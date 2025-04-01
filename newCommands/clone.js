@@ -1,29 +1,31 @@
-import fs from "fs";
+import { existsSync } from "fs";
 import { GIT_HOST } from "../config.js";
 import { choice } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
-import { execPromise, sshReq, toFolderName, toSubdomain, } from "../utils.js";
+import { execPromise, sshReq, toSubdomain } from "../utils.js";
 import { outputGit } from "../printUtils.js";
 import { ensureGroupStructure } from "./fetch.js";
 import { listOrgs } from "./org.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { mkdir, writeFile } from "fs/promises";
+import { Str } from "@merrymake/utils";
 export async function do_clone(struct, folderName, displayName, organizationId) {
     try {
         outputGit(`Cloning ${displayName}...`);
-        fs.mkdirSync(`${folderName}/.merrymake`, { recursive: true });
+        await mkdir(`${folderName}/.merrymake`, { recursive: true });
         const orgFile = { organizationId: organizationId.toString() };
-        fs.writeFileSync(`${folderName}/.merrymake/conf.json`, JSON.stringify(orgFile));
+        await writeFile(`${folderName}/.merrymake/conf.json`, JSON.stringify(orgFile));
         const eventsDir = `${folderName}/event-catalogue`;
-        fs.mkdirSync(eventsDir, { recursive: true });
+        await mkdir(eventsDir, { recursive: true });
         await execPromise(`git init --initial-branch=main`, eventsDir);
         await execPromise(`git remote add origin "${GIT_HOST}/o${organizationId}/event-catalogue"`, eventsDir);
-        fs.writeFileSync(eventsDir + "/api.json", "{}");
-        fs.writeFileSync(eventsDir + "/cron.json", "{}");
+        await writeFile(eventsDir + "/api.json", "{}");
+        await writeFile(eventsDir + "/cron.json", "{}");
         const publicDir = `${folderName}/public`;
-        fs.mkdirSync(publicDir, { recursive: true });
+        await mkdir(publicDir, { recursive: true });
         await execPromise(`git init --initial-branch=main`, publicDir);
         await execPromise(`git remote add origin "${GIT_HOST}/o${organizationId}/public"`, publicDir);
-        fs.writeFileSync(publicDir + "/index.html", "<html><body>Hello, World!</body></html>");
+        await writeFile(publicDir + "/index.html", "<html><body>Hello, World!</body></html>");
         await ensureGroupStructure({ pathTo: new PathToOrganization(folderName), id: organizationId }, struct);
     }
     catch (e) {
@@ -43,8 +45,8 @@ export async function do_fetch_clone(displayName, folderName, organizationId) {
     }
 }
 export async function checkout_org(displayName, organizationId) {
-    const folderName = toFolderName(displayName);
-    if (fs.existsSync(folderName)) {
+    const folderName = Str.toFolderName(displayName);
+    if (existsSync(folderName)) {
         throw `Folder '${folderName}' already exists.`;
     }
     addToExecuteQueue(() => do_fetch_clone(displayName, folderName, organizationId));

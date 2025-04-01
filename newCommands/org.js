@@ -1,12 +1,13 @@
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { choice, shortText } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
-import { digits, generateString, lowercase, sshReq, toFolderName, } from "../utils.js";
+import { digits, generateString, lowercase, sshReq } from "../utils.js";
 import { ADJECTIVE, NOUN } from "../words.js";
 import { checkout, checkout_org, checkoutName, do_clone } from "./clone.js";
 import { group } from "./group.js";
 import { outputGit } from "../printUtils.js";
 import { wait } from "./wait.js";
+import { Str } from "@merrymake/utils";
 export async function do_createOrganization(folderName, displayName) {
     try {
         const reply = await sshReq(`organization-create`, displayName);
@@ -56,7 +57,7 @@ export async function org() {
     try {
         const orgName = generateOrgName();
         const displayName = await shortText("Organization name", "Used when collaborating with others.", orgName).then();
-        const folderName = toFolderName(displayName);
+        const folderName = Str.toFolderName(displayName);
         const organizationId = await do_createOrganization(folderName, displayName);
         return group({
             pathTo: new PathToOrganization(folderName),

@@ -11,9 +11,11 @@ import {
   ServiceGroup,
   ServiceGroupId,
 } from "../types.js";
-import { execPromise, getFiles, sshReq, toFolderName } from "../utils.js";
+import { execPromise, getFiles, sshReq } from "../utils.js";
 import { do_fetch } from "./fetch.js";
 import { outputGit } from "../printUtils.js";
+import { Str } from "@merrymake/utils";
+import { rm, writeFile } from "fs/promises";
 
 export async function do_create_deployment_agent(
   organization: Organization,
@@ -25,7 +27,7 @@ export async function do_create_deployment_agent(
     const cmd = [`user-create-service`, organization.id.toString()];
     if (name !== "") cmd.push(`--name`, name);
     const key = await sshReq(...cmd);
-    fs.writeFileSync(file, key);
+    await writeFile(file, key);
   } catch (e) {
     throw e;
   }
@@ -49,7 +51,7 @@ export async function do_bitbucket(
 ) {
   try {
     const structure = await do_fetch(organization);
-    fs.writeFileSync(
+    await writeFile(
       organization.pathTo.with(".merrymake").with("deploy.sh").toString(),
       `set -o errexit
 chmod 600 ${key}
@@ -78,14 +80,14 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"Releasing service"*) exit 0 ;
       SPECIAL_FOLDERS.map((x) => ({ localPath: new Path(x), remotePath: x }));
     Object.keys(structure).forEach((serviceGroupId) => {
       const group = structure[serviceGroupId];
-      const folderName = toFolderName(group.displayName);
+      const folderName = Str.toFolderName(group.displayName);
       const serviceGroup: ServiceGroup = {
         pathTo: organization.pathTo.with(folderName),
         id: new ServiceGroupId(serviceGroupId),
       };
       Object.keys(group.repositories).forEach((repositoryId) => {
         const repositoryDisplayName = group.repositories[repositoryId];
-        const folderName = toFolderName(repositoryDisplayName);
+        const folderName = Str.toFolderName(repositoryDisplayName);
         const repository: RepositoryWithId = {
           pathTo: serviceGroup.pathTo.with(folderName),
           id: new RepositoryId(repositoryId),
@@ -102,13 +104,13 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"Releasing service"*) exit 0 ;
         await execPromise(`git fetch`, localPath.toString());
         await execPromise(`git reset origin/main`, localPath.toString());
       } catch (e) {}
-      fs.rmSync(localPath.with(".git").toString(), {
+      await rm(localPath.with(".git").toString(), {
         recursive: true,
         force: true,
       });
       pipelineFile.push(bitbucketStep(localPath, remotePath));
     }
-    fs.writeFileSync(
+    await writeFile(
       organization.pathTo.with(BITBUCKET_FILE).toString(),
       pipelineFile.join("\n")
     );
@@ -170,7 +172,7 @@ async function hosting_bitbucket_create(organization: Organization) {
       "Display name for the service user",
       `Service User`
     ).then();
-    const file = ".merrymake/" + toFolderName(name) + ".key";
+    const file = ".merrymake/" + Str.toFolderName(name) + ".key";
     addToExecuteQueue(() =>
       do_create_deployment_agent(organization, name, file)
     );
@@ -182,9 +184,9 @@ async function hosting_bitbucket_create(organization: Organization) {
 
 async function hosting_bitbucket(organization: Organization) {
   try {
-    const keyfiles = getFiles(organization.pathTo.with(`.merrymake`)).filter(
-      (x) => x.endsWith(".key")
-    );
+    const keyfiles = (
+      await getFiles(organization.pathTo.with(`.merrymake`))
+    ).filter((x) => x.endsWith(".key"));
     const options = keyfiles.map<Option>((x) => {
       const f = x.substring(0, x.length - ".key".length);
       return {

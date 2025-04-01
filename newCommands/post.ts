@@ -1,5 +1,4 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
-import fs, { readdirSync } from "fs";
 import { RAPIDS_HOST } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { Option, choice, shortText } from "../prompt.js";
@@ -7,6 +6,7 @@ import { OrganizationId } from "../types.js";
 import { sshReq, urlReq } from "../utils.js";
 import { key_create } from "./apikey.js";
 import { outputGit } from "../printUtils.js";
+import { readdir, readFile } from "fs/promises";
 
 export async function do_post(
   eventType: string,
@@ -34,7 +34,7 @@ export async function do_post_file(
   filename: string
 ) {
   try {
-    const content = fs.readFileSync(filename).toString();
+    const content = await readFile(filename, "utf-8");
     const type = optimisticMimeTypeOf(
       filename.substring(filename.lastIndexOf(".") + 1)
     );
@@ -111,7 +111,7 @@ async function post_event_payload_file(
   eventType: string
 ) {
   try {
-    const files = readdirSync(".", { withFileTypes: true }).flatMap((x) =>
+    const files = (await readdir(".", { withFileTypes: true })).flatMap((x) =>
       x.isDirectory() ? [] : [x.name]
     );
     const options = files.map<Option>((x) => {

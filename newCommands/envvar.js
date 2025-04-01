@@ -1,25 +1,27 @@
 import { MerrymakeCrypto } from "@merrymake/secret-lib";
-import fs from "fs";
 import { GIT_HOST } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { Visibility, choice, shortText } from "../prompt.js";
 import { execPromise, sshReq } from "../utils.js";
 import { outputGit } from "../printUtils.js";
+import { randomBytes } from "crypto";
+import { readFile, rm } from "fs/promises";
 async function do_envvar(pathToOrganization, organizationId, serviceGroupId, key, value, access, encrypted) {
     const keyFolder = pathToOrganization.with(".merrymake").with(".key");
     try {
         let val;
         if (encrypted === true) {
             const repoBase = `${GIT_HOST}/o${organizationId.toString()}/g${serviceGroupId.toString()}/.key`;
-            fs.rmSync(keyFolder.toString(), { force: true, recursive: true });
+            await rm(keyFolder.toString(), { force: true, recursive: true });
             await execPromise(`git clone -q "${repoBase}"`, pathToOrganization.with(".merrymake").toString());
-            const key = fs.readFileSync(keyFolder.with("merrymake.key").toString());
-            val = new MerrymakeCrypto()
-                .encrypt(Buffer.from(value), key)
-                .toString("base64");
+            const key = await readFile(keyFolder.with("merrymake.key").toString());
+            console.log(value.toString());
+            val = new MerrymakeCrypto().encrypt(value, key).toString("base64");
+            value.fill(0);
+            key.fill(0);
         }
         else {
-            val = value;
+            val = value.toString();
         }
         outputGit(await sshReq(`envvar-set`, key, ...access, `--serviceGroupId`, serviceGroupId.toString(), `--value`, val, ...(encrypted ? ["--encrypted"] : [])));
     }
@@ -27,7 +29,7 @@ async function do_envvar(pathToOrganization, organizationId, serviceGroupId, key
         throw e;
     }
     finally {
-        fs.rmSync(keyFolder.toString(), {
+        rm(keyFolder.toString(), {
             force: true,
             recursive: true,
         });
@@ -63,33 +65,51 @@ async function envvar_key_visible(pathToOrganization, organizationId, serviceGro
     try {
         const value = await shortText("Value", "The value...", "", secret === true ? { hide: Visibility.Secret } : undefined).then();
         if (value !== "")
-            return envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, value, secret, init, prod);
+            return envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, Buffer.from(value), secret, init, prod);
         else
-            return envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, value, ["--inProduction", "--inInitRun"], false);
+            return envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, Buffer.from(""), ["--inProduction", "--inInitRun"], false);
+    }
+    catch (e) {
+        throw e;
+    }
+}
+async function envvar_key_random(pathToOrganization, organizationId, serviceGroupId, key, init, prod) {
+    try {
+        const value = +(await shortText("Length", "How many bytes", "32").then());
+        const bytes = randomBytes(value);
+        console.log(bytes.toString("base64"));
+        console.log(bytes.toString("hex"));
+        return envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, Buffer.from(bytes.toString("base64")), true, init, prod);
     }
     catch (e) {
         throw e;
     }
 }
 function envvar_key(pathToOrganization, organizationId, serviceGroupId, key, secret, init, prod) {
-    return choice("What is the visibility of the variable?", [
+    return choice("What type of data is it?", [
         {
             long: "secret",
             short: "s",
-            text: "the value is secret",
+            text: "custom secret value",
             action: () => envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, true, init, prod),
         },
         {
-            long: "public",
-            short: "p",
-            text: "the value is public",
+            long: "internal",
+            short: "i",
+            text: "custom internal value",
             action: () => envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, false, init, prod),
+        },
+        {
+            long: "random",
+            short: "r",
+            text: "random bytes",
+            action: () => envvar_key_random(pathToOrganization, organizationId, serviceGroupId, key, init, prod),
         },
         {
             long: "delete",
             short: "d",
             text: "delete the environment variable",
-            action: () => envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, "", ["--inProduction", "--inInitRun"], false),
+            action: () => envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, Buffer.from(""), ["--inProduction", "--inInitRun"], false),
         },
     ], { def: secret ? 0 : 1 });
 }

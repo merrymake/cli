@@ -1,4 +1,4 @@
-import fs from "fs";
+import { existsSync } from "fs";
 import path from "path";
 import { do_startSimulator } from "../Execute.js";
 import { Option, choice } from "../prompt.js";
@@ -33,6 +33,7 @@ import { upgrade } from "./upgrade.js";
 import { rollback } from "./rollback.js";
 import { help } from "./help.js";
 import { getArgs } from "../args.js";
+import { readFile } from "fs/promises";
 
 async function getContext() {
   let repositoryPath: PathToRepository | undefined;
@@ -43,9 +44,9 @@ async function getContext() {
   const cwd = process.cwd().split(/\/|\\/);
   let out = "." + path.sep;
   for (let i = cwd.length - 1; i >= 0; i--) {
-    if (fs.existsSync(path.join(out, ".git"))) inGit = true;
-    if (fs.existsSync(path.join(out, "merrymake.json"))) {
-      if (fs.existsSync(path.join(out, ".git"))) {
+    if (existsSync(path.join(out, ".git"))) inGit = true;
+    if (existsSync(path.join(out, "merrymake.json"))) {
+      if (existsSync(path.join(out, ".git"))) {
         const repositoryUrl = await execPromise(
           `git ls-remote --get-url origin`
         );
@@ -55,22 +56,22 @@ async function getContext() {
       } else {
         repositoryPath = new PathToRepository(out);
       }
-    } else if (fs.existsSync(path.join(out, ".group-id"))) {
+    } else if (existsSync(path.join(out, ".group-id"))) {
       serviceGroup = {
         id: new ServiceGroupId(
-          fs.readFileSync(path.join(out, ".group-id")).toString()
+          await readFile(path.join(out, ".group-id"), "utf-8")
         ),
         pathTo: new PathToServiceGroup(out),
       };
-    } else if (fs.existsSync(path.join(out, ".merrymake", "conf.json"))) {
+    } else if (existsSync(path.join(out, ".merrymake", "conf.json"))) {
       const orgFile: OrgFile = JSON.parse(
-        fs.readFileSync(path.join(out, ".merrymake", "conf.json")).toString()
+        await readFile(path.join(out, ".merrymake", "conf.json"), "utf-8")
       );
       organization = {
         id: new OrganizationId(orgFile.organizationId),
         pathTo: new PathToOrganization(out),
       };
-      const monorepo = fs.existsSync(path.join(out, ".git"));
+      const monorepo = existsSync(path.join(out, ".git"));
       return {
         repositoryId,
         repositoryPath,
@@ -169,7 +170,7 @@ export async function index() {
       );
     }
     if (organization !== undefined) {
-      if (!fs.existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())) {
+      if (!existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())) {
         options.push({
           long: "fetch",
           short: "f",
@@ -179,9 +180,7 @@ export async function index() {
         });
       }
       if (serviceGroup === undefined) {
-        if (
-          !fs.existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())
-        ) {
+        if (!existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())) {
           options.push({
             long: "hosting",
             short: "h",

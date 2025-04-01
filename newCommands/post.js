@@ -1,11 +1,11 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
-import fs, { readdirSync } from "fs";
 import { RAPIDS_HOST } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { choice, shortText } from "../prompt.js";
 import { sshReq, urlReq } from "../utils.js";
 import { key_create } from "./apikey.js";
 import { outputGit } from "../printUtils.js";
+import { readdir, readFile } from "fs/promises";
 export async function do_post(eventType, key, contentType, payload) {
     try {
         outputGit(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
@@ -18,7 +18,7 @@ export async function do_post(eventType, key, contentType, payload) {
 }
 export async function do_post_file(eventType, key, filename) {
     try {
-        const content = fs.readFileSync(filename).toString();
+        const content = await readFile(filename, "utf-8");
         const type = optimisticMimeTypeOf(filename.substring(filename.lastIndexOf(".") + 1));
         if (type === null)
             throw "Could not determine content type";
@@ -69,7 +69,7 @@ async function post_event_payload_type(organizationId, eventType, contentType) {
 }
 async function post_event_payload_file(organizationId, eventType) {
     try {
-        const files = readdirSync(".", { withFileTypes: true }).flatMap((x) => x.isDirectory() ? [] : [x.name]);
+        const files = (await readdir(".", { withFileTypes: true })).flatMap((x) => x.isDirectory() ? [] : [x.name]);
         const options = files.map((x) => {
             return {
                 long: x,

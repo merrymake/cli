@@ -1,41 +1,25 @@
-import { spawn } from "child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { execPromise, execStreamPromise } from "./utils.js";
 import { Str } from "@merrymake/utils";
-import { GRAY, GREEN, NORMAL_COLOR, PURPLE, RED, YELLOW } from "./prompt.js";
-import { getShortCommand } from "./mmCommand.js";
-import { addExitMessage } from "./exitMessages.js";
-import { homedir } from "os";
+import { spawn } from "child_process";
 import { createRequire } from "module";
+import { homedir } from "os";
+import { addExitMessage } from "./exitMessages.js";
+import { getShortCommand } from "./mmCommand.js";
+import { execPromise, execStreamPromise } from "./utils.js";
+import { existsSync } from "fs";
+import { mkdir, readFile, writeFile } from "fs/promises";
 const require = createRequire(import.meta.url);
 // IN THE FUTURE: import conf from "./package.json" with {type:"json"};
 export const package_json = require("./package.json");
-const COMMAND_COLOR = PURPLE;
-// TODO Use merrymake/utils
-function versionIsOlder(old, new_) {
-    const os = old.split(".");
-    const ns = new_.split(".");
-    if (+os[0] < +ns[0])
-        return true;
-    else if (+os[0] > +ns[0])
-        return false;
-    else if (+os[1] < +ns[1])
-        return true;
-    else if (+os[1] > +ns[1])
-        return false;
-    else if (+os[2] < +ns[2])
-        return true;
-    return false;
-}
+const COMMAND_COLOR = Str.PURPLE;
 const historyFolder = homedir() + "/.merrymake/";
 const historyFile = "history";
 const updateFile = "last_update_check";
 export async function checkVersionIfOutdated() {
     try {
         if (!existsSync(historyFolder))
-            mkdirSync(historyFolder);
+            await mkdir(historyFolder);
         const lastCheck = existsSync(historyFolder + updateFile)
-            ? +readFileSync(historyFolder + updateFile).toString()
+            ? +(await readFile(historyFolder + updateFile).toString())
             : 0;
         if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
             await checkVersion();
@@ -47,16 +31,16 @@ async function checkVersion() {
     try {
         const call = await execPromise("npm show @merrymake/cli dist-tags --json");
         const version = JSON.parse(call);
-        if (versionIsOlder(package_json.version, version.latest)) {
+        if (Str.semanticVersionLessThan(package_json.version, version.latest)) {
             addExitMessage(`
 New version of merrymake-cli available (${package_json.version} -> ${version.latest}). You can read the release notes here:
   https://github.com/merrymake/cli/blob/main/CHANGELOG.md
 To update run the command:
-  ${COMMAND_COLOR}npm install --global @merrymake/cli@latest${NORMAL_COLOR}`);
+  ${COMMAND_COLOR}npm install --global @merrymake/cli@latest${Str.NORMAL_COLOR}`);
         }
+        await writeFile(historyFolder + updateFile, "" + Date.now());
     }
     catch (e) { }
-    writeFileSync(historyFolder + updateFile, "" + Date.now());
 }
 let timer;
 export function outputGit(str) {
@@ -75,12 +59,12 @@ export function outputGit(str) {
         const lineParts = x.trimEnd().split("remote: ");
         const line = lineParts[lineParts.length - 1];
         const color = line.match(/fail|error|fatal/i) !== null
-            ? RED
+            ? Str.RED
             : line.match(/warn/i) !== null
-                ? YELLOW
+                ? Str.YELLOW
                 : line.match(/succe/i) !== null
-                    ? GREEN
-                    : NORMAL_COLOR;
+                    ? Str.GREEN
+                    : Str.NORMAL_COLOR;
         const commands = line.split("'mm");
         for (let i = 1; i < commands.length; i++) {
             const ind = commands[i].indexOf("'");
@@ -89,12 +73,12 @@ export function outputGit(str) {
             commands[i] = `'${COMMAND_COLOR}${getShortCommand()}${cmd}${color}${rest}`;
         }
         lineParts[lineParts.length - 1] =
-            color + commands.join("") + NORMAL_COLOR;
-        return lineParts.join(`${GRAY}remote: `);
+            color + commands.join("") + Str.NORMAL_COLOR;
+        return lineParts.join(`${Str.GRAY}remote: `);
     })
         .join("\n"));
     if (st.endsWith("(this may take a few minutes)...")) {
-        process.stdout.write(`${GRAY}remote: ${NORMAL_COLOR}    `);
+        process.stdout.write(`${Str.GRAY}remote: ${Str.NORMAL_COLOR}    `);
         timer = Str.Timer.start(new Str.Timer.Seconds("s elapsed"));
     }
 }
@@ -139,10 +123,10 @@ export function getCache() {
     if (!existsSync(`${historyFolder}cache`)) {
         return { registered: false, hasOrgs: false };
     }
-    return JSON.parse(readFileSync(`${historyFolder}cache`).toString());
+    return JSON.parse(readFile(`${historyFolder}cache`).toString());
 }
 export function saveCache(cache) {
-    writeFileSync(`${historyFolder}cache`, JSON.stringify(cache));
+    writeFile(`${historyFolder}cache`, JSON.stringify(cache));
 }
 export function debugLog(msg) {
     if ((process.env.ASDF_DEBUG || "").toLowerCase() === "true")

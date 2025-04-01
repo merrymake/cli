@@ -1,9 +1,10 @@
 import { ExecOptions, spawn } from "child_process";
-import fs from "fs";
+import fs, { existsSync } from "fs";
 import { stdout } from "process";
 import { outputGit } from "./printUtils.js";
 import { GRAY, NORMAL_COLOR } from "./prompt.js";
 import { sshReq } from "./utils.js";
+import { rename } from "fs/promises";
 
 export function alignRight(str: string, width: number) {
   return str.length > width
@@ -90,7 +91,7 @@ export function printTableHeader(
 //       `${GREEN}Inside service group: ${rawStruct.serviceGroup}${NORMAL_COLOR}`
 //     );
 //   }
-//   if (!fs.existsSync("merrymake.json")) {
+//   if (!existsSync("merrymake.json")) {
 //     output2(`${YELLOW}Not inside service repo.${NORMAL_COLOR}`);
 //   } else {
 //     output2(`${GREEN}Inside service repo.${NORMAL_COLOR}`);
@@ -218,7 +219,7 @@ export async function do_spending(org: string) {
 export async function do_delete_group(org: string, group: string) {
   try {
     outputGit(await sshReq(`team`, `--delete`, `--org`, org, group));
-    if (fs.existsSync(group)) fs.renameSync(group, `(deleted) ${group}`);
+    if (existsSync(group)) await rename(group, `(deleted) ${group}`);
   } catch (e) {
     throw e;
   }
@@ -227,7 +228,7 @@ export async function do_delete_group(org: string, group: string) {
 export async function do_delete_org(org: string) {
   try {
     outputGit(await sshReq(`org`, `--delete`, org));
-    if (fs.existsSync(org)) fs.renameSync(org, `(deleted) ${org}`);
+    if (existsSync(org)) await rename(org, `(deleted) ${org}`);
   } catch (e) {
     throw e;
   }

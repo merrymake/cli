@@ -10,13 +10,15 @@ import {
 } from "../types.js";
 import { execPromise, sshReq } from "../utils.js";
 import { outputGit } from "../printUtils.js";
+import { randomBytes } from "crypto";
+import { readFile, rm } from "fs/promises";
 
 async function do_envvar(
   pathToOrganization: PathToOrganization,
   organizationId: OrganizationId,
   serviceGroupId: ServiceGroupId,
   key: string,
-  value: string,
+  value: Buffer,
   access: ("--inInitRun" | "--inProduction")[],
   encrypted: boolean
 ) {
@@ -25,17 +27,18 @@ async function do_envvar(
     let val: string;
     if (encrypted === true) {
       const repoBase = `${GIT_HOST}/o${organizationId.toString()}/g${serviceGroupId.toString()}/.key`;
-      fs.rmSync(keyFolder.toString(), { force: true, recursive: true });
+      await rm(keyFolder.toString(), { force: true, recursive: true });
       await execPromise(
         `git clone -q "${repoBase}"`,
         pathToOrganization.with(".merrymake").toString()
       );
-      const key = fs.readFileSync(keyFolder.with("merrymake.key").toString());
-      val = new MerrymakeCrypto()
-        .encrypt(Buffer.from(value), key)
-        .toString("base64");
+      const key = await readFile(keyFolder.with("merrymake.key").toString());
+      console.log(value.toString());
+      val = new MerrymakeCrypto().encrypt(value, key).toString("base64");
+      value.fill(0);
+      key.fill(0);
     } else {
-      val = value;
+      val = value.toString();
     }
     outputGit(
       await sshReq(
@@ -52,7 +55,7 @@ async function do_envvar(
   } catch (e) {
     throw e;
   } finally {
-    fs.rmSync(keyFolder.toString(), {
+    rm(keyFolder.toString(), {
       force: true,
       recursive: true,
     });
@@ -64,7 +67,7 @@ function envvar_key_value_access_visible(
   organizationId: OrganizationId,
   serviceGroupId: ServiceGroupId,
   key: string,
-  value: string,
+  value: Buffer,
   access: ("--inInitRun" | "--inProduction")[],
   secret: boolean
 ) {
@@ -87,7 +90,7 @@ function envvar_key_visible_value(
   organizationId: OrganizationId,
   serviceGroupId: ServiceGroupId,
   key: string,
-  value: string,
+  value: Buffer,
   secret: boolean,
   init: boolean,
   prod: boolean
@@ -167,7 +170,7 @@ async function envvar_key_visible(
         organizationId,
         serviceGroupId,
         key,
-        value,
+        Buffer.from(value),
         secret,
         init,
         prod
@@ -178,10 +181,38 @@ async function envvar_key_visible(
         organizationId,
         serviceGroupId,
         key,
-        value,
+        Buffer.from(""),
         ["--inProduction", "--inInitRun"],
         false
       );
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function envvar_key_random(
+  pathToOrganization: PathToOrganization,
+  organizationId: OrganizationId,
+  serviceGroupId: ServiceGroupId,
+  key: string,
+  init: boolean,
+  prod: boolean
+) {
+  try {
+    const value = +(await shortText("Length", "How many bytes", "32").then());
+    const bytes = randomBytes(value);
+    console.log(bytes.toString("base64"));
+    console.log(bytes.toString("hex"));
+    return envvar_key_visible_value(
+      pathToOrganization,
+      organizationId,
+      serviceGroupId,
+      key,
+      Buffer.from(bytes.toString("base64")),
+      true,
+      init,
+      prod
+    );
   } catch (e) {
     throw e;
   }
@@ -197,12 +228,12 @@ function envvar_key(
   prod: boolean
 ) {
   return choice(
-    "What is the visibility of the variable?",
+    "What type of data is it?",
     [
       {
         long: "secret",
         short: "s",
-        text: "the value is secret",
+        text: "custom secret value",
         action: () =>
           envvar_key_visible(
             pathToOrganization,
@@ -215,9 +246,9 @@ function envvar_key(
           ),
       },
       {
-        long: "public",
-        short: "p",
-        text: "the value is public",
+        long: "internal",
+        short: "i",
+        text: "custom internal value",
         action: () =>
           envvar_key_visible(
             pathToOrganization,
@@ -225,6 +256,20 @@ function envvar_key(
             serviceGroupId,
             key,
             false,
+            init,
+            prod
+          ),
+      },
+      {
+        long: "random",
+        short: "r",
+        text: "random bytes",
+        action: () =>
+          envvar_key_random(
+            pathToOrganization,
+            organizationId,
+            serviceGroupId,
+            key,
             init,
             prod
           ),
@@ -239,7 +284,7 @@ function envvar_key(
             organizationId,
             serviceGroupId,
             key,
-            "",
+            Buffer.from(""),
             ["--inProduction", "--inInitRun"],
             false
           ),

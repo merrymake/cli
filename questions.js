@@ -76,7 +76,7 @@ export {};
 //       text: "register an additional sshkey or email to account",
 //       action: () => register(),
 //     });
-//     if (!fs.existsSync(pathToRoot + BITBUCKET_FILE)) {
+//     if (!existsSync(pathToRoot + BITBUCKET_FILE)) {
 //       options.push({
 //         long: "hosting",
 //         text: "configure git hosting with bitbucket", // TODO add github, gitlab, and azure devops
@@ -180,7 +180,7 @@ export {};
 //         action: () => queue(orgName, 0),
 //       });
 //       if (
-//         fs.existsSync("merrymake.json") ||
+//         existsSync("merrymake.json") ||
 //         struct.inEventCatalogue ||
 //         struct.inPublic
 //       ) {
@@ -217,7 +217,7 @@ export {};
 //           });
 //         }
 //       }
-//       // if (fs.existsSync("merrymake.json")) {
+//       // if (existsSync("merrymake.json")) {
 //       //   options.push({
 //       //     long: "build",
 //       //     short: "b",

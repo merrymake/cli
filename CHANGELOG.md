@@ -8,6 +8,10 @@
 -
 -->
 
+# 4.10.2
+## Fixes and improvements
+- `keys` table fixed
+
 # 4.10.1
 ## Fixes and improvements
 - `rapids` now buckets cached-requests together

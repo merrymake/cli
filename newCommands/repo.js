@@ -1,11 +1,13 @@
 import { ProjectTypes } from "@merrymake/detect-project-type";
-import fs from "fs";
+import { Promise_all, Str } from "@merrymake/utils";
+import { existsSync } from "fs";
+import { appendFile, mkdir, rm } from "fs/promises";
 import { GIT_HOST } from "../config.js";
 import { TODO, finish } from "../exitMessages.js";
 import { choice, shortText } from "../prompt.js";
 import { languages, templates } from "../templates.js";
 import { RepositoryId, } from "../types.js";
-import { Path, execPromise, sshReq, toFolderName } from "../utils.js";
+import { Path, execPromise, sshReq } from "../utils.js";
 import { do_deploy } from "./deploy.js";
 import { BITBUCKET_FILE, bitbucketStep } from "./hosting.js";
 import { post } from "./post.js";
@@ -13,11 +15,11 @@ async function do_pull(pth, repo) {
     try {
         const before = process.cwd();
         process.chdir(pth.toString());
-        if (fs.existsSync(".git"))
+        if (existsSync(".git"))
             await execPromise(`git pull -q "${repo}"`);
         else {
             await execPromise(`git clone -q "${repo}" .`);
-            fs.rmSync(".git", { recursive: true, force: true });
+            await rm(".git", { recursive: true, force: true });
         }
         process.chdir(before);
     }
@@ -51,9 +53,9 @@ export async function do_createService(organization, serviceGroup, folderName, d
             throw reply;
         const repositoryId = new RepositoryId(reply);
         const repoBase = `g${serviceGroup.id.toString()}/r${repositoryId}`;
-        if (fs.existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())) {
-            fs.mkdirSync(repositoryPath.toString(), { recursive: true });
-            fs.appendFileSync(organization.pathTo.with(BITBUCKET_FILE).toString(), "\n" +
+        if (existsSync(organization.pathTo.with(BITBUCKET_FILE).toString())) {
+            await mkdir(repositoryPath.toString(), { recursive: true });
+            await appendFile(organization.pathTo.with(BITBUCKET_FILE).toString(), "\n" +
                 bitbucketStep(new Path(serviceGroup.pathTo.last()).with(folderName), repoBase));
         }
         else {
@@ -76,13 +78,13 @@ export async function do_createService(organization, serviceGroup, folderName, d
 }
 export async function service_template(pathToService, organizationId, template) {
     try {
-        const langs = await Promise.all(templates[template].languages.map((x, i) => (async () => {
+        const langs = await Promise_all(...templates[template].languages.map((x, i) => (async () => {
             const versionCommands = ProjectTypes[languages[x].projectType].versionCommands();
             return {
                 ...languages[x],
-                weight: (await Promise.all(Object.keys(versionCommands).map((k) => versionCommands[k] === undefined
+                weight: (await Promise_all(...Object.keys(versionCommands).map(async (k) => versionCommands[k] === undefined
                     ? 1
-                    : execPromise(versionCommands[k])
+                    : await execPromise(versionCommands[k])
                         .then((r) => 1)
                         .catch((e) => 0)))).reduce((a, x) => a * x, i),
             };
@@ -159,10 +161,10 @@ export async function listRepos(serviceGroupId) {
 export async function repo_create(organization, serviceGroup) {
     try {
         let num = 1;
-        while (fs.existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
+        while (existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
             num++;
         const displayName = await shortText("Repository name", "This is where the code lives.", "repo-" + num).then();
-        const folderName = toFolderName(displayName);
+        const folderName = Str.toFolderName(displayName);
         const pathToRepository = serviceGroup.pathTo.with(folderName);
         const repositories = await listRepos(serviceGroup.id);
         const repositoryId = await do_createService(organization, serviceGroup, folderName, displayName);
@@ -184,13 +186,13 @@ export async function repo_create(organization, serviceGroup) {
                 action: () => duplicate(pathToRepository, organization.id, serviceGroup.id),
             });
         }
-        const langs = await Promise.all(templates.basic.languages.map((x, i) => (async () => {
+        const langs = await Promise_all(...templates.basic.languages.map((x, i) => (async () => {
             const versionCommands = ProjectTypes[languages[x].projectType].versionCommands();
             return {
                 ...languages[x],
-                weight: (await Promise.all(Object.keys(versionCommands).map((k) => versionCommands[k] === undefined
+                weight: (await Promise_all(...Object.keys(versionCommands).map(async (k) => versionCommands[k] === undefined
                     ? 1
-                    : execPromise(versionCommands[k])
+                    : await execPromise(versionCommands[k])
                         .then((r) => 1)
                         .catch((e) => 0)))).reduce((a, x) => a * x, i),
             };

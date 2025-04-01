@@ -1,10 +1,10 @@
 import { choice, shortText } from "../prompt.js";
 import { AccessId } from "../types.js";
-import { sshReq, toFolderName } from "../utils.js";
+import { sshReq } from "../utils.js";
 import { do_create_deployment_agent } from "./hosting.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import { Arr, Obj } from "@merrymake/utils";
+import { Arr, Obj, Str } from "@merrymake/utils";
 const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 export async function do_attach_role(user, accessId, accessEmail, duration) {
     try {
@@ -171,7 +171,7 @@ async function role_auto(organizationId) {
 async function service_user(organization) {
     try {
         const name = await shortText("Name", "Display name for the service user", `Service User`).then();
-        const file = ".merrymake/" + toFolderName(name) + ".key";
+        const file = ".merrymake/" + Str.toFolderName(name) + ".key";
         addToExecuteQueue(() => do_create_deployment_agent(organization, name, file));
         return finish();
     }

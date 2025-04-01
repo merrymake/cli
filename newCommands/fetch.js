@@ -1,26 +1,26 @@
-import fs from "fs";
+import { existsSync } from "fs";
 import { GIT_HOST } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { RepositoryId, ServiceGroupId, } from "../types.js";
-import { directoryNames, execPromise, sshReq, toFolderName } from "../utils.js";
+import { directoryNames, execPromise, sshReq } from "../utils.js";
 import { outputGit } from "../printUtils.js";
+import { chmod, mkdir, readFile, rename, writeFile } from "fs/promises";
+import { Promise_all, Str } from "@merrymake/utils";
 async function getCurrentStructure(pathToOrganization) {
-    const folders = directoryNames(pathToOrganization, [
+    const folders = await directoryNames(pathToOrganization, [
         "event-catalogue",
         "public",
     ]);
     const groups = {};
-    await Promise.all(folders.map((f) => {
+    await Promise_all(...folders.map(async (f) => {
         const pathToGroup = pathToOrganization.with(f.name);
-        if (fs.existsSync(pathToGroup.with(".group-id").toString())) {
-            const groupId = fs
-                .readFileSync(pathToGroup.with(".group-id").toString())
-                .toString();
+        if (existsSync(pathToGroup.with(".group-id").toString())) {
+            const groupId = await readFile(pathToGroup.with(".group-id").toString(), "utf-8");
             const repositories = {};
             groups[groupId] = { name: f.name, repositories };
-            const folders = directoryNames(pathToGroup, []);
-            return Promise.all(folders.map(async (f) => {
-                if (fs.existsSync(pathToGroup.with(f.name).with(".git").toString())) {
+            const folders = await directoryNames(pathToGroup, []);
+            return Promise_all(...folders.map(async (f) => {
+                if (existsSync(pathToGroup.with(f.name).with(".git").toString())) {
                     const repositoryUrl = await execPromise(`git ls-remote --get-url origin`, pathToGroup.with(f.name).toString());
                     const repositoryId = repositoryUrl
                         .trim()
@@ -33,13 +33,13 @@ async function getCurrentStructure(pathToOrganization) {
     return groups;
 }
 async function ensureRepositoryStructure(organizationId, serviceGroup, toBe, asIs) {
-    await Promise.all(Object.keys(toBe).map(async (repositoryId) => {
+    await Promise_all(...Object.keys(toBe).map(async (repositoryId) => {
         const repositoryDisplayName = toBe[repositoryId];
-        const folderName = toFolderName(repositoryDisplayName);
+        const folderName = Str.toFolderName(repositoryDisplayName);
         const pathToRepository = serviceGroup.pathTo.with(folderName);
         if (asIs[repositoryId] !== undefined &&
             asIs[repositoryId] !== folderName) {
-            fs.renameSync(serviceGroup.pathTo.with(asIs[repositoryId]).toString(), pathToRepository.toString());
+            await rename(serviceGroup.pathTo.with(asIs[repositoryId]).toString(), pathToRepository.toString());
         }
         await ensureServiceFolder(organizationId, serviceGroup.id, {
             pathTo: pathToRepository,
@@ -47,7 +47,7 @@ async function ensureRepositoryStructure(organizationId, serviceGroup, toBe, asI
         }).then();
         delete asIs[repositoryId];
     }));
-    await Promise.all(Object.keys(asIs).map((repositoryId) => {
+    await Promise_all(...Object.keys(asIs).map(async (repositoryId) => {
         const folderName = asIs[repositoryId];
         // TODO Delete
         console.log("Delete", serviceGroup.pathTo.with(folderName).toString());
@@ -55,26 +55,26 @@ async function ensureRepositoryStructure(organizationId, serviceGroup, toBe, asI
 }
 export async function ensureGroupStructure(organization, toBe) {
     const asIs = await getCurrentStructure(organization.pathTo);
-    await Promise.all(Object.keys(toBe).map(async (serviceGroupId) => {
+    await Promise_all(...Object.keys(toBe).map(async (serviceGroupId) => {
         const group = toBe[serviceGroupId];
-        const folderName = toFolderName(group.displayName);
+        const folderName = Str.toFolderName(group.displayName);
         const pathToGroup = organization.pathTo.with(folderName);
         let asIsRepos;
         if (asIs[serviceGroupId] === undefined) {
-            fs.mkdirSync(pathToGroup.toString(), { recursive: true });
-            fs.writeFileSync(pathToGroup.with(".group-id").toString(), serviceGroupId);
+            await mkdir(pathToGroup.toString(), { recursive: true });
+            await writeFile(pathToGroup.with(".group-id").toString(), serviceGroupId);
             asIsRepos = {};
         }
         else {
             if (asIs[serviceGroupId].name !== folderName) {
-                fs.renameSync(organization.pathTo.with(asIs[serviceGroupId].name).toString(), pathToGroup.toString());
+                await rename(organization.pathTo.with(asIs[serviceGroupId].name).toString(), pathToGroup.toString());
             }
             asIsRepos = asIs[serviceGroupId].repositories;
         }
         await ensureRepositoryStructure(organization.id, { pathTo: pathToGroup, id: new ServiceGroupId(serviceGroupId) }, group.repositories, asIsRepos);
         delete asIs[serviceGroupId];
     }));
-    await Promise.all(Object.keys(asIs).map((groupId) => {
+    await Promise_all(...Object.keys(asIs).map(async (groupId) => {
         const group = asIs[groupId];
         const folderName = group.name;
         // TODO Delete
@@ -86,22 +86,22 @@ async function ensureServiceFolder(organizationId, groupId, repository) {
     const dir = repository.pathTo.toString();
     const repo = `"${GIT_HOST}/o${organizationId}/g${groupId}/r${repository.id}"`;
     try {
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
+        if (!existsSync(dir)) {
+            await mkdir(dir, { recursive: true });
         }
-        if (!fs.existsSync(dir + "/.git")) {
+        if (!existsSync(dir + "/.git")) {
             await execPromise(`git init --initial-branch=main`, dir);
             await execPromise(`git remote add origin ${repo}`, dir);
-            fs.writeFileSync(dir + "/fetch.bat", `@echo off
+            await writeFile(dir + "/fetch.bat", `@echo off
 git fetch
 git reset --hard origin/main
 del fetch.sh
 (goto) 2>nul & del fetch.bat`);
-            fs.writeFileSync(dir + "/fetch.sh", `#!/bin/sh
+            await writeFile(dir + "/fetch.sh", `#!/bin/sh
 git fetch
 git reset --hard origin/main
 rm fetch.bat fetch.sh`, {});
-            fs.chmodSync(dir + "/fetch.sh", "755");
+            await chmod(dir + "/fetch.sh", "755");
         }
         else {
             await execPromise(`git remote set-url origin ${repo}`, dir);

@@ -1,12 +1,13 @@
 import { exec, spawn } from "child_process";
-import fs from "fs";
+import fs, { existsSync } from "fs";
 import http from "http";
 import https from "https";
-import { readdirSync } from "node:fs";
 import path from "path";
 import { SSH_HOST, SSH_USER } from "./config.js";
-import { Str } from "@merrymake/utils";
+import { MEGABYTES, Promise_all, Str } from "@merrymake/utils";
 import { PathTo } from "./types.js";
+import { debugLog } from "./printUtils.js";
+import { readdir, readFile } from "fs/promises";
 
 export const lowercase = "abcdefghijklmnopqrstuvwxyz";
 export const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -44,66 +45,80 @@ export class Path {
   }
 }
 
-export function getFiles(path: PathTo): string[] {
+export function getFiles(path: PathTo) {
   return getFiles_internal(path, "");
 }
 
-function getFiles_internal(path: PathTo, prefix: string): string[] {
-  if (!fs.existsSync(path.toString())) return [];
-  return readdirSync(path.toString(), { withFileTypes: true }).flatMap((x) =>
-    x.isDirectory()
-      ? getFiles_internal(path.with(x.name), prefix + x.name + "/")
-      : [prefix + x.name]
-  );
+async function getFiles_internal(
+  path: PathTo,
+  prefix: string
+): Promise<string[]> {
+  try {
+    if (!existsSync(path.toString())) return [];
+    return (
+      await Promise_all(
+        ...(
+          await readdir(path.toString(), { withFileTypes: true }).then()
+        ).map((x) =>
+          x.isDirectory()
+            ? getFiles_internal(path.with(x.name), prefix + x.name + "/")
+            : Promise.resolve([prefix + x.name])
+        )
+      ).then()
+    ).flat();
+  } catch (e) {
+    throw e;
+  }
 }
 
 export interface OrgFile {
   organizationId: string;
 }
 
-export function fetchOrgRaw() {
-  if (fs.existsSync(path.join(".merrymake", "conf.json"))) {
-    const org: OrgFile = JSON.parse(
-      "" + fs.readFileSync(path.join(".merrymake", "conf.json"))
-    );
-    return { org, serviceGroup: null, pathToRoot: "." + path.sep };
-  }
-
-  const cwd = process.cwd().split(/\/|\\/);
-  let out = "";
-  let folder = path.sep;
-  let serviceGroup: string | null = null;
-  for (let i = cwd.length - 1; i >= 0; i--) {
-    if (fs.existsSync(out + path.join("..", ".merrymake", "conf.json"))) {
-      serviceGroup = cwd[i];
-      const org = <OrgFile>(
-        JSON.parse(
-          "" + fs.readFileSync(path.join(`${out}..`, `.merrymake`, `conf.json`))
-        )
+export async function fetchOrgRaw() {
+  try {
+    if (existsSync(path.join(".merrymake", "conf.json"))) {
+      const org: OrgFile = JSON.parse(
+        await readFile(path.join(".merrymake", "conf.json"), "utf-8")
       );
-      return { org, serviceGroup, pathToRoot: out + ".." + path.sep };
+      return { org, serviceGroup: null, pathToRoot: "." + path.sep };
     }
-    folder = path.sep + cwd[i] + folder;
-    out += ".." + path.sep;
-  }
-  return { org: null, serviceGroup: null, pathToRoot: null };
-}
-export function fetchOrg() {
-  const res = fetchOrgRaw();
-  if (res.org === null) throw "Not inside a Merrymake organization";
-  return res;
-}
 
-const BYTES = 1;
-const KILOBYTES = 1024 * BYTES;
-const MEGABYTES = 1024 * KILOBYTES;
-const GIGABYTES = 1024 * MEGABYTES;
-const TERABYTES = 1024 * GIGABYTES;
-const PETABYTES = 1024 * TERABYTES;
-const EXABYTES = 1024 * PETABYTES;
+    const cwd = process.cwd().split(/\/|\\/);
+    let out = "";
+    let folder = path.sep;
+    let serviceGroup: string | null = null;
+    for (let i = cwd.length - 1; i >= 0; i--) {
+      if (existsSync(out + path.join("..", ".merrymake", "conf.json"))) {
+        serviceGroup = cwd[i];
+        const org = <OrgFile>(
+          JSON.parse(
+            "" + readFile(path.join(`${out}..`, `.merrymake`, `conf.json`))
+          )
+        );
+        return { org, serviceGroup, pathToRoot: out + ".." + path.sep };
+      }
+      folder = path.sep + cwd[i] + folder;
+      out += ".." + path.sep;
+    }
+    return { org: null, serviceGroup: null, pathToRoot: null };
+  } catch (e) {
+    throw e;
+  }
+}
+export async function fetchOrg() {
+  try {
+    const res = await fetchOrgRaw();
+    if (res.org === null) throw "Not inside a Merrymake organization";
+    return res;
+  } catch (e) {
+    throw e;
+  }
+}
 
 export function execPromise(cmd: string, cwd?: string) {
   return new Promise<string>((resolve, reject) => {
+    debugLog(cmd);
     exec(cmd, { cwd, maxBuffer: 10 * MEGABYTES }, (error, stdout, stderr) => {
       const err = error?.message || stderr;
       if (err) {
@@ -218,18 +233,16 @@ export function urlReq(
   );
 }
 
-export function directoryNames(path: PathTo, exclude: string[]) {
-  if (!fs.existsSync(path.toString())) return [];
-  return fs
-    .readdirSync(path.toString(), { withFileTypes: true })
-    .filter(
+export async function directoryNames(path: PathTo, exclude: string[]) {
+  try {
+    if (!existsSync(path.toString())) return [];
+    return (await readdir(path.toString(), { withFileTypes: true })).filter(
       (x) =>
         x.isDirectory() && !exclude.includes(x.name) && !x.name.startsWith(".")
     );
-}
-
-export function toFolderName(str: string) {
-  return str.toLowerCase().replace(/[^a-z0-9\-_]/g, "-");
+  } catch (e) {
+    throw e;
+  }
 }
 
 export function toSubdomain(displayName: string) {
