@@ -112,20 +112,20 @@ async function role_user_attach(
   accessEmail: string
 ) {
   try {
-    const roles = await listRoles(organizationId);
-    const options: Option[] = roles
-      .filter((role) => !SPECIAL_ROLES.includes(role.name))
-      .map((role) => {
-        return {
-          long: role.id,
-          text: `${role.name} -- ${role.desc}`,
-          action: () =>
-            role_user_attach_role(user, new AccessId(role.id), accessEmail),
-        };
-      });
-    return await choice("Which role would you like to assign?", options).then(
-      (x) => x
-    );
+    return await choice([], async () => {
+      const roles = await listRoles(organizationId);
+      const options: Option[] = roles
+        .filter((role) => !SPECIAL_ROLES.includes(role.name))
+        .map((role) => {
+          return {
+            long: role.id,
+            text: `${role.name} -- ${role.desc}`,
+            action: () =>
+              role_user_attach_role(user, new AccessId(role.id), accessEmail),
+          };
+        });
+      return { options, header: "Which role would you like to assign?" };
+    }).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -137,23 +137,37 @@ async function role_user(
   accessEmail: string
 ) {
   try {
-    const roles = await listRoles(organizationId);
-    const pendingId = roles.find((x) => x.name === "Pending")!.id;
-    const options: Option[] = [];
-    options.push({
-      long: `assign`,
-      short: `a`,
-      text: `assign an additional role to user`,
-      action: () => role_user_attach(organizationId, user, accessEmail),
-    });
-    options.push({
-      long: `remove`,
-      short: `r`,
-      text: `remove all roles and access`,
-      action: () =>
-        role_user_attach_role(user, new AccessId(pendingId), accessEmail),
-    });
-    return await choice("What would you like to do?", options).then();
+    return await choice(
+      [
+        {
+          long: `assign`,
+          short: `a`,
+          text: `assign an additional role to user`,
+          action: () => role_user_attach(organizationId, user, accessEmail),
+        },
+      ],
+      async () => {
+        const roles = await listRoles(organizationId);
+        const pendingId = roles.find((x) => x.name === "Pending")!.id;
+        return {
+          options: [
+            {
+              long: `remove`,
+              short: `r`,
+              text: `remove all roles and access`,
+              weight: -1,
+              action: () =>
+                role_user_attach_role(
+                  user,
+                  new AccessId(pendingId),
+                  accessEmail
+                ),
+            },
+          ],
+          header: "What would you like to do?",
+        };
+      }
+    ).then();
   } catch (e) {
     throw e;
   }
@@ -164,19 +178,19 @@ async function role_auto_new_domain(
   domain: string
 ) {
   try {
-    const roles = await listRoles(organizationId);
-    const options: Option[] = roles
-      .filter((role) => !SPECIAL_ROLES.includes(role.name))
-      .map((role) => {
-        return {
-          long: role.id,
-          text: `${role.name} -- ${role.desc}`,
-          action: () => role_auto_domain_role(domain, new AccessId(role.id)),
-        };
-      });
-    return await choice("Which role should new users get?", options).then(
-      (x) => x
-    );
+    return await choice([], async () => {
+      const roles = await listRoles(organizationId);
+      const options: Option[] = roles
+        .filter((role) => !SPECIAL_ROLES.includes(role.name))
+        .map((role) => {
+          return {
+            long: role.id,
+            text: `${role.name} -- ${role.desc}`,
+            action: () => role_auto_domain_role(domain, new AccessId(role.id)),
+          };
+        });
+      return { options, header: "Which role should new users get?" };
+    }).then();
   } catch (e) {
     throw e;
   }
@@ -197,27 +211,33 @@ async function role_auto_new(organizationId: OrganizationId) {
 
 async function role_auto(organizationId: OrganizationId) {
   try {
-    const resp = await sshReq(`preapprove-list`, organizationId.toString());
-    const domains: { domain: string; access: string }[] = JSON.parse(resp);
-    const doms: { [domain: string]: string[] } = {};
-    domains.forEach((x) => {
-      if (doms[x.domain] === undefined) doms[x.domain] = [];
-      doms[x.domain].push(x.access);
-    });
-    const options: Option[] = Object.keys(doms).map((domain) => {
-      return {
-        long: domain,
-        text: `remove ${domain} (${doms[domain].join(", ")})`,
-        action: () => role_auto_remove(organizationId, domain),
-      };
-    });
-    options.push({
-      long: `new`,
-      short: `n`,
-      text: `setup a new domain rule`,
-      action: () => role_auto_new(organizationId),
-    });
-    return await choice("What would you like to do?", options).then();
+    return await choice(
+      [
+        {
+          long: `new`,
+          short: `n`,
+          text: `setup a new domain rule`,
+          action: () => role_auto_new(organizationId),
+        },
+      ],
+      async () => {
+        const resp = await sshReq(`preapprove-list`, organizationId.toString());
+        const domains: { domain: string; access: string }[] = JSON.parse(resp);
+        const doms: { [domain: string]: string[] } = {};
+        domains.forEach((x) => {
+          if (doms[x.domain] === undefined) doms[x.domain] = [];
+          doms[x.domain].push(x.access);
+        });
+        const options: Option[] = Object.keys(doms).map((domain) => {
+          return {
+            long: domain,
+            text: `remove ${domain} (${doms[domain].join(", ")})`,
+            action: () => role_auto_remove(organizationId, domain),
+          };
+        });
+        return { options, header: "What would you like to do?" };
+      }
+    ).then();
   } catch (e) {
     throw e;
   }
@@ -257,7 +277,6 @@ let activeUsersCache:
 async function initializeCache(organizationId: OrganizationId) {
   if (activeUsersCache === undefined) {
     const resp = await sshReq(`user-list`, organizationId.toString());
-    outputGit(resp);
     if (!resp.startsWith("[")) throw resp;
     const parsed: {
       email: string;
@@ -280,7 +299,6 @@ async function initializeCache(organizationId: OrganizationId) {
         ),
       })
     );
-    outputGit(JSON.stringify(parsed));
     activeUsersCache = Arr.Sync.partition(parsed, (x) =>
       Obj.Sync.some(x.roleExpiry, (k, v) => k !== "Pending")
     );
@@ -296,15 +314,17 @@ export async function listPendingUsers(organizationId: OrganizationId) {
 
 export async function pending(organization: Organization) {
   try {
-    const users = await listPendingUsers(organization.id);
-    const options: Option[] = users.map((user) => {
-      return {
-        long: user.email,
-        text: user.email,
-        action: () => role_user(organization.id, user.id, user.email),
-      };
-    });
-    return await choice("Which user would you like to allow?", options).then();
+    return await choice([], async () => {
+      const users = await listPendingUsers(organization.id);
+      const options: Option[] = users.map((user) => {
+        return {
+          long: user.email,
+          text: user.email,
+          action: () => role_user(organization.id, user.id, user.email),
+        };
+      });
+      return { options, header: "Which user would you like to allow?" };
+    }).then();
   } catch (e) {
     throw e;
   }
@@ -312,44 +332,52 @@ export async function pending(organization: Organization) {
 
 export async function role(organization: Organization) {
   try {
-    const users = await listActiveUsers(organization.id);
-    const options: Option[] = users.map((user) => {
-      return {
-        long: user.id,
-        text: `${user.email}: ${Obj.Sync.toArray(
-          user.roleExpiry,
-          (k, v) =>
-            k +
-            (v === null || v === undefined ? "" : ` (${v.toLocaleString()})`)
-        ).join(", ")}`,
-        action: () => role_user(organization.id, user.id, user.email),
-      };
-    });
     // options.push({
     //   long: `new`,
     //   short: `n`,
     //   text: `create a new role`,
     //   action: () => role_new(org),
     // });
-    options.push({
-      long: `pending`,
-      short: `p`,
-      text: `see or allow pending users`,
-      action: () => pending(organization),
-    });
-    options.push({
-      long: `service`,
-      short: `s`,
-      text: `create a new service user`,
-      action: () => service_user(organization),
-    });
-    options.push({
-      long: `auto`,
-      short: `a`,
-      text: `configure domain auto approval`,
-      action: () => role_auto(organization.id),
-    });
-    return await choice("Which user would you like to manage?", options).then();
+    return await choice(
+      [
+        {
+          long: `pending`,
+          short: `p`,
+          text: `see or allow pending users`,
+          action: () => pending(organization),
+        },
+        {
+          long: `service`,
+          short: `s`,
+          text: `create a new service user`,
+          action: () => service_user(organization),
+        },
+        {
+          long: `auto`,
+          short: `a`,
+          text: `configure domain auto approval`,
+          action: () => role_auto(organization.id),
+        },
+      ],
+      async () => {
+        const users = await listActiveUsers(organization.id);
+        const options: Option[] = users.map((user) => {
+          return {
+            long: user.id,
+            text: `${user.email}: ${Obj.Sync.toArray(
+              user.roleExpiry,
+              (k, v) =>
+                k +
+                (v === null || v === undefined
+                  ? ""
+                  : ` (${v.toLocaleString()})`)
+            ).join(", ")}`,
+            action: () => role_user(organization.id, user.id, user.email),
+          };
+        });
+        return { options, header: "Which user would you like to manage?" };
+      }
+    ).then();
   } catch (e) {
     throw e;
   }

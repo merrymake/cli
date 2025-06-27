@@ -49,23 +49,28 @@ async function event_key(apikeyId: string) {
 
 export async function event(organizationId: OrganizationId) {
   try {
-    const resp = await sshReq(`apikey-list`, organizationId.toString());
-    const keys: { name: string; id: string }[] = JSON.parse(resp);
-    const options: Option[] = keys.map((x) => {
-      const n = x.name || "";
-      return {
-        long: x.id,
-        text: x.name === null ? x.id : `${x.name} (${x.id})`,
-        action: () => event_key(x.id),
-      };
-    });
-    options.push({
-      long: `new`,
-      short: `n`,
-      text: `add a new apikey`,
-      action: () => key_create(organizationId, event_key),
-    });
-    return await choice("Which key to allow events through?", options).then();
+    return await choice(
+      [
+        {
+          long: `new`,
+          short: `n`,
+          text: `add a new apikey`,
+          action: () => key_create(organizationId, event_key),
+        },
+      ],
+      async () => {
+        const resp = await sshReq(`apikey-list`, organizationId.toString());
+        const keys: { name: string; id: string }[] = JSON.parse(resp);
+        const options: Option[] = keys.map((x) => {
+          return {
+            long: x.id,
+            text: x.name === null ? x.id : `${x.name} (${x.id})`,
+            action: () => event_key(x.id),
+          };
+        });
+        return { options, header: "Which key to allow events through?" };
+      }
+    ).then();
   } catch (e) {
     throw e;
   }

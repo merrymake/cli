@@ -174,238 +174,244 @@ const LATEST_WIDTH = 9;
 const FIXED_COLUMNS_WIDTH = STATUS_WIDTH + COUNT_WIDTH + DAY_WIDTH + RESP_TIMES_WIDTH + LATEST_WIDTH;
 export async function queue(organizationId) {
     try {
-        const arg = getArgs().splice(0, 1)[0];
-        if (arg !== undefined) {
-            if (["post", "-p"].includes(arg))
-                return post(organizationId);
-            else if (arg[0] !== "-" && arg !== "x")
-                return queue_event(arg);
-            getArgs().splice(0, 0, arg);
-        }
-        const options = [];
-        const resp = await sshReq(`rapids-all-traces`, organizationId.toString());
-        const parsed = JSON.parse(resp);
-        const tableHeader = (() => {
-            if (parsed.events === null)
-                return ``;
-            const longestEvent = parsed.events.reduce((acc, x) => Math.max(acc, x.length), 5);
-            const size = typeof stdout.getWindowSize !== "function"
-                ? [80, 15]
-                : stdout.getWindowSize();
-            const varColumn = Math.min(size[0] -
-                FIXED_COLUMNS_WIDTH -
-                "─┼──┼──┼──┼──┼─".length -
-                "> [_] ".length, longestEvent + 1);
-            const height = size[1] - 7;
-            const tableHeader = "\n" +
-                printTableHeader("      ", {
-                    Event: varColumn,
-                    "S/W/F": STATUS_WIDTH,
-                    Count: COUNT_WIDTH,
-                    Day: DAY_WIDTH,
-                    "Resp. Time Range": RESP_TIMES_WIDTH,
-                    Latest: LATEST_WIDTH,
+        return await choice([
+            {
+                long: "post",
+                short: "p",
+                text: "post message to rapids using an api-key",
+                action: () => post(organizationId),
+            },
+        ], async () => {
+            const options = [];
+            const resp = await sshReq(`rapids-all-traces`, organizationId.toString());
+            const parsed = JSON.parse(resp);
+            const tableHeader = (() => {
+                if (parsed.events === null)
+                    return ``;
+                const longestEvent = parsed.events.reduce((acc, x) => Math.max(acc, x.length), 5);
+                const size = typeof stdout.getWindowSize !== "function"
+                    ? [80, 15]
+                    : stdout.getWindowSize();
+                const varColumn = Math.min(size[0] -
+                    FIXED_COLUMNS_WIDTH -
+                    "─┼──┼──┼──┼──┼─".length -
+                    "> [_] ".length, longestEvent + 1);
+                const height = size[1] - 7;
+                const tableHeader = "\n" +
+                    printTableHeader("      ", {
+                        Event: varColumn,
+                        "S/W/F": STATUS_WIDTH,
+                        Count: COUNT_WIDTH,
+                        Day: DAY_WIDTH,
+                        "Resp. Time Range": RESP_TIMES_WIDTH,
+                        Latest: LATEST_WIDTH,
+                    });
+                debugLog("Bucketing...");
+                const buckets = {};
+                parsed.is.forEach((p, i) => {
+                    if (buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] === undefined)
+                        buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] = {
+                            e: parsed.events[parsed.es[i]],
+                            s: parsed.ss[i],
+                            max: parsed.ds[i],
+                            min: parsed.ds[i],
+                            points: [],
+                        };
+                    if (buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].max <
+                        parsed.ds[i])
+                        buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].max =
+                            parsed.ds[i];
+                    if (buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].min >
+                        parsed.ds[i])
+                        buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].min =
+                            parsed.ds[i];
+                    buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].points.push({
+                        i: parsed.is[i],
+                        l: new Date(parsed.ls[i]),
+                        d: parsed.ds[i],
+                    });
                 });
-            debugLog("Bucketing...");
-            const buckets = {};
-            parsed.is.forEach((p, i) => {
-                if (buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] === undefined)
-                    buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]] = {
-                        e: parsed.events[parsed.es[i]],
-                        s: parsed.ss[i],
-                        max: parsed.ds[i],
-                        min: parsed.ds[i],
-                        points: [],
-                    };
-                if (buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].max < parsed.ds[i])
-                    buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].max =
-                        parsed.ds[i];
-                if (buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].min > parsed.ds[i])
-                    buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].min =
-                        parsed.ds[i];
-                buckets[parsed.es[i] + parsed.ss[i] + parsed.hs[i]].points.push({
-                    i: parsed.is[i],
-                    l: new Date(parsed.ls[i]),
-                    d: parsed.ds[i],
-                });
-            });
-            Object.values(buckets).forEach((p) => {
-                // Str.print(JSON.stringify(p.points.map((x) => x.d)));
-                debugLog("  Build histogram...");
-                const [hg, resolution] = histogram(p.points, p.min, p.max);
-                debugLog("  Peak detection...");
-                const sep = [];
-                let prev = hg[0];
-                let increasing = true;
-                for (let i = 0; i < hg.length; i++) {
-                    const t = hg[i] || 0;
-                    if (increasing && t < prev) {
-                        increasing = false;
+                Object.values(buckets).forEach((p) => {
+                    // Str.print(JSON.stringify(p.points.map((x) => x.d)));
+                    debugLog("  Build histogram...");
+                    const [hg, resolution] = histogram(p.points, p.min, p.max);
+                    debugLog("  Peak detection...");
+                    const sep = [];
+                    let prev = hg[0];
+                    let increasing = true;
+                    for (let i = 0; i < hg.length; i++) {
+                        const t = hg[i] || 0;
+                        if (increasing && t < prev) {
+                            increasing = false;
+                        }
+                        else if (!increasing && t > prev) {
+                            increasing = true;
+                            sep.push((i - 0.5) * resolution + p.min);
+                        }
+                        prev = t;
                     }
-                    else if (!increasing && t > prev) {
-                        increasing = true;
-                        sep.push((i - 0.5) * resolution + p.min);
-                    }
-                    prev = t;
-                }
-                debugLog("  Further bucketing...");
-                const buckets = new Array(7)
-                    .fill(null)
-                    .map((x) => new Array(sep.length + 1).fill(null).map((x) => []));
-                p.points.forEach((x) => {
-                    let i = 0;
-                    while (i < sep.length && sep[i] < +x.d)
-                        i++;
-                    buckets[x.l.getDay()][i].push(x);
-                });
-                buckets.forEach((bw) => {
-                    bw.forEach((b) => {
-                        if (b.length === 0)
-                            return;
-                        b.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
-                        const latest = b.reduce((a, x) => (x.l > a.l ? x : a), b[0]);
-                        const st = p.s.split("/");
-                        const interest = st.length === 1 || +st[2] + +st[1] > 0
-                            ? Interest.INTERESTING
-                            : b.length === 1
-                                ? Interest.MODERATELY_INTERESTING
-                                : Interest.MILDLY_INTERESTING;
-                        const text = (() => {
-                            if (![undefined, "x"].includes(getArgs()[0]))
-                                return ``;
-                            debugLog("    Formatting response time...");
-                            const responseTime = (() => {
-                                const empty = " ".repeat(5);
-                                const mid = ~~((b.length - 1) / 2);
-                                const t = [
-                                    b[Math.floor((b.length - 1) / 4)].d,
-                                    (b[mid].d + b[b.length - 1 - mid].d) / 2,
-                                    b[Math.ceil((3 * (b.length - 1)) / 4)].d,
-                                ];
-                                const times = t.map((x) => Number.isFinite(x) ? Str.withUnit(x, UnitType.Duration) : "");
-                                const [q1, q2, q3] = times[0] === times[2]
-                                    ? [empty, Str.alignRight(times[0], RESP_TIME_WIDTH), empty]
-                                    : b.length === 2
+                    debugLog("  Further bucketing...");
+                    const buckets = new Array(7)
+                        .fill(null)
+                        .map((x) => new Array(sep.length + 1).fill(null).map((x) => []));
+                    p.points.forEach((x) => {
+                        let i = 0;
+                        while (i < sep.length && sep[i] < +x.d)
+                            i++;
+                        buckets[x.l.getDay()][i].push(x);
+                    });
+                    buckets.forEach((bw) => {
+                        bw.forEach((b) => {
+                            if (b.length === 0)
+                                return;
+                            b.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+                            const latest = b.reduce((a, x) => (x.l > a.l ? x : a), b[0]);
+                            const st = p.s.split("/");
+                            const interest = st.length === 1 || +st[2] + +st[1] > 0
+                                ? Interest.INTERESTING
+                                : b.length === 1
+                                    ? Interest.MODERATELY_INTERESTING
+                                    : Interest.MILDLY_INTERESTING;
+                            const text = (() => {
+                                if (![undefined, "x"].includes(getArgs()[0]))
+                                    return ``;
+                                debugLog("    Formatting response time...");
+                                const responseTime = (() => {
+                                    const empty = " ".repeat(5);
+                                    const mid = ~~((b.length - 1) / 2);
+                                    const t = [
+                                        b[Math.floor((b.length - 1) / 4)].d,
+                                        (b[mid].d + b[b.length - 1 - mid].d) / 2,
+                                        b[Math.ceil((3 * (b.length - 1)) / 4)].d,
+                                    ];
+                                    const times = t.map((x) => Number.isFinite(x)
+                                        ? Str.withUnit(x, UnitType.Duration)
+                                        : "");
+                                    const [q1, q2, q3] = times[0] === times[2]
                                         ? [
+                                            empty,
                                             Str.alignRight(times[0], RESP_TIME_WIDTH),
                                             empty,
-                                            Str.alignRight(times[2], RESP_TIME_WIDTH),
                                         ]
-                                        : b.length === 3
+                                        : b.length === 2
                                             ? [
                                                 Str.alignRight(times[0], RESP_TIME_WIDTH),
-                                                Str.alignRight(GRAY + times[1], RESP_TIME_WIDTH),
+                                                empty,
                                                 Str.alignRight(times[2], RESP_TIME_WIDTH),
                                             ]
-                                            : [
-                                                Str.alignRight(times[0], RESP_TIME_WIDTH),
-                                                /*[
+                                            : b.length === 3
+                                                ? [
+                                                    Str.alignRight(times[0], RESP_TIME_WIDTH),
+                                                    Str.alignRight(GRAY + times[1], RESP_TIME_WIDTH),
+                                                    Str.alignRight(times[2], RESP_TIME_WIDTH),
+                                                ]
+                                                : [
+                                                    Str.alignRight(times[0], RESP_TIME_WIDTH),
+                                                    /*[
                                               `${GRAY}<<   `,
                                               ` ${GRAY}<   `,
                                               `  ${GRAY}|  `,
                                               `   ${GRAY}> `,
                                               `   ${GRAY}>>`,
                                             ]*/
-                                                GRAY +
-                                                    ["▇▄▃▁▁", "▅▇▄▃▁", "▁▄▇▄▁", "▁▃▄▇▅", "▁▁▃▄▇"][~~((t[1] - t[0]) / ((t[2] - t[0]) / 4))],
-                                                // (() => {
-                                                //   const slic = b; // b.slice(p[0], p[2]);
-                                                //   const [hg] = histogram(
-                                                //     slic,
-                                                //     slic[0].d,
-                                                //     slic[slic.length - 1].d,
-                                                //     5
-                                                //   );
-                                                //   console.log(hg);
-                                                //   const [min, max] = hg.reduce(
-                                                //     (a, x) => [Math.min(a[0], x), Math.max(a[1], x)],
-                                                //     [Number.POSITIVE_INFINITY, 0]
-                                                //   );
-                                                //   const yStep = (max - min) / 5;
-                                                //   return hg
-                                                //     .map((x) => "▁▃▄▅▆▇"[~~((x - min) / yStep)])
-                                                //     .join("");
-                                                // })(),
-                                                Str.alignRight(times[2], RESP_TIME_WIDTH),
-                                            ];
-                                return `${q1}${GRAY}¦${NORMAL_COLOR}${q2}${GRAY}¦${NORMAL_COLOR}${q3}`;
-                            })();
-                            debugLog("    Formatting status...");
-                            const status = ["cache"].includes(p.s)
-                                ? GREEN +
-                                    p.s +
-                                    NORMAL_COLOR +
-                                    " ".repeat(Math.max(STATUS_WIDTH - p.s.length, 0))
-                                : st.length === 1
-                                    ? RED +
+                                                    GRAY +
+                                                        ["▇▄▃▁▁", "▅▇▄▃▁", "▁▄▇▄▁", "▁▃▄▇▅", "▁▁▃▄▇"][~~((t[1] - t[0]) / ((t[2] - t[0]) / 4))],
+                                                    // (() => {
+                                                    //   const slic = b; // b.slice(p[0], p[2]);
+                                                    //   const [hg] = histogram(
+                                                    //     slic,
+                                                    //     slic[0].d,
+                                                    //     slic[slic.length - 1].d,
+                                                    //     5
+                                                    //   );
+                                                    //   console.log(hg);
+                                                    //   const [min, max] = hg.reduce(
+                                                    //     (a, x) => [Math.min(a[0], x), Math.max(a[1], x)],
+                                                    //     [Number.POSITIVE_INFINITY, 0]
+                                                    //   );
+                                                    //   const yStep = (max - min) / 5;
+                                                    //   return hg
+                                                    //     .map((x) => "▁▃▄▅▆▇"[~~((x - min) / yStep)])
+                                                    //     .join("");
+                                                    // })(),
+                                                    Str.alignRight(times[2], RESP_TIME_WIDTH),
+                                                ];
+                                    return `${q1}${GRAY}¦${NORMAL_COLOR}${q2}${GRAY}¦${NORMAL_COLOR}${q3}`;
+                                })();
+                                debugLog("    Formatting status...");
+                                const status = ["cache"].includes(p.s)
+                                    ? GREEN +
                                         p.s +
                                         NORMAL_COLOR +
                                         " ".repeat(Math.max(STATUS_WIDTH - p.s.length, 0))
-                                    : p.s === "1/0/0"
-                                        ? Str.alignLeft(GREEN + "succ" + NORMAL_COLOR, STATUS_WIDTH)
-                                        : p.s === "0/1/0"
-                                            ? Str.alignLeft(YELLOW + "warn" + NORMAL_COLOR, STATUS_WIDTH)
-                                            : p.s === "0/0/1"
-                                                ? Str.alignLeft(RED + "fail" + NORMAL_COLOR, STATUS_WIDTH)
-                                                : " ".repeat(Math.max(STATUS_WIDTH - p.s.length, 0)) +
-                                                    (+st[0] > 0 ? GREEN : GRAY) +
-                                                    st[0] +
-                                                    GRAY +
-                                                    "/" +
-                                                    (+st[1] > 0 ? YELLOW : "") +
-                                                    st[1] +
-                                                    GRAY +
-                                                    "/" +
-                                                    (+st[2] > 0 ? RED : "") +
-                                                    st[2] +
-                                                    NORMAL_COLOR;
-                            debugLog("    Formatting latest...");
-                            const timeDiff = Date.now() - latest.l.getTime();
-                            const time = timeDiff < 4 * HOURS
-                                ? Str.alignRight(Str.withUnit(timeDiff, UnitType.Duration), 5) + " ago"
-                                : latest.l.getHours().toString().padStart(2, " ") +
-                                    ":" +
-                                    latest.l.getMinutes().toString().padStart(2, "0") +
-                                    GRAY +
-                                    ":" +
-                                    latest.l.getSeconds().toString().padStart(2, "0") +
-                                    NORMAL_COLOR +
-                                    " ";
-                            const text = `${Str.alignRight(p.e, varColumn)} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${Str.alignRight(b.length === 1 ? "" : b.length.toString(), COUNT_WIDTH)} ${GRAY}│${NORMAL_COLOR} ${WEEKDAYS[latest.l.getDay()]} ${GRAY}│${NORMAL_COLOR} ${responseTime} ${GRAY}│${NORMAL_COLOR} ${time}`;
-                            return text;
-                        })();
-                        options.push({
-                            long: latest.i,
-                            text,
-                            action: () => queue_event(latest.i),
-                            weight: latest.l.getTime(),
-                            day: latest.l.getDay(),
-                            interest,
+                                    : st.length === 1
+                                        ? RED +
+                                            p.s +
+                                            NORMAL_COLOR +
+                                            " ".repeat(Math.max(STATUS_WIDTH - p.s.length, 0))
+                                        : p.s === "1/0/0"
+                                            ? Str.alignLeft(GREEN + "succ" + NORMAL_COLOR, STATUS_WIDTH)
+                                            : p.s === "0/1/0"
+                                                ? Str.alignLeft(YELLOW + "warn" + NORMAL_COLOR, STATUS_WIDTH)
+                                                : p.s === "0/0/1"
+                                                    ? Str.alignLeft(RED + "fail" + NORMAL_COLOR, STATUS_WIDTH)
+                                                    : " ".repeat(Math.max(STATUS_WIDTH - p.s.length, 0)) +
+                                                        (+st[0] > 0 ? GREEN : GRAY) +
+                                                        st[0] +
+                                                        GRAY +
+                                                        "/" +
+                                                        (+st[1] > 0 ? YELLOW : "") +
+                                                        st[1] +
+                                                        GRAY +
+                                                        "/" +
+                                                        (+st[2] > 0 ? RED : "") +
+                                                        st[2] +
+                                                        NORMAL_COLOR;
+                                debugLog("    Formatting latest...");
+                                const timeDiff = Date.now() - latest.l.getTime();
+                                const time = timeDiff < 4 * HOURS
+                                    ? Str.alignRight(Str.withUnit(timeDiff, UnitType.Duration), 5) + " ago"
+                                    : latest.l.getHours().toString().padStart(2, " ") +
+                                        ":" +
+                                        latest.l.getMinutes().toString().padStart(2, "0") +
+                                        GRAY +
+                                        ":" +
+                                        latest.l.getSeconds().toString().padStart(2, "0") +
+                                        NORMAL_COLOR +
+                                        " ";
+                                const text = `${Str.alignRight(p.e, varColumn)} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${Str.alignRight(b.length === 1 ? "" : b.length.toString(), COUNT_WIDTH)} ${GRAY}│${NORMAL_COLOR} ${WEEKDAYS[latest.l.getDay()]} ${GRAY}│${NORMAL_COLOR} ${responseTime} ${GRAY}│${NORMAL_COLOR} ${time}`;
+                                return text;
+                            })();
+                            options.push({
+                                long: latest.i,
+                                text,
+                                action: () => queue_event(latest.i),
+                                weight: latest.l.getTime(),
+                                day: latest.l.getDay(),
+                                interest,
+                            });
                         });
                     });
                 });
-            });
-            debugLog("Polishing...");
-            options.sort((a, b) => b.weight - a.weight);
-            options.splice(height, options.length);
-            return tableHeader;
-        })();
-        debugLog("Calculating selected...");
-        let mostInteresting = 0;
-        for (let i = 0; i < options.length - 1; i++) {
-            if (options[mostInteresting].interest < options[i + 1].interest)
-                mostInteresting = i + 1;
-            if (options[i].day !== options[i + 1].day)
-                options[i].text = options[i].text.replace(/( +)/g, (s) => `${GRAY}${"_".repeat(s.length)}${NORMAL_COLOR}`);
-        }
-        const opts = options;
-        opts.push({
-            long: "post",
-            short: "p",
-            text: "post message to rapids using an api-key",
-            action: () => post(organizationId),
-        });
-        return await choice("Which trace would you like to inspect?" + tableHeader, opts, { def: mostInteresting }).then();
+                debugLog("Polishing...");
+                options.sort((a, b) => b.weight - a.weight);
+                options.splice(height, options.length);
+                return tableHeader;
+            })();
+            debugLog("Calculating selected...");
+            let mostInteresting = 0;
+            for (let i = 0; i < options.length - 1; i++) {
+                if (options[mostInteresting].interest < options[i + 1].interest)
+                    mostInteresting = i + 1;
+                if (options[i].day !== options[i + 1].day)
+                    options[i].text = options[i].text.replace(/( +)/g, (s) => `${GRAY}${"_".repeat(s.length)}${NORMAL_COLOR}`);
+            }
+            return {
+                options,
+                header: "Which trace would you like to inspect?" + tableHeader,
+                def: mostInteresting,
+            };
+        }).then();
     }
     catch (e) {
         throw e;

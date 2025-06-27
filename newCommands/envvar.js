@@ -40,7 +40,7 @@ function envvar_key_value_access_visible(pathToOrganization, organizationId, ser
     return finish();
 }
 function envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, value, secret, init, prod) {
-    return choice("Where would you like the variable to be visible?", [
+    return choice([
         {
             long: "both",
             short: "b",
@@ -59,7 +59,11 @@ function envvar_key_visible_value(pathToOrganization, organizationId, serviceGro
             text: "accessible in the init run",
             action: () => envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, value, ["--inInitRun"], secret),
         },
-    ], { def: init ? (prod ? 0 : 2) : 1 });
+    ], async () => ({
+        options: [],
+        header: "Where would you like the variable to be visible?",
+        def: init ? (prod ? 0 : 2) : 1,
+    }));
 }
 async function envvar_key_visible(pathToOrganization, organizationId, serviceGroupId, key, secret, init, prod) {
     try {
@@ -86,7 +90,7 @@ async function envvar_key_random(pathToOrganization, organizationId, serviceGrou
     }
 }
 function envvar_key(pathToOrganization, organizationId, serviceGroupId, key, secret, init, prod) {
-    return choice("What type of data is it?", [
+    return choice([
         {
             long: "secret",
             short: "s",
@@ -111,7 +115,11 @@ function envvar_key(pathToOrganization, organizationId, serviceGroupId, key, sec
             text: "delete the environment variable",
             action: () => envvar_key_value_access_visible(pathToOrganization, organizationId, serviceGroupId, key, Buffer.from(""), ["--inProduction", "--inInitRun"], false),
         },
-    ], { def: secret ? 0 : 1 });
+    ], async () => ({
+        options: [],
+        header: "What type of data is it?",
+        def: secret ? 0 : 1,
+    }));
 }
 async function envvar_new(pathToOrganization, organizationId, serviceGroupId) {
     try {
@@ -124,20 +132,26 @@ async function envvar_new(pathToOrganization, organizationId, serviceGroupId) {
 }
 export async function envvar(pathToOrganization, organizationId, serviceGroupId) {
     try {
-        const resp = await sshReq(`envvar-list`, serviceGroupId.toString());
-        const orgs = JSON.parse(resp);
-        const options = orgs.map((x) => ({
-            long: x.k,
-            text: `[${x.i ? "I" : " "}${x.p ? "P" : " "}] ${x.k}: ${x.v}`,
-            action: () => envvar_key(pathToOrganization, organizationId, serviceGroupId, x.k, x.s, x.i, x.p),
-        }));
-        options.push({
-            long: `new`,
-            short: `n`,
-            text: `add a new environment variable`,
-            action: () => envvar_new(pathToOrganization, organizationId, serviceGroupId),
-        });
-        return await choice("Which environment variable would you like to edit?", options).then();
+        return await choice([
+            {
+                long: `new`,
+                short: `n`,
+                text: `add a new environment variable`,
+                action: () => envvar_new(pathToOrganization, organizationId, serviceGroupId),
+            },
+        ], async () => {
+            const resp = await sshReq(`envvar-list`, serviceGroupId.toString());
+            const orgs = JSON.parse(resp);
+            const options = orgs.map((x) => ({
+                long: x.k,
+                text: `[${x.i ? "I" : " "}${x.p ? "P" : " "}] ${x.k}: ${x.v}`,
+                action: () => envvar_key(pathToOrganization, organizationId, serviceGroupId, x.k, x.s, x.i, x.p),
+            }));
+            return {
+                options,
+                header: "Which environment variable would you like to edit?",
+            };
+        }).then();
     }
     catch (e) {
         throw e;

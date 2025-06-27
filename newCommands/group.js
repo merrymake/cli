@@ -2,7 +2,7 @@ import { Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { mkdir, rename, writeFile } from "fs/promises";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
-import { choice, shortText } from "../prompt.js";
+import { choice, resetCommand, shortText } from "../prompt.js";
 import { PathToServiceGroup, ServiceGroupId, } from "../types.js";
 import { sshReq } from "../utils.js";
 import { repo_create } from "./repo.js";
@@ -22,24 +22,29 @@ function deleteServiceGroupId(serviceGroup, displayName) {
     addToExecuteQueue(async () => do_deleteServiceGroup(serviceGroup, displayName));
     return finish();
 }
-export async function deleteServiceGroup(organizationId) {
+export async function deleteServiceGroup(organization) {
     try {
-        const resp = await sshReq(`group-list`, organizationId.toString());
-        if (!resp.startsWith("["))
-            throw resp;
-        const groups = JSON.parse(resp);
-        const options = groups.map((group) => {
-            const folderName = Str.toFolderName(group.name);
+        return await choice([], async () => {
+            const resp = await sshReq(`group-list`, organization.id.toString());
+            if (!resp.startsWith("["))
+                throw resp;
+            const groups = JSON.parse(resp);
+            const options = groups.map((group) => {
+                const folderName = Str.toFolderName(group.name);
+                return {
+                    long: folderName,
+                    text: `Delete ${group.name} (${folderName})`,
+                    action: () => deleteServiceGroupId({
+                        id: new ServiceGroupId(group.id),
+                        pathTo: new PathToServiceGroup(organization.pathTo, folderName),
+                    }, group.name),
+                };
+            });
             return {
-                long: folderName,
-                text: `Delete ${group.name} (${folderName})`,
-                action: () => deleteServiceGroupId({
-                    id: new ServiceGroupId(group.id),
-                    pathTo: new PathToServiceGroup(folderName),
-                }, group.name),
+                options,
+                header: "Which service group would you like to delete?",
             };
-        });
-        return await choice("Which service group would you like to delete?", options).then();
+        }).then();
     }
     catch (e) {
         throw e;
@@ -62,6 +67,7 @@ export async function do_createServiceGroup(path, organizationId, displayName) {
 }
 export async function group(organization) {
     try {
+        resetCommand("group");
         let num = 1;
         while (existsSync(organization.pathTo.with("service-group-" + num).toString()))
             num++;

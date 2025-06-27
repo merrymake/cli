@@ -78,7 +78,6 @@ async function rebaseOntoMain(monorepo: boolean) {
     );
     if (output.trimEnd().endsWith("Everything up-to-date") && !monorepo) {
       return choice(
-        "Would you like to redeploy?",
         [
           {
             long: "again",
@@ -86,6 +85,9 @@ async function rebaseOntoMain(monorepo: boolean) {
             action: () => redeploy(),
           },
         ],
+        async () => {
+          return { options: [], header: "Would you like to redeploy?" };
+        },
         { disableAutoPick: true }
       );
     }

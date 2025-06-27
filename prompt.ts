@@ -142,6 +142,10 @@ function getCursorPosition() {
 let command = "";
 let hasSecret = false;
 
+export function resetCommand(str: string) {
+  command = getCommand() + (str.length === 0 ? "" : " " + str);
+}
+
 function makeSelectionSuperInternal(
   action: () => Promise<never>,
   extra: () => void = () => {}
@@ -190,21 +194,47 @@ function cleanup() {
 export type Option = {
   long: string;
   short?: string;
+  weight?: number;
   text: string;
   action: () => Promise<never>;
 };
 
 export function choice(
-  heading: string,
-  options: Option[],
-  opts?: {
+  staticOptions: Option[],
+  dynamicOptionsMaker: () => Promise<{
+    options: Option[];
+    header: string;
     def?: number;
+  }>,
+  opts?: {
     disableAutoPick?: boolean;
     invertedQuiet?: { cmd: boolean };
     errorMessage?: string;
   }
 ) {
-  return new Promise<never>((resolve, reject) => {
+  return new Promise<never>(async (resolve, reject) => {
+    if (getArgs().length > 0) {
+      // First try static options (FAST)
+      const o = staticOptions.find(
+        (x) => getArgs()[0] === x.long || getArgs()[0] === `-${x.short}`
+      );
+      if (o !== undefined) {
+        getArgs().splice(0, 1);
+        const prom =
+          opts?.invertedQuiet?.cmd === true
+            ? makeSelection(o)
+            : makeSelectionQuietly(o);
+        prom.then(resolve);
+        prom.catch(reject);
+        return;
+      }
+    }
+    // No static option found, time to run the slow options
+    const dynamic = await dynamicOptionsMaker();
+    const { options: dynamicOptions, header: heading } = dynamic;
+    dynamicOptions.forEach((o) => (o.weight = o.weight || 1));
+    const options = staticOptions.concat(dynamicOptions);
+    options.sort((a, b) => (b.weight || 0) - (a.weight || 0));
     if (options.length === 0) {
       console.log(opts?.errorMessage || "There are no options.");
       process.exit(1);
@@ -267,7 +297,7 @@ export function choice(
       }
       str.push("\n");
     }
-    let pos = opts?.def || 0;
+    let pos = dynamic?.def || 0;
     if (getArgs().length > 0) {
       const arg = getArgs().splice(0, 1)[0];
       if (arg === "x") {
@@ -290,7 +320,8 @@ export function choice(
         prom.then(resolve);
         prom.catch(reject);
         return;
-      } else if (CONTEXTS[arg] !== undefined) output(CONTEXTS[arg](arg) + "\n");
+      } else if (CONTEXTS[arg] !== undefined)
+        output((await CONTEXTS[arg](arg)) + "\n");
       else
         output(
           `${RED}Invalid argument in the current context: ${arg}${NORMAL_COLOR}\n`

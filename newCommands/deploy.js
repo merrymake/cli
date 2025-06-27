@@ -62,13 +62,15 @@ async function rebaseOntoMain(monorepo) {
             ? `git fetch && ({ ! git ls-remote --exit-code origin ${remoteHead} >/dev/null; } || git rebase origin/${remoteHead}) && `
             : "") + `git push origin HEAD:${remoteHead || "main"} 2>&1`, true);
         if (output.trimEnd().endsWith("Everything up-to-date") && !monorepo) {
-            return choice("Would you like to redeploy?", [
+            return choice([
                 {
                     long: "again",
                     text: "deploy again",
                     action: () => redeploy(),
                 },
-            ], { disableAutoPick: true });
+            ], async () => {
+                return { options: [], header: "Would you like to redeploy?" };
+            }, { disableAutoPick: true });
         }
         return finish();
     }

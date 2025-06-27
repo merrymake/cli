@@ -2,9 +2,15 @@ import { choice } from "../prompt.js";
 
 export async function wait(text: string, action: () => Promise<never>) {
   try {
-    return choice(text, [{ long: "continue", text: "continue", action }], {
-      disableAutoPick: true,
-    });
+    return choice(
+      [{ long: "continue", text: "continue", action }],
+      async () => {
+        return { options: [], header: text };
+      },
+      {
+        disableAutoPick: true,
+      }
+    );
   } catch (e) {
     throw e;
   }

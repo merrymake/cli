@@ -1,14 +1,14 @@
 import { existsSync } from "fs";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import { CYAN, GREEN, NORMAL_COLOR, RED } from "../prompt.js";
-import { fetchOrgRaw, sshReq, urlReq } from "../utils.js";
+import { CYAN, GREEN, NORMAL_COLOR } from "../prompt.js";
 import {
   Organization,
   PathToRepository,
   RepositoryId,
   ServiceGroup,
 } from "../types.js";
+import { sshReq, urlReq } from "../utils.js";
 
 async function do_help(ctx: {
   repositoryId: RepositoryId | undefined;

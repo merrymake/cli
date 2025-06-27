@@ -31,33 +31,40 @@ export interface PathTo {
 export class PathToOrganization implements PathTo {
   constructor(private readonly pathToOrganization: string) {}
   with(folder: string) {
-    return new PathToServiceGroup(path.join(this.pathToOrganization, folder));
+    return new PathToServiceGroup(this, folder);
   }
   toString() {
     return this.pathToOrganization;
   }
 }
 export class PathToServiceGroup implements PathTo {
-  constructor(private readonly pathToServiceGroup: string) {}
-  with(folder: string) {
-    return new PathToRepository(path.join(this.pathToServiceGroup, folder));
+  constructor(
+    private pathToParent: PathToOrganization,
+    private readonly folder: string
+  ) {}
+  parent() {
+    return this.pathToParent;
   }
-  last() {
-    return this.pathToServiceGroup.substring(
-      this.pathToServiceGroup.lastIndexOf("/")
-    );
+  with(folder: string) {
+    return new PathToRepository(this, folder);
   }
   toString() {
-    return this.pathToServiceGroup;
+    return path.join(this.pathToParent.toString(), this.folder);
   }
 }
 export class PathToRepository implements PathTo {
-  constructor(private readonly pathToRepository: string) {}
+  constructor(
+    private pathToParent: PathToServiceGroup,
+    private readonly folder: string
+  ) {}
+  parent() {
+    return this.pathToParent;
+  }
   with(folder: string) {
-    return new Path(path.join(this.pathToRepository, folder));
+    return new Path(path.join(this.toString(), folder));
   }
   toString() {
-    return this.pathToRepository;
+    return path.join(this.pathToParent.toString(), this.folder);
   }
 }
 export class Path implements PathTo {

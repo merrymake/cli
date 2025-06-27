@@ -8,6 +8,7 @@ import {
   YELLOW,
   choice,
   output,
+  resetCommand,
   shortText,
 } from "../prompt.js";
 import { OrganizationId } from "../types.js";
@@ -29,8 +30,8 @@ export async function do_key_create(
     const reply = await sshReq(...cmd);
     if (reply.length !== 8) throw reply;
     output(
-      `Created apikey ${
-        description !== "" ? `'${description}'` : ""
+      `Created apikey${
+        description !== "" ? ` '${description}'` : ""
       }: ${YELLOW}${reply}${NORMAL_COLOR}\n`
     );
     const apikeyId = reply;
@@ -101,6 +102,7 @@ export async function key_create(
   continuation: (apikeyId: string) => Promise<never>
 ) {
   try {
+    resetCommand("key");
     const description = await shortText(
       "Apikey display name",
       "Used to identify this key",
@@ -119,48 +121,56 @@ export async function key_create(
 
 export async function key(organizationId: OrganizationId) {
   try {
-    const resp = await sshReq(`apikey-list`, organizationId.toString());
-    const keys: { name: string; id: string; expiresOn: Date }[] =
-      JSON.parse(resp);
-    const options: Option[] = [];
-    const tableHeader = Str.AsciiTable.advanced(
-      {
-        Key: 8,
-        "Display name>": -12,
-        "<Expiry time": 23,
-      },
-      keys,
-      (x) => {
-        const d = new Date(x.expiresOn);
-        const ds =
-          d.getTime() < Date.now()
-            ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
-            : d.toLocaleString();
-        const n = x.name || "";
-        return [x.id, n, ds];
-      },
-      (text, x) => {
-        options.push({
-          long: x.id,
-          text,
-          action: () =>
-            key_key(x.name, (description, duration) =>
-              composeAwait(finish, do_key_modify(x.id, description, duration))
-            ),
-        });
-      },
-      "      "
-    );
-
-    options.push({
-      long: `new`,
-      short: `n`,
-      text: `add a new apikey`,
-      action: () => key_create(organizationId, finish),
-    });
     return await choice(
-      "Which apikey would you like to edit?\n" + tableHeader,
-      options
+      [
+        {
+          long: `new`,
+          short: `n`,
+          text: `add a new apikey`,
+          action: () => key_create(organizationId, finish),
+        },
+      ],
+      async () => {
+        const resp = await sshReq(`apikey-list`, organizationId.toString());
+        const keys: { name: string; id: string; expiresOn: Date }[] =
+          JSON.parse(resp);
+        const options: Option[] = [];
+        const tableHeader = Str.AsciiTable.advanced(
+          {
+            Key: 8,
+            "Display name>": -12,
+            "<Expiry time": 23,
+          },
+          keys,
+          (x) => {
+            const d = new Date(x.expiresOn);
+            const ds =
+              d.getTime() < Date.now()
+                ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
+                : d.toLocaleString();
+            const n = x.name || "";
+            return [x.id, n, ds];
+          },
+          (text, x) => {
+            options.push({
+              long: x.id,
+              text,
+              action: () =>
+                key_key(x.name, (description, duration) =>
+                  composeAwait(
+                    finish,
+                    do_key_modify(x.id, description, duration)
+                  )
+                ),
+            });
+          },
+          "      "
+        );
+        return {
+          options,
+          header: "Which apikey would you like to edit?\n" + tableHeader,
+        };
+      }
     ).then();
   } catch (e) {
     throw e;

@@ -4,7 +4,7 @@ import http from "http";
 import https from "https";
 import path from "path";
 import { SSH_HOST, SSH_USER } from "./config.js";
-import { MEGABYTES, Promise_all, Str } from "@merrymake/utils";
+import { MEGABYTES, Obj, Promise_all, Str, UnitType } from "@merrymake/utils";
 import { PathTo } from "./types.js";
 import { debugLog } from "./printUtils.js";
 import { readdir, readFile } from "fs/promises";
@@ -120,9 +120,14 @@ export function execPromise(cmd: string, cwd?: string) {
   return new Promise<string>((resolve, reject) => {
     debugLog(cmd);
     exec(cmd, { cwd, maxBuffer: 10 * MEGABYTES }, (error, stdout, stderr) => {
-      const err = error?.message || stderr;
-      if (err) {
-        reject(stderr || stdout);
+      const errors = [];
+      if (error !== null) {
+        if (error.message.length > 0) errors.push(error.message);
+        else errors.push(error);
+        if (stderr.length > 0) errors.push(stderr);
+      }
+      if (errors.length > 0) {
+        reject({ cmd, errors, stdout });
       } else {
         resolve(stdout);
       }
@@ -173,6 +178,7 @@ export async function sshReq(...cmd: string[]) {
     );
     return result;
   } catch (e) {
+    if (Obj.hasKey("stdout", e)) throw e.stdout;
     throw e;
   } finally {
     spinner?.stop();
@@ -191,7 +197,7 @@ export function urlReq(
   data?: string,
   contentType = "application/json"
 ) {
-  return new Promise<{ body: string; code: number | undefined }>(
+  return new Promise<{ body: string; code: number | undefined; time: number }>(
     (resolve, reject) => {
       const [protocol, fullPath] =
         url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
@@ -204,6 +210,7 @@ export function urlReq(
           "Content-Length": data.length,
         };
       const sender = protocol === "http" ? http : https;
+      const before = Date.now();
       const req = sender.request(
         {
           host,
@@ -218,7 +225,12 @@ export function urlReq(
             str += chunk;
           });
           resp.on("end", () => {
-            resolve({ body: str, code: resp.statusCode });
+            const after = Date.now();
+            resolve({
+              body: str,
+              code: resp.statusCode,
+              time: after - before,
+            });
           });
         }
       );

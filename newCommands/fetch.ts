@@ -1,6 +1,9 @@
-import fs, { existsSync } from "fs";
+import { Promise_all, Str } from "@merrymake/utils";
+import { existsSync } from "fs";
+import { chmod, mkdir, readFile, rename, writeFile } from "fs/promises";
 import { GIT_HOST } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { outputGit } from "../printUtils.js";
 import {
   Organization,
   OrganizationId,
@@ -11,9 +14,6 @@ import {
   ServiceGroupId,
 } from "../types.js";
 import { directoryNames, execPromise, sshReq } from "../utils.js";
-import { outputGit } from "../printUtils.js";
-import { chmod, mkdir, readFile, rename, writeFile } from "fs/promises";
-import { Promise_all, Str } from "@merrymake/utils";
 
 type DisplayName = string;
 type RepositoryStructure = { [repositoryId: string]: DisplayName };
@@ -162,8 +162,6 @@ async function ensureServiceFolder(
   try {
     if (!existsSync(dir)) {
       await mkdir(dir, { recursive: true });
-    }
-    if (!existsSync(dir + "/.git")) {
       await execPromise(`git init --initial-branch=main`, dir);
       await execPromise(`git remote add origin ${repo}`, dir);
       await writeFile(
@@ -171,6 +169,7 @@ async function ensureServiceFolder(
         `@echo off
 git fetch
 git reset --hard origin/main
+git branch --set-upstream-to=origin/main
 del fetch.sh
 (goto) 2>nul & del fetch.bat`
       );
@@ -179,11 +178,12 @@ del fetch.sh
         `#!/bin/sh
 git fetch
 git reset --hard origin/main
+git branch --set-upstream-to=origin/main
 rm fetch.bat fetch.sh`,
         {}
       );
       await chmod(dir + "/fetch.sh", "755");
-    } else {
+    } else if (existsSync(dir + "/.git")) {
       await execPromise(`git remote set-url origin ${repo}`, dir);
     }
   } catch (e) {

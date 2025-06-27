@@ -1,12 +1,12 @@
+import { Str } from "@merrymake/utils";
+import { rm, writeFile } from "fs/promises";
 import { API_URL, FINGERPRINT, GIT_HOST, SPECIAL_FOLDERS } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { outputGit } from "../printUtils.js";
 import { choice, shortText } from "../prompt.js";
 import { Path, RepositoryId, ServiceGroupId, } from "../types.js";
 import { execPromise, getFiles, sshReq } from "../utils.js";
 import { do_fetch } from "./fetch.js";
-import { outputGit } from "../printUtils.js";
-import { Str } from "@merrymake/utils";
-import { rm, writeFile } from "fs/promises";
 export async function do_create_deployment_agent(organization, name, file) {
     try {
         outputGit("Creating service user...");
@@ -132,22 +132,25 @@ async function hosting_bitbucket_create(organization) {
 }
 async function hosting_bitbucket(organization) {
     try {
-        const keyfiles = (await getFiles(organization.pathTo.with(`.merrymake`))).filter((x) => x.endsWith(".key"));
-        const options = keyfiles.map((x) => {
-            const f = x.substring(0, x.length - ".key".length);
-            return {
-                long: f,
-                text: `use service user ${f}`,
-                action: () => hosting_bitbucket_key(organization, `.merrymake/${f}.key`),
-            };
-        });
-        options.push({
-            long: `create`,
-            short: `c`,
-            text: `create service user`,
-            action: () => hosting_bitbucket_create(organization),
-        });
-        return await choice("Which service user would you like to use?", options, {
+        return await choice([
+            {
+                long: `create`,
+                short: `c`,
+                text: `create service user`,
+                action: () => hosting_bitbucket_create(organization),
+            },
+        ], async () => {
+            const keyfiles = (await getFiles(organization.pathTo.with(`.merrymake`))).filter((x) => x.endsWith(".key"));
+            const options = keyfiles.map((x) => {
+                const f = x.substring(0, x.length - ".key".length);
+                return {
+                    long: f,
+                    text: `use service user ${f}`,
+                    action: () => hosting_bitbucket_key(organization, `.merrymake/${f}.key`),
+                };
+            });
+            return { options, header: "Which service user would you like to use?" };
+        }, {
             invertedQuiet: { cmd: false },
         }).then();
     }
@@ -156,7 +159,7 @@ async function hosting_bitbucket(organization) {
     }
 }
 export function hosting(organization) {
-    return choice("Which host would you like to use?", [
+    return choice([
         {
             long: "bitbucket",
             short: "b",
@@ -181,5 +184,7 @@ export function hosting(organization) {
         //   text: "azure devops",
         //   action: () => hosting_azure_devops(),
         // },
-    ]);
+    ], async () => {
+        return { options: [], header: "Which host would you like to use?" };
+    });
 }

@@ -44,7 +44,8 @@ if (stdin.isTTY) {
     const token = await index();
 })().catch((e) => {
     moveToBottom();
-    const eStr = "" + e;
+    const eStr1 = "" + e;
+    const eStr = eStr1 === "[object Object]" ? JSON.stringify(e) : eStr1;
     if (eStr.includes("Permission denied (publickey)")) {
         addKnownHost();
         outputGit(`A permission error occurred. Please try these solutions:

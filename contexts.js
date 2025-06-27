@@ -102,7 +102,6 @@ const NOT_ORGANIZATION_CONTEXT = async (cmd) => {
     }
 };
 export const CONTEXTS = {
-    clone: NOT_ORGANIZATION_CONTEXT,
     clean: SERVICE_CONTEXT,
     build: SERVICE_CONTEXT,
     update: SERVICE_CONTEXT,

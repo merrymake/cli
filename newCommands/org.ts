@@ -3,12 +3,19 @@ import { Option, choice, shortText } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
 import { digits, generateString, lowercase, sshReq } from "../utils.js";
 import { ADJECTIVE, NOUN } from "../words.js";
-import { checkout, checkout_org, checkoutName, do_clone } from "./clone.js";
-import { group } from "./group.js";
+import {
+  checkout,
+  checkout_org,
+  checkoutName,
+  do_clone,
+  do_fetch_clone,
+} from "./clone.js";
+import { do_createServiceGroup, group } from "./group.js";
 import { outputGit } from "../printUtils.js";
 import { wait } from "./wait.js";
 import { getArgs } from "../args.js";
-import { Str } from "@merrymake/utils";
+import { constify, Str } from "@merrymake/utils";
+import { repo_create } from "./repo.js";
 
 export async function do_createOrganization(
   folderName: string,
@@ -81,17 +88,31 @@ export function generateOrgName() {
 export async function org() {
   try {
     const orgName = generateOrgName();
-    const displayName = await shortText(
-      "Organization name",
-      "Used when collaborating with others.",
-      orgName
-    ).then();
-    const folderName = Str.toFolderName(displayName);
-    const organizationId = await do_createOrganization(folderName, displayName);
-    return group({
-      pathTo: new PathToOrganization(folderName),
-      id: organizationId,
+    const organization = await constify(async () => {
+      const displayName = await shortText(
+        "Organization name",
+        "Used when collaborating with others.",
+        orgName
+      ).then();
+      const folderName = Str.toFolderName(displayName);
+      const organizationId = await do_createOrganization(
+        folderName,
+        displayName
+      );
+      return { id: organizationId, pathTo: new PathToOrganization(folderName) };
     });
+    const serviceGroup = await constify(async () => {
+      const displayName = "back-end";
+      const folderName = Str.toFolderName(displayName);
+      const pathToServiceGroup = organization.pathTo.with(folderName);
+      const serviceGroupId = await do_createServiceGroup(
+        pathToServiceGroup,
+        organization.id,
+        displayName
+      );
+      return { pathTo: pathToServiceGroup, id: serviceGroupId };
+    });
+    return repo_create(organization, serviceGroup);
   } catch (e) {
     throw e;
   }
@@ -127,14 +148,16 @@ async function do_join(org: string) {
           outputGit(status.msg);
           return do_join_email_wait(org);
         }
-        return choice(
-          `Which email would you like to join with?`,
-          status.emails.map((e) => ({
-            long: e,
-            text: e,
-            action: () => do_join_email(org, e),
-          }))
-        );
+        return choice([], async () => {
+          return {
+            options: status.emails.map((e) => ({
+              long: e,
+              text: e,
+              action: () => do_join_email(org, e),
+            })),
+            header: `Which email would you like to join with?`,
+          };
+        });
       } else {
         outputGit(out);
         return finish();
@@ -175,37 +198,43 @@ export async function listOrgs() {
 
 export async function orgAction() {
   try {
-    const orgs = await listOrgs();
-    const options: Option[] = [];
-    if (orgs.length > 0) {
-      options.push({
-        long: orgs[0].id,
-        text: `checkout '${orgs[0].name}'`,
-        action: () =>
-          checkout_org(orgs[0].name, new OrganizationId(orgs[0].id)),
-      });
-    }
-    if (orgs.length > 1) {
-      options.push({
-        long: "checkout",
-        short: "c",
-        text: `checkout another organization`,
-        action: () => checkout(),
-      });
-    }
-    options.push({
-      long: "new",
-      short: "n",
-      text: `create a new organization`,
-      action: () => org(),
-    });
-    options.push({
-      long: "join",
-      short: "j",
-      text: `join someone else's organization`,
-      action: () => join(),
-    });
-    return choice("Which organization will you work with?", options);
+    return choice(
+      [
+        {
+          long: "new",
+          short: "n",
+          text: `create a new organization`,
+          action: () => org(),
+        },
+        {
+          long: "join",
+          short: "j",
+          text: `join someone else's organization`,
+          action: () => join(),
+        },
+      ],
+      async () => {
+        const orgs = await listOrgs();
+        const options: Option[] = [];
+        if (orgs.length > 0) {
+          options.push({
+            long: orgs[0].id,
+            text: `checkout '${orgs[0].name}'`,
+            action: () =>
+              checkout_org(orgs[0].name, new OrganizationId(orgs[0].id)),
+          });
+        }
+        if (orgs.length > 1) {
+          options.push({
+            long: "checkout",
+            short: "c",
+            text: `checkout another organization`,
+            action: () => checkout(),
+          });
+        }
+        return { options, header: "Which organization will you work with?" };
+      }
+    );
   } catch (e) {
     throw e;
   }

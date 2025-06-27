@@ -1,10 +1,10 @@
 import { ProjectTypes } from "@merrymake/detect-project-type";
 import { Promise_all, Str } from "@merrymake/utils";
 import { existsSync } from "fs";
-import { appendFile, mkdir, rm } from "fs/promises";
+import { appendFile, mkdir, rename, rm } from "fs/promises";
 import { GIT_HOST } from "../config.js";
-import { TODO, finish } from "../exitMessages.js";
-import { Option, choice, shortText } from "../prompt.js";
+import { TODO, addToExecuteQueue, finish } from "../exitMessages.js";
+import { Option, choice, resetCommand, shortText } from "../prompt.js";
 import { languages, templates } from "../templates.js";
 import {
   Organization,
@@ -12,6 +12,7 @@ import {
   PathToRepository,
   PathToServiceGroup,
   RepositoryId,
+  RepositoryWithId,
   ServiceGroup,
   ServiceGroupId,
 } from "../types.js";
@@ -97,10 +98,7 @@ export async function do_createService(
       await appendFile(
         organization.pathTo.with(BITBUCKET_FILE).toString(),
         "\n" +
-          bitbucketStep(
-            new Path(serviceGroup.pathTo.last()).with(folderName),
-            repoBase
-          )
+          bitbucketStep(serviceGroup.pathTo.parent().with(folderName), repoBase)
       );
     } else {
       try {
@@ -127,50 +125,74 @@ export async function do_createService(
   }
 }
 
+export async function do_renameService(
+  oldPathToRepository: PathToRepository,
+  newRepository: RepositoryWithId,
+  newDisplayName: string
+) {
+  try {
+    console.log(`Renaming service to '${newDisplayName}'...`);
+    const reply = await sshReq(
+      `repository-modify`,
+      `--displayName`,
+      newDisplayName,
+      newRepository.id.toString()
+    );
+    if (existsSync(oldPathToRepository.toString()))
+      await rename(
+        oldPathToRepository.toString(),
+        newRepository.pathTo.toString()
+      );
+  } catch (e) {
+    throw e;
+  }
+}
+
 export async function service_template(
   pathToService: PathToRepository,
   organizationId: OrganizationId,
   template: string
 ) {
   try {
-    const langs = await Promise_all(
-      ...templates[template].languages.map((x, i) =>
-        (async () => {
-          const versionCommands =
-            ProjectTypes[languages[x].projectType].versionCommands();
-          return {
-            ...languages[x],
-            weight: (
-              await Promise_all(
-                ...Object.keys(versionCommands).map(async (k) =>
-                  versionCommands[k] === undefined
-                    ? 1
-                    : await execPromise(versionCommands[k])
-                        .then((r) => 1)
-                        .catch((e) => 0)
+    return await choice([], async () => {
+      const langs = await Promise_all(
+        ...templates[template].languages.map((x, i) =>
+          (async () => {
+            const versionCommands =
+              ProjectTypes[languages[x].projectType].versionCommands();
+            return {
+              ...languages[x],
+              weight: (
+                await Promise_all(
+                  ...Object.keys(versionCommands).map(async (k) =>
+                    versionCommands[k] === undefined
+                      ? 1
+                      : await execPromise(versionCommands[k])
+                          .then((r) => 1)
+                          .catch((e) => 0)
+                  )
                 )
-              )
-            ).reduce((a, x) => a * x, i),
-          };
-        })()
-      )
-    );
-    langs.sort((a, b) => b.weight - a.weight);
-    return await choice(
-      "Which programming language would you like to use?",
-      langs.map((x) => ({
-        long: x.long,
-        short: x.short,
-        text: x.long,
-        action: () =>
-          service_template_language(
-            pathToService,
-            organizationId,
-            template,
-            x.projectType
-          ),
-      }))
-    ).then();
+              ).reduce((a, x) => a * x, i),
+            };
+          })()
+        )
+      );
+      return {
+        options: langs.map((x) => ({
+          long: x.long,
+          short: x.short,
+          text: x.long,
+          action: () =>
+            service_template_language(
+              pathToService,
+              organizationId,
+              template,
+              x.projectType
+            ),
+        })),
+        header: "Which programming language would you like to use?",
+      };
+    }).then();
   } catch (e) {
     throw e;
   }
@@ -182,8 +204,8 @@ async function after_service_deploy(
 ) {
   try {
     await do_deploy(pathToService);
+    resetCommand("rapids");
     return choice(
-      "Would you like to post and event to the Rapids? (Trigger the service)",
       [
         {
           long: "post",
@@ -191,6 +213,13 @@ async function after_service_deploy(
           action: () => post(organizationId),
         },
       ],
+      async () => {
+        return {
+          options: [],
+          header:
+            "Would you like to post and event to the Rapids? (Trigger the service)",
+        };
+      },
       { disableAutoPick: true }
     );
   } catch (e) {
@@ -202,8 +231,8 @@ function after_service(
   pathToService: PathToRepository,
   organizationId: OrganizationId
 ) {
+  resetCommand("");
   return choice(
-    "Would you like to deploy the new service?",
     [
       {
         long: "deploy",
@@ -212,6 +241,12 @@ function after_service(
         action: () => after_service_deploy(pathToService, organizationId),
       },
     ],
+    async () => {
+      return {
+        options: [],
+        header: "Would you like to deploy the new service?",
+      };
+    },
     { disableAutoPick: true }
   );
 }
@@ -236,21 +271,23 @@ async function duplicate(
   serviceGroupId: ServiceGroupId
 ) {
   try {
-    const repos = await listRepos(serviceGroupId);
-    return await choice(
-      "Which service would you like to duplicate?",
-      repos.map((x) => ({
-        long: x.id,
-        text: `${x.name} (${x.id})`,
-        action: () =>
-          duplicate_then(
-            pathToService,
-            organizationId,
-            serviceGroupId,
-            new RepositoryId(x.id)
-          ),
-      }))
-    ).then();
+    return await choice([], async () => {
+      const repos = await listRepos(serviceGroupId);
+      return {
+        options: repos.map((x) => ({
+          long: x.id,
+          text: `${x.name} (${x.id})`,
+          action: () =>
+            duplicate_then(
+              pathToService,
+              organizationId,
+              serviceGroupId,
+              new RepositoryId(x.id)
+            ),
+        })),
+        header: "Which service would you like to duplicate?",
+      };
+    }).then();
   } catch (e) {
     throw e;
   }
@@ -271,6 +308,7 @@ export async function repo_create(
   serviceGroup: ServiceGroup
 ) {
   try {
+    resetCommand("repo new");
     let num = 1;
     while (existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
       num++;
@@ -281,92 +319,116 @@ export async function repo_create(
     ).then();
     const folderName = Str.toFolderName(displayName);
     const pathToRepository = serviceGroup.pathTo.with(folderName);
-    const repositories = await listRepos(serviceGroup.id);
     const repositoryId = await do_createService(
       organization,
       serviceGroup,
       folderName,
       displayName
     );
-    const options: Option[] = [];
-    // console.log(repositories);
-    if (repositories.length === 1) {
-      options.push({
-        long: "duplicate",
-        short: "d",
-        text: `duplicate ${repositories[0].name}`,
-        action: () =>
-          duplicate_then(
-            pathToRepository,
-            organization.id,
-            serviceGroup.id,
-            new RepositoryId(repositories[0].id)
-          ),
-      });
-    } else if (repositories.length > 0) {
-      options.push({
-        long: "duplicate",
-        short: "d",
-        text: "duplicate an existing service",
-        action: () =>
-          duplicate(pathToRepository, organization.id, serviceGroup.id),
-      });
-    }
-    const langs = await Promise_all(
-      ...templates.basic.languages.map((x, i) =>
-        (async () => {
-          const versionCommands =
-            ProjectTypes[languages[x].projectType].versionCommands();
-          return {
-            ...languages[x],
-            weight: (
-              await Promise_all(
-                ...Object.keys(versionCommands).map(async (k) =>
-                  versionCommands[k] === undefined
-                    ? 1
-                    : await execPromise(versionCommands[k])
-                        .then((r) => 1)
-                        .catch((e) => 0)
-                )
-              )
-            ).reduce((a, x) => a * x, i),
-          };
-        })()
+    return await choice(
+      [
+        {
+          long: "empty",
+          short: "e",
+          text: "nothing, just an empty repo",
+          action: () => finish(),
+        },
+      ],
+      async () => {
+        const options: Option[] = [];
+        // console.log(repositories);
+        const repositories = await listRepos(serviceGroup.id);
+        if (repositories.length === 1) {
+          options.push({
+            long: "duplicate",
+            short: "d",
+            text: `duplicate ${repositories[0].name}`,
+            action: () =>
+              duplicate_then(
+                pathToRepository,
+                organization.id,
+                serviceGroup.id,
+                new RepositoryId(repositories[0].id)
+              ),
+          });
+        } else if (repositories.length > 0) {
+          options.push({
+            long: "duplicate",
+            short: "d",
+            text: "duplicate an existing service",
+            action: () =>
+              duplicate(pathToRepository, organization.id, serviceGroup.id),
+          });
+        }
+        const langs = await Promise_all(
+          ...templates.basic.languages.map((x, i) =>
+            (async () => {
+              const versionCommands =
+                ProjectTypes[languages[x].projectType].versionCommands();
+              return {
+                ...languages[x],
+                weight: (
+                  await Promise_all(
+                    ...Object.keys(versionCommands).map(async (k) =>
+                      versionCommands[k] === undefined
+                        ? 1
+                        : await execPromise(versionCommands[k])
+                            .then((r) => 1)
+                            .catch((e) => 0)
+                    )
+                  )
+                ).reduce((a, x) => a * x, i),
+              };
+            })()
+          )
+        );
+        langs.sort((a, b) => b.weight - a.weight);
+        langs.forEach((x) =>
+          options.push({
+            long: x.long,
+            short: x.short,
+            text: `initialize with the basic ${x.long} template`,
+            action: () =>
+              service_template_language(
+                pathToRepository,
+                organization.id,
+                "basic",
+                x.projectType
+              ),
+          })
+        );
+        return {
+          options,
+          header: "What would you like the new repository to contain?",
+        };
+      }
+    ).then();
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function repo_edit_rename(
+  oldPathToRepository: PathToRepository,
+  oldDisplayName: string,
+  repositoryId: RepositoryId
+) {
+  try {
+    const newDisplayName = await shortText(
+      "Repository name",
+      "This is where the code lives.",
+      oldDisplayName
+    ).then();
+    const folderName = Str.toFolderName(newDisplayName);
+    const newPathToRepository = oldPathToRepository.parent().with(folderName);
+    addToExecuteQueue(() =>
+      do_renameService(
+        oldPathToRepository,
+        { pathTo: newPathToRepository, id: repositoryId },
+        newDisplayName
       )
     );
-    langs.sort((a, b) => b.weight - a.weight);
-    langs.forEach((x) =>
-      options.push({
-        long: x.long,
-        short: x.short,
-        text: `initialize with the basic ${x.long} template`,
-        action: () =>
-          service_template_language(
-            pathToRepository,
-            organization.id,
-            "basic",
-            x.projectType
-          ),
-      })
-    );
-    // Object.keys(templates).forEach((x) =>
-    //   options.push({
-    //     long: templates[x].long,
-    //     short: templates[x].short,
-    //     text: templates[x].text,
-    //     action: () => service_template(pathToRepository, organization.id, x),
-    //   })
-    // );
-    options.push({
-      long: "empty",
-      short: "e",
-      text: "nothing, just an empty repo",
-      action: () => finish(),
-    });
-    return await choice(
-      "What would you like the new repository to contain?",
-      options
-    ).then();
+    return finish();
   } catch (e) {
     throw e;
   }
@@ -375,24 +437,31 @@ export async function repo_create(
 async function repo_edit(
   pathToGroup: PathToServiceGroup,
   displayName: string,
-  repositoryId: string
+  repositoryId: RepositoryId
 ) {
   try {
-    const options: Option[] = [
-      {
-        long: "rename",
-        text: `rename repository`,
-        action: TODO,
-      },
-      {
-        long: "delete",
-        text: `delete repository '${displayName}' permanently`,
-        action: TODO,
-      },
-    ];
-    return await choice("How would you like to edit the repo?", options).then(
-      (x) => x
-    );
+    return await choice(
+      [
+        {
+          long: "rename",
+          text: `rename repository`,
+          action: () =>
+            repo_edit_rename(
+              pathToGroup.with(Str.toFolderName(displayName)),
+              displayName,
+              repositoryId
+            ),
+        },
+        {
+          long: "delete",
+          text: `delete repository '${displayName}' permanently`,
+          action: TODO,
+        },
+      ],
+      async () => {
+        return { options: [], header: "How would you like to edit the repo?" };
+      }
+    ).then((x) => x);
   } catch (e) {
     throw e;
   }
@@ -403,23 +472,32 @@ export async function repo(
   serviceGroup: ServiceGroup
 ) {
   try {
-    const repos = await listRepos(serviceGroup.id);
-    const options: Option[] = [];
-    options.push({
-      long: "create",
-      text: `create new repository`,
-      action: () => repo_create(organization, serviceGroup),
-    });
-    repos.forEach((x) => {
-      options.push({
-        long: x.id,
-        text: `edit ${x.name} (${x.id})`,
-        action: () => repo_edit(serviceGroup.pathTo, x.name, x.id),
-      });
-    });
     return await choice(
-      "Which repository would you like to manage?",
-      options
+      [
+        {
+          long: "new",
+          short: "n",
+          text: `create new repository`,
+          action: () => repo_create(organization, serviceGroup),
+        },
+      ],
+      async () => {
+        const repos = await listRepos(serviceGroup.id);
+        const options: Option[] = [];
+        repos.forEach((x) => {
+          options.push({
+            long: x.id,
+            short: "e",
+            text: `edit ${x.name} (${x.id})`,
+            action: () =>
+              repo_edit(serviceGroup.pathTo, x.name, new RepositoryId(x.id)),
+          });
+        });
+        return {
+          options,
+          header: "Which repository would you like to manage?",
+        };
+      }
     ).then();
   } catch (e) {
     throw e;

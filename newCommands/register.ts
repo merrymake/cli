@@ -184,37 +184,47 @@ async function register_manual() {
 
 export async function register() {
   try {
-    const keyfiles = (await getFiles(new Path(`${os.homedir()}/.ssh`))).filter(
-      (x) => x.endsWith(".pub")
-    );
-    const keys = keyfiles.map<Option>((x) => {
-      const f = x.substring(0, x.length - ".pub".length);
-      return {
-        long: f,
-        text: `use the key ${f}`,
-        action: () => register_key(() => useExistingKey(f)),
-      };
-    });
-    let def = keyfiles.indexOf("merrymake.pub");
-    if (def < 0) {
-      keys.push({
-        long: "new",
-        short: "n",
-        text: "setup a new key specifically for Merrymake",
-        action: () => register_key(generateNewKey),
-      });
-      def = keys.length - 1;
-    }
-    keys.push({
-      long: "add",
-      short: "a",
-      text: "manually add a key",
-      action: () => register_manual(),
-    });
-    return await choice("Which SSH key would you like to use?", keys, {
-      invertedQuiet: { cmd: false },
-      def,
-    }).then();
+    return await choice(
+      [
+        {
+          long: "add",
+          short: "a",
+          text: "manually add a key",
+          action: () => register_manual(),
+        },
+      ],
+      async () => {
+        const keyfiles = (
+          await getFiles(new Path(`${os.homedir()}/.ssh`))
+        ).filter((x) => x.endsWith(".pub"));
+        const keys = keyfiles.map<Option>((x) => {
+          const f = x.substring(0, x.length - ".pub".length);
+          return {
+            long: f,
+            text: `use the key ${f}`,
+            action: () => register_key(() => useExistingKey(f)),
+          };
+        });
+        let def = keyfiles.indexOf("merrymake.pub");
+        if (def < 0) {
+          keys.push({
+            long: "new",
+            short: "n",
+            text: "setup a new key specifically for Merrymake",
+            action: () => register_key(generateNewKey),
+          });
+          def = keys.length - 1;
+        }
+        return {
+          options: keys,
+          header: "Which SSH key would you like to use?",
+          def,
+        };
+      },
+      {
+        invertedQuiet: { cmd: false },
+      }
+    ).then();
   } catch (e) {
     throw e;
   }

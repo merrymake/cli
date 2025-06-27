@@ -7,6 +7,7 @@ import { getShortCommand } from "./mmCommand.js";
 import { execPromise, execStreamPromise } from "./utils.js";
 import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
+import { NORMAL_COLOR } from "./prompt.js";
 const require = createRequire(import.meta.url);
 // IN THE FUTURE: import conf from "./package.json" with {type:"json"};
 export const package_json = require("./package.json");
@@ -43,7 +44,7 @@ To update run the command:
     catch (e) { }
 }
 let timer;
-export function outputGit(str) {
+export function outputGit(str, col = Str.GRAY) {
     const st = (str || "").trimEnd();
     if (st.endsWith("elapsed")) {
         return;
@@ -53,32 +54,35 @@ export function outputGit(str) {
         timer = undefined;
         process.stdout.write(`\n`);
     }
-    console.log(st
-        .split("\n")
-        .map((x) => {
-        const lineParts = x.trimEnd().split("remote: ");
-        const line = lineParts[lineParts.length - 1];
-        const color = line.match(/fail|error|fatal/i) !== null
-            ? Str.RED
-            : line.match(/warn/i) !== null
-                ? Str.YELLOW
-                : line.match(/succe/i) !== null
-                    ? Str.GREEN
-                    : Str.NORMAL_COLOR;
-        const commands = line.split("'mm");
-        for (let i = 1; i < commands.length; i++) {
-            const ind = commands[i].indexOf("'");
-            const cmd = commands[i].substring(0, ind);
-            const rest = commands[i].substring(ind);
-            commands[i] = `'${COMMAND_COLOR}${getShortCommand()}${cmd}${color}${rest}`;
-        }
-        lineParts[lineParts.length - 1] =
-            color + commands.join("") + Str.NORMAL_COLOR;
-        return lineParts.join(`${Str.GRAY}remote: `);
-    })
-        .join("\n"));
+    console.log(col +
+        st
+            .split("\n")
+            .map((x) => {
+            const lineParts = x.trimEnd().split("remote: ");
+            const line = lineParts[lineParts.length - 1];
+            const color = line.match(/fail|error|fatal/i) !== null
+                ? Str.RED
+                : line.match(/warn/i) !== null
+                    ? Str.YELLOW
+                    : line.match(/succe/i) !== null
+                        ? Str.GREEN
+                        : lineParts.length > 1
+                            ? Str.NORMAL_COLOR
+                            : col;
+            const commands = line.split("'mm");
+            for (let i = 1; i < commands.length; i++) {
+                const ind = commands[i].indexOf("'");
+                const cmd = commands[i].substring(0, ind);
+                const rest = commands[i].substring(ind);
+                commands[i] = `'${COMMAND_COLOR}${getShortCommand()}${cmd}${color}${rest}`;
+            }
+            lineParts[lineParts.length - 1] = color + commands.join("") + col;
+            return lineParts.join(`remote: `);
+        })
+            .join("\n") +
+        NORMAL_COLOR);
     if (st.endsWith("(this may take a few minutes)...")) {
-        process.stdout.write(`${Str.GRAY}remote: ${Str.NORMAL_COLOR}    `);
+        process.stdout.write(`${col}remote: ${Str.NORMAL_COLOR}    `);
         timer = Str.Timer.start(new Str.Timer.Seconds("s elapsed"));
     }
 }

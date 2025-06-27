@@ -41,37 +41,44 @@ export class PathToOrganization {
         this.pathToOrganization = pathToOrganization;
     }
     with(folder) {
-        return new PathToServiceGroup(path.join(this.pathToOrganization, folder));
+        return new PathToServiceGroup(this, folder);
     }
     toString() {
         return this.pathToOrganization;
     }
 }
 export class PathToServiceGroup {
-    pathToServiceGroup;
-    constructor(pathToServiceGroup) {
-        this.pathToServiceGroup = pathToServiceGroup;
+    pathToParent;
+    folder;
+    constructor(pathToParent, folder) {
+        this.pathToParent = pathToParent;
+        this.folder = folder;
+    }
+    parent() {
+        return this.pathToParent;
     }
     with(folder) {
-        return new PathToRepository(path.join(this.pathToServiceGroup, folder));
-    }
-    last() {
-        return this.pathToServiceGroup.substring(this.pathToServiceGroup.lastIndexOf("/"));
+        return new PathToRepository(this, folder);
     }
     toString() {
-        return this.pathToServiceGroup;
+        return path.join(this.pathToParent.toString(), this.folder);
     }
 }
 export class PathToRepository {
-    pathToRepository;
-    constructor(pathToRepository) {
-        this.pathToRepository = pathToRepository;
+    pathToParent;
+    folder;
+    constructor(pathToParent, folder) {
+        this.pathToParent = pathToParent;
+        this.folder = folder;
+    }
+    parent() {
+        return this.pathToParent;
     }
     with(folder) {
-        return new Path(path.join(this.pathToRepository, folder));
+        return new Path(path.join(this.toString(), folder));
     }
     toString() {
-        return this.pathToRepository;
+        return path.join(this.pathToParent.toString(), this.folder);
     }
 }
 export class Path {

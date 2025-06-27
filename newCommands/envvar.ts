@@ -96,7 +96,6 @@ function envvar_key_visible_value(
   prod: boolean
 ) {
   return choice(
-    "Where would you like the variable to be visible?",
     [
       {
         long: "both",
@@ -144,7 +143,11 @@ function envvar_key_visible_value(
           ),
       },
     ],
-    { def: init ? (prod ? 0 : 2) : 1 }
+    async () => ({
+      options: [],
+      header: "Where would you like the variable to be visible?",
+      def: init ? (prod ? 0 : 2) : 1,
+    })
   );
 }
 
@@ -228,7 +231,6 @@ function envvar_key(
   prod: boolean
 ) {
   return choice(
-    "What type of data is it?",
     [
       {
         long: "secret",
@@ -290,7 +292,11 @@ function envvar_key(
           ),
       },
     ],
-    { def: secret ? 0 : 1 }
+    async () => ({
+      options: [],
+      header: "What type of data is it?",
+      def: secret ? 0 : 1,
+    })
   );
 }
 
@@ -325,33 +331,44 @@ export async function envvar(
   serviceGroupId: ServiceGroupId
 ) {
   try {
-    const resp = await sshReq(`envvar-list`, serviceGroupId.toString());
-    const orgs: { k: string; v: string; i: boolean; p: boolean; s: boolean }[] =
-      JSON.parse(resp);
-    const options: Option[] = orgs.map((x) => ({
-      long: x.k,
-      text: `[${x.i ? "I" : " "}${x.p ? "P" : " "}] ${x.k}: ${x.v}`,
-      action: () =>
-        envvar_key(
-          pathToOrganization,
-          organizationId,
-          serviceGroupId,
-          x.k,
-          x.s,
-          x.i,
-          x.p
-        ),
-    }));
-    options.push({
-      long: `new`,
-      short: `n`,
-      text: `add a new environment variable`,
-      action: () =>
-        envvar_new(pathToOrganization, organizationId, serviceGroupId),
-    });
     return await choice(
-      "Which environment variable would you like to edit?",
-      options
+      [
+        {
+          long: `new`,
+          short: `n`,
+          text: `add a new environment variable`,
+          action: () =>
+            envvar_new(pathToOrganization, organizationId, serviceGroupId),
+        },
+      ],
+      async () => {
+        const resp = await sshReq(`envvar-list`, serviceGroupId.toString());
+        const orgs: {
+          k: string;
+          v: string;
+          i: boolean;
+          p: boolean;
+          s: boolean;
+        }[] = JSON.parse(resp);
+        const options: Option[] = orgs.map((x) => ({
+          long: x.k,
+          text: `[${x.i ? "I" : " "}${x.p ? "P" : " "}] ${x.k}: ${x.v}`,
+          action: () =>
+            envvar_key(
+              pathToOrganization,
+              organizationId,
+              serviceGroupId,
+              x.k,
+              x.s,
+              x.i,
+              x.p
+            ),
+        }));
+        return {
+          options,
+          header: "Which environment variable would you like to edit?",
+        };
+      }
     ).then();
   } catch (e) {
     throw e;

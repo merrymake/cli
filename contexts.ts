@@ -105,7 +105,6 @@ const NOT_ORGANIZATION_CONTEXT = async (cmd: string) => {
 };
 
 export const CONTEXTS: { [cmd: string]: (cmd: string) => Promise<string> } = {
-  clone: NOT_ORGANIZATION_CONTEXT,
   clean: SERVICE_CONTEXT,
   build: SERVICE_CONTEXT,
   update: SERVICE_CONTEXT,

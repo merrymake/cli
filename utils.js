@@ -4,7 +4,7 @@ import http from "http";
 import https from "https";
 import path from "path";
 import { SSH_HOST, SSH_USER } from "./config.js";
-import { MEGABYTES, Promise_all, Str } from "@merrymake/utils";
+import { MEGABYTES, Obj, Promise_all, Str } from "@merrymake/utils";
 import { debugLog } from "./printUtils.js";
 import { readdir, readFile } from "fs/promises";
 export const lowercase = "abcdefghijklmnopqrstuvwxyz";
@@ -97,9 +97,17 @@ export function execPromise(cmd, cwd) {
     return new Promise((resolve, reject) => {
         debugLog(cmd);
         exec(cmd, { cwd, maxBuffer: 10 * MEGABYTES }, (error, stdout, stderr) => {
-            const err = error?.message || stderr;
-            if (err) {
-                reject(stderr || stdout);
+            const errors = [];
+            if (error !== null) {
+                if (error.message.length > 0)
+                    errors.push(error.message);
+                else
+                    errors.push(error);
+                if (stderr.length > 0)
+                    errors.push(stderr);
+            }
+            if (errors.length > 0) {
+                reject({ cmd, errors, stdout });
             }
             else {
                 resolve(stdout);
@@ -142,6 +150,8 @@ export async function sshReq(...cmd) {
         return result;
     }
     catch (e) {
+        if (Obj.hasKey("stdout", e))
+            throw e.stdout;
         throw e;
     }
     finally {
@@ -166,6 +176,7 @@ export function urlReq(url, method = "GET", data, contentType = "application/jso
                 "Content-Length": data.length,
             };
         const sender = protocol === "http" ? http : https;
+        const before = Date.now();
         const req = sender.request({
             host,
             port,
@@ -178,7 +189,12 @@ export function urlReq(url, method = "GET", data, contentType = "application/jso
                 str += chunk;
             });
             resp.on("end", () => {
-                resolve({ body: str, code: resp.statusCode });
+                const after = Date.now();
+                resolve({
+                    body: str,
+                    code: resp.statusCode,
+                    time: after - before,
+                });
             });
         });
         req.on("error", (e) => {
