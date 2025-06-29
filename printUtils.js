@@ -1,47 +1,38 @@
 import { Str } from "@merrymake/utils";
 import { spawn } from "child_process";
 import { createRequire } from "module";
-import { homedir } from "os";
 import { addExitMessage } from "./exitMessages.js";
 import { getShortCommand } from "./mmCommand.js";
 import { execPromise, execStreamPromise } from "./utils.js";
-import { existsSync } from "fs";
-import { mkdir, readFile, writeFile } from "fs/promises";
 import { NORMAL_COLOR } from "./prompt.js";
+import { getConfig, setConfig } from "./persistance.js";
 const require = createRequire(import.meta.url);
 // IN THE FUTURE: import conf from "./package.json" with {type:"json"};
 export const package_json = require("./package.json");
 const COMMAND_COLOR = Str.PURPLE;
-const historyFolder = homedir() + "/.merrymake/";
-const historyFile = "history";
-const updateFile = "last_update_check";
 export async function checkVersionIfOutdated() {
     try {
-        if (!existsSync(historyFolder))
-            await mkdir(historyFolder);
-        const lastCheck = existsSync(historyFolder + updateFile)
-            ? +(await readFile(historyFolder + updateFile).toString())
-            : 0;
-        if (Date.now() - lastCheck > 4 * 60 * 60 * 1000) {
-            await checkVersion();
+        const lastCheck = await getConfig("last-version-check");
+        if (Date.now() - +lastCheck > 24 * 60 * 60 * 1000) {
+            await getLatestVersion();
+            const latestVersion = await getConfig("latest-version");
+            if (Str.semanticVersionLessThan(package_json.version, latestVersion)) {
+                addExitMessage(`
+    A newer version of the merrymake-cli is available (${package_json.version} -> ${latestVersion}).
+    Release notes: https://github.com/merrymake/cli/blob/main/CHANGELOG.md
+    Update command: ${COMMAND_COLOR}npm install --global @merrymake/cli@latest${Str.NORMAL_COLOR}`);
+            }
         }
     }
     catch (e) { }
 }
-async function checkVersion() {
-    try {
-        const call = await execPromise("npm show @merrymake/cli dist-tags --json");
-        const version = JSON.parse(call);
-        if (Str.semanticVersionLessThan(package_json.version, version.latest)) {
-            addExitMessage(`
-New version of merrymake-cli available (${package_json.version} -> ${version.latest}). You can read the release notes here:
-  https://github.com/merrymake/cli/blob/main/CHANGELOG.md
-To update run the command:
-  ${COMMAND_COLOR}npm install --global @merrymake/cli@latest${Str.NORMAL_COLOR}`);
-        }
-        await writeFile(historyFolder + updateFile, "" + Date.now());
-    }
-    catch (e) { }
+async function getLatestVersion() {
+    const call = await execPromise("npm show @merrymake/cli dist-tags --json");
+    const version = JSON.parse(call);
+    setConfig({
+        "latest-version": version.latest,
+        "last-version-check": Date.now().toString(),
+    });
 }
 let timer;
 export function outputGit(str, col = Str.GRAY) {
@@ -122,15 +113,6 @@ export function spawnPromise(str) {
                 reject();
         });
     });
-}
-export function getCache() {
-    if (!existsSync(`${historyFolder}cache`)) {
-        return { registered: false, hasOrgs: false };
-    }
-    return JSON.parse(readFile(`${historyFolder}cache`).toString());
-}
-export function saveCache(cache) {
-    writeFile(`${historyFolder}cache`, JSON.stringify(cache));
 }
 export function debugLog(msg) {
     if ((process.env.ASDF_DEBUG || "").toLowerCase() === "true")

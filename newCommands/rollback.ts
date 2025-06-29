@@ -2,11 +2,16 @@ import { Obj } from "@merrymake/utils";
 import { readFile } from "fs/promises";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import { multiSelect } from "../prompt.js";
+import { multiSelect, output } from "../prompt.js";
 import { RepositoryId } from "../types.js";
 import { sshReq } from "../utils.js";
+import { isDryrun } from "../dryrun.js";
 
 async function do_rollback(repositoryId: RepositoryId, hooks: string[]) {
+  if (isDryrun()) {
+    output("DRYRUN: Would roll back");
+    return;
+  }
   try {
     outputGit(
       await sshReq(

@@ -1,9 +1,7 @@
-import { existsSync } from "fs";
 import { stdout } from "process";
 import { outputGit } from "./printUtils.js";
 import { GRAY, NORMAL_COLOR } from "./prompt.js";
 import { sshReq } from "./utils.js";
-import { rename } from "fs/promises";
 export function alignRight(str, width) {
     return str.length > width
         ? str.substring(0, width - 3) + "..."
@@ -171,26 +169,6 @@ export async function do_spending(org) {
             const hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
             outputGit(`${alignLeft(group, 11)} ${GRAY}│${NORMAL_COLOR} ${alignLeft(service, 11)} ${GRAY}│${NORMAL_COLOR} ${alignLeft(hook, 20)} ${GRAY}│${NORMAL_COLOR} ${alignRight("" + count_str + " " + count_unit, 7)} ${GRAY}│${NORMAL_COLOR} ${alignRight("" + time_str + " " + time_unit, 7)} ${GRAY}│${NORMAL_COLOR} € ${alignRight(x.cost_eur, 7)}`);
         });
-    }
-    catch (e) {
-        throw e;
-    }
-}
-export async function do_delete_group(org, group) {
-    try {
-        outputGit(await sshReq(`team`, `--delete`, `--org`, org, group));
-        if (existsSync(group))
-            await rename(group, `(deleted) ${group}`);
-    }
-    catch (e) {
-        throw e;
-    }
-}
-export async function do_delete_org(org) {
-    try {
-        outputGit(await sshReq(`org`, `--delete`, org));
-        if (existsSync(org))
-            await rename(org, `(deleted) ${org}`);
     }
     catch (e) {
         throw e;

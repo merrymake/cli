@@ -1,12 +1,17 @@
-import { choice, shortText } from "../prompt.js";
+import { choice, output, shortText } from "../prompt.js";
 import { AccessId } from "../types.js";
 import { sshReq } from "../utils.js";
 import { do_create_deployment_agent } from "./hosting.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { Arr, Obj, Str } from "@merrymake/utils";
+import { isDryrun } from "../dryrun.js";
 const SPECIAL_ROLES = ["Pending", "Build agent", "Deployment agent"];
 export async function do_attach_role(user, accessId, accessEmail, duration) {
+    if (isDryrun()) {
+        output("DRYRUN: Would assign role");
+        return;
+    }
     try {
         const cmd = [
             `user-assign`,
@@ -25,6 +30,10 @@ export async function do_attach_role(user, accessId, accessEmail, duration) {
     }
 }
 export async function do_auto_approve(domain, accessId) {
+    if (isDryrun()) {
+        output("DRYRUN: Would add auto-approved domain");
+        return;
+    }
     try {
         outputGit(await sshReq(`preapprove-add`, `--accessId`, accessId.toString(), domain));
     }
@@ -33,6 +42,10 @@ export async function do_auto_approve(domain, accessId) {
     }
 }
 export async function do_remove_auto_approve(organizationId, domain) {
+    if (isDryrun()) {
+        output("DRYRUN: Would remove auto-approved domain");
+        return;
+    }
     try {
         outputGit(await sshReq(`preapprove-remove`, `--organizationId`, organizationId.toString(), domain));
     }

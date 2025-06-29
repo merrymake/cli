@@ -3,7 +3,7 @@ import { rm, writeFile } from "fs/promises";
 import { API_URL, FINGERPRINT, GIT_HOST, SPECIAL_FOLDERS } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import { Option, choice, shortText } from "../prompt.js";
+import { Option, choice, output, shortText } from "../prompt.js";
 import {
   Organization,
   Path,
@@ -15,12 +15,17 @@ import {
 } from "../types.js";
 import { execPromise, getFiles, sshReq } from "../utils.js";
 import { do_fetch } from "./fetch.js";
+import { isDryrun } from "../dryrun.js";
 
 export async function do_create_deployment_agent(
   organization: Organization,
   name: string,
   file: string
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would create service user");
+    return;
+  }
   try {
     outputGit("Creating service user...");
     const cmd = [`user-create-service`, organization.id.toString()];

@@ -14,6 +14,7 @@ import { execPromise, getFiles, Path, urlReq } from "../utils.js";
 import { orgAction } from "./org.js";
 import { wait } from "./wait.js";
 import { appendFile, mkdir, readFile, writeFile } from "fs/promises";
+import { isDryrun } from "../dryrun.js";
 
 async function saveSSHConfig(path: string) {
   try {
@@ -85,6 +86,10 @@ export async function useExistingKey(path: string) {
 }
 
 export async function generateNewKey() {
+  if (isDryrun()) {
+    output("DRYRUN: Would generate sshkey");
+    return Promise.resolve({ key: "dryrun_key", keyFile: "dryrun_keyfile" });
+  }
   try {
     output(`Generating new ssh key...\n`);
     if (!existsSync(os.homedir() + "/.ssh"))
@@ -135,6 +140,10 @@ export async function do_register(keyAction: KeyAction, email: string) {
     if (email === "") {
       addExitMessage(`Notice: Anonymous accounts are automatically deleted permanently after ~2 weeks, without warning. To add an email and avoid automatic deletion, run the command:
         ${YELLOW}${process.env["COMMAND"]} register ${keyFile}${NORMAL_COLOR}`);
+    }
+    if (isDryrun()) {
+      output("DRYRUN: Would register user");
+      return orgAction();
     }
     output(`Registering ${email === "" ? "anonymous account" : email}...\n`);
     const result = await urlReq(

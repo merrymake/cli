@@ -1,15 +1,20 @@
 import { addToExecuteQueue, finish } from "../exitMessages.js";
-import { Option, choice, multiSelect } from "../prompt.js";
+import { Option, choice, multiSelect, output } from "../prompt.js";
 import { OrganizationId } from "../types.js";
 import { sshReq } from "../utils.js";
 import { key_create } from "./apikey.js";
 import { outputGit } from "../printUtils.js";
 import { Str } from "@merrymake/utils";
+import { isDryrun } from "../dryrun.js";
 
 export async function do_event(
   apikeyId: string,
   events: { [event: string]: boolean }
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would allow events");
+    return;
+  }
   try {
     const selected = Object.keys(events).filter((x) => events[x]);
     await sshReq(`events-allow`, apikeyId, `--events`, selected.join(","));

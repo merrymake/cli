@@ -8,11 +8,12 @@ import {
 } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import { choice } from "../prompt.js";
+import { choice, output } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
 import { OrgFile, execPromise, sshReq, toSubdomain } from "../utils.js";
 import { ToBeStructure, ensureGroupStructure } from "./fetch.js";
 import { listOrgs } from "./org.js";
+import { isDryrun } from "../dryrun.js";
 
 export async function do_clone(
   struct: ToBeStructure,
@@ -20,6 +21,10 @@ export async function do_clone(
   displayName: string,
   organizationId: OrganizationId
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would checkout organization");
+    return;
+  }
   try {
     outputGit(`Cloning ${displayName}...`);
     await mkdir(`${folderName}/.merrymake`, { recursive: true });

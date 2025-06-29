@@ -1,12 +1,17 @@
 import { MerrymakeCrypto } from "@merrymake/secret-lib";
 import { GIT_HOST } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
-import { Visibility, choice, shortText } from "../prompt.js";
+import { Visibility, choice, output, shortText } from "../prompt.js";
 import { execPromise, sshReq } from "../utils.js";
 import { outputGit } from "../printUtils.js";
 import { randomBytes } from "crypto";
 import { readFile, rm } from "fs/promises";
+import { isDryrun } from "../dryrun.js";
 async function do_envvar(pathToOrganization, organizationId, serviceGroupId, key, value, access, encrypted) {
+    if (isDryrun()) {
+        output("DRYRUN: Would set envvar");
+        return;
+    }
     const keyFolder = pathToOrganization.with(".merrymake").with(".key");
     try {
         let val;
@@ -15,7 +20,6 @@ async function do_envvar(pathToOrganization, organizationId, serviceGroupId, key
             await rm(keyFolder.toString(), { force: true, recursive: true });
             await execPromise(`git clone -q "${repoBase}"`, pathToOrganization.with(".merrymake").toString());
             const key = await readFile(keyFolder.with("merrymake.key").toString());
-            console.log(value.toString());
             val = new MerrymakeCrypto().encrypt(value, key).toString("base64");
             value.fill(0);
             key.fill(0);

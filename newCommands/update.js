@@ -1,7 +1,13 @@
 import { detectProjectType, ProjectTypes, } from "@merrymake/detect-project-type";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit, spawnPromise } from "../printUtils.js";
+import { output } from "../prompt.js";
+import { isDryrun } from "../dryrun.js";
 async function do_update() {
+    if (isDryrun()) {
+        output("DRYRUN: Would update dependencies");
+        return;
+    }
     try {
         const projectType = await detectProjectType(".");
         outputGit(`Updating ${projectType} dependencies...`);

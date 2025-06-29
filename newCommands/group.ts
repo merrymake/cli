@@ -2,7 +2,7 @@ import { Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { mkdir, rename, writeFile } from "fs/promises";
 import { addToExecuteQueue, finish, TODO } from "../exitMessages.js";
-import { choice, Option, resetCommand, shortText } from "../prompt.js";
+import { choice, Option, output, resetCommand, shortText } from "../prompt.js";
 import {
   Organization,
   OrganizationId,
@@ -13,11 +13,16 @@ import {
 } from "../types.js";
 import { sshReq } from "../utils.js";
 import { repo_create } from "./repo.js";
+import { isDryrun } from "../dryrun.js";
 
 export async function do_deleteServiceGroup(
   serviceGroup: ServiceGroup,
   displayName: string
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would delete service group");
+    return;
+  }
   try {
     console.log(`Deleting service group '${displayName}'...`);
     const reply = await sshReq(`group-delete`, serviceGroup.id.toString());
@@ -75,6 +80,10 @@ export async function do_createServiceGroup(
   organizationId: OrganizationId,
   displayName: string
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would create service group");
+    return new ServiceGroupId("dryrun_id");
+  }
   try {
     console.log(`Creating service group '${displayName}'...`);
     const reply = await sshReq(
@@ -130,6 +139,10 @@ export async function do_renameServiceGroup(
   newServiceGroup: ServiceGroup,
   newDisplayName: string
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would rename service group");
+    return;
+  }
   try {
     console.log(`Renaming service group to '${newDisplayName}'...`);
     const reply = await sshReq(

@@ -4,12 +4,17 @@ import { mkdir, writeFile } from "fs/promises";
 import { DEFAULT_EVENT_CATALOGUE_NAME, DEFAULT_PUBLIC_NAME, GIT_HOST, } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import { choice } from "../prompt.js";
+import { choice, output } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
 import { execPromise, sshReq, toSubdomain } from "../utils.js";
 import { ensureGroupStructure } from "./fetch.js";
 import { listOrgs } from "./org.js";
+import { isDryrun } from "../dryrun.js";
 export async function do_clone(struct, folderName, displayName, organizationId) {
+    if (isDryrun()) {
+        output("DRYRUN: Would checkout organization");
+        return;
+    }
     try {
         outputGit(`Cloning ${displayName}...`);
         await mkdir(`${folderName}/.merrymake`, { recursive: true });

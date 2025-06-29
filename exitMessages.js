@@ -19,7 +19,7 @@ function printExitMessages() {
 export function abort() {
     exit();
     printExitMessages();
-    process.exit(0);
+    process.exit(1);
 }
 export async function finish() {
     try {

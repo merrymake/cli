@@ -3,7 +3,12 @@ import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { NORMAL_COLOR, RED, YELLOW, choice, output, resetCommand, shortText, } from "../prompt.js";
 import { sshReq } from "../utils.js";
+import { isDryrun } from "../dryrun.js";
 export async function do_key_create(organizationId, description, duration) {
+    if (isDryrun()) {
+        output("DRYRUN: Would create apikey");
+        return "dryrun_id";
+    }
     try {
         const cmd = [
             `apikey-create`,
@@ -17,8 +22,7 @@ export async function do_key_create(organizationId, description, duration) {
         if (reply.length !== 8)
             throw reply;
         output(`Created apikey${description !== "" ? ` '${description}'` : ""}: ${YELLOW}${reply}${NORMAL_COLOR}\n`);
-        const apikeyId = reply;
-        return apikeyId;
+        return reply;
     }
     catch (e) {
         throw e;
@@ -26,6 +30,10 @@ export async function do_key_create(organizationId, description, duration) {
 }
 export async function do_key_modify(apikeyId, description, duration) {
     try {
+        if (isDryrun()) {
+            output("DRYRUN: Would modify apikey");
+            return;
+        }
         const cmd = [`apikey-modify`, `--duration`, duration, apikeyId];
         if (description !== "")
             cmd.push(`--description`, description);

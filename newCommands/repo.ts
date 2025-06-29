@@ -4,7 +4,7 @@ import { existsSync } from "fs";
 import { appendFile, mkdir, rename, rm } from "fs/promises";
 import { GIT_HOST } from "../config.js";
 import { TODO, addToExecuteQueue, finish } from "../exitMessages.js";
-import { Option, choice, resetCommand, shortText } from "../prompt.js";
+import { Option, choice, output, resetCommand, shortText } from "../prompt.js";
 import { languages, templates } from "../templates.js";
 import {
   Organization,
@@ -20,6 +20,7 @@ import { Path, execPromise, sshReq } from "../utils.js";
 import { do_deploy } from "./deploy.js";
 import { BITBUCKET_FILE, bitbucketStep } from "./hosting.js";
 import { post } from "./post.js";
+import { isDryrun } from "../dryrun.js";
 
 async function do_pull(pth: PathToRepository, repo: string) {
   try {
@@ -81,9 +82,13 @@ export async function do_createService(
   folderName: string,
   displayName: string
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would create repository");
+    return "dryrun_id";
+  }
   try {
     const repositoryPath = serviceGroup.pathTo.with(folderName);
-    console.log(`Creating service '${displayName}'...`);
+    console.log(`Creating repository '${displayName}'...`);
     const reply = await sshReq(
       `repository-create`,
       displayName,
@@ -130,6 +135,10 @@ export async function do_renameService(
   newRepository: RepositoryWithId,
   newDisplayName: string
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would rename repository");
+    return;
+  }
   try {
     console.log(`Renaming service to '${newDisplayName}'...`);
     const reply = await sshReq(

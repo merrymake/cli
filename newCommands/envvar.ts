@@ -2,7 +2,7 @@ import { MerrymakeCrypto } from "@merrymake/secret-lib";
 import fs from "fs";
 import { GIT_HOST } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
-import { Option, Visibility, choice, shortText } from "../prompt.js";
+import { Option, Visibility, choice, output, shortText } from "../prompt.js";
 import {
   OrganizationId,
   PathToOrganization,
@@ -12,6 +12,7 @@ import { execPromise, sshReq } from "../utils.js";
 import { outputGit } from "../printUtils.js";
 import { randomBytes } from "crypto";
 import { readFile, rm } from "fs/promises";
+import { isDryrun } from "../dryrun.js";
 
 async function do_envvar(
   pathToOrganization: PathToOrganization,
@@ -22,6 +23,10 @@ async function do_envvar(
   access: ("--inInitRun" | "--inProduction")[],
   encrypted: boolean
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would set envvar");
+    return;
+  }
   const keyFolder = pathToOrganization.with(".merrymake").with(".key");
   try {
     let val: string;
@@ -33,7 +38,6 @@ async function do_envvar(
         pathToOrganization.with(".merrymake").toString()
       );
       const key = await readFile(keyFolder.with("merrymake.key").toString());
-      console.log(value.toString());
       val = new MerrymakeCrypto().encrypt(value, key).toString("base64");
       value.fill(0);
       key.fill(0);

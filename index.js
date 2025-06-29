@@ -2,20 +2,18 @@ import { stdin } from "node:process";
 import { initializeArgs } from "./args.js";
 import { abort, setDryrun } from "./exitMessages.js";
 import { index } from "./newCommands/index.js";
-import { addKnownHost } from "./newCommands/register.js";
+import { addKnownHost, register } from "./newCommands/register.js";
 import { CTRL_C, moveToBottom, NORMAL_COLOR } from "./prompt.js";
 import { checkVersionIfOutdated, outputGit, package_json, } from "./printUtils.js";
+import { Promise_all } from "@merrymake/utils";
+import { waitForConfigWrite } from "./persistance.js";
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
-if (process.argv.length > 0 && process.argv[0].endsWith("version")) {
-    console.log(package_json.version);
-    process.exit(0);
-}
 if (process.argv[0] === "dryrun") {
     setDryrun();
     process.argv.splice(0, 1);
 }
-initializeArgs(process.argv.flatMap((x) => x.startsWith("-")
+initializeArgs(process.argv.flatMap((x) => x.startsWith("-") && x.length > 2
     ? x
         .substring(1)
         .split("")
@@ -38,9 +36,20 @@ if (stdin.isTTY) {
     });
 }
 (async () => {
-    checkVersionIfOutdated();
-    const token = await index();
-})().catch((e) => {
+    if (["version", "--version", "-v"].includes(process.argv[0])) {
+        console.log(package_json.version);
+        process.exit(0);
+    }
+    else if (["start", "init", "--init"].includes(process.argv[0])) {
+        process.argv.splice(0, 1);
+        const token = await register();
+    }
+    else {
+        checkVersionIfOutdated();
+        const token = await index();
+    }
+})()
+    .catch((e) => {
     moveToBottom();
     const eStr1 = "" + e;
     const eStr = eStr1 === "[object Object]" ? JSON.stringify(e) : eStr1;
@@ -57,4 +66,5 @@ if (stdin.isTTY) {
         console.error(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
     }
     abort();
-});
+})
+    .finally(() => Promise_all(waitForConfigWrite()));

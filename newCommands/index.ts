@@ -114,9 +114,9 @@ export async function index() {
     return choice(
       [
         {
-          long: "start",
-          text: "start for new user or new device",
-          weight: 900,
+          long: "register",
+          text: "register a new device or new user",
+          weight: 100,
           action: () => register(),
         },
       ],

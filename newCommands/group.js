@@ -2,11 +2,16 @@ import { Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { mkdir, rename, writeFile } from "fs/promises";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
-import { choice, resetCommand, shortText } from "../prompt.js";
+import { choice, output, resetCommand, shortText } from "../prompt.js";
 import { PathToServiceGroup, ServiceGroupId, } from "../types.js";
 import { sshReq } from "../utils.js";
 import { repo_create } from "./repo.js";
+import { isDryrun } from "../dryrun.js";
 export async function do_deleteServiceGroup(serviceGroup, displayName) {
+    if (isDryrun()) {
+        output("DRYRUN: Would delete service group");
+        return;
+    }
     try {
         console.log(`Deleting service group '${displayName}'...`);
         const reply = await sshReq(`group-delete`, serviceGroup.id.toString());
@@ -51,6 +56,10 @@ export async function deleteServiceGroup(organization) {
     }
 }
 export async function do_createServiceGroup(path, organizationId, displayName) {
+    if (isDryrun()) {
+        output("DRYRUN: Would create service group");
+        return new ServiceGroupId("dryrun_id");
+    }
     try {
         console.log(`Creating service group '${displayName}'...`);
         const reply = await sshReq(`group-create`, displayName, `--organizationId`, organizationId.toString());
@@ -85,6 +94,10 @@ export async function group_new(organization) {
     }
 }
 export async function do_renameServiceGroup(oldPathToServiceGroup, newServiceGroup, newDisplayName) {
+    if (isDryrun()) {
+        output("DRYRUN: Would rename service group");
+        return;
+    }
     try {
         console.log(`Renaming service group to '${newDisplayName}'...`);
         const reply = await sshReq(`group-modify`, `--displayName`, newDisplayName, newServiceGroup.id.toString());

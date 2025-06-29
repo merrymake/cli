@@ -1,13 +1,18 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 import { RAPIDS_HOST } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
-import { choice, resetCommand, shortText } from "../prompt.js";
+import { choice, output, resetCommand, shortText } from "../prompt.js";
 import { sshReq, urlReq } from "../utils.js";
 import { key_create } from "./apikey.js";
 import { outputGit } from "../printUtils.js";
 import { readdir, readFile } from "fs/promises";
 import { Str, UnitType } from "@merrymake/utils";
+import { isDryrun } from "../dryrun.js";
 export async function do_post(eventType, key, contentType, payload) {
+    if (isDryrun()) {
+        output("DRYRUN: Would send POST request");
+        return;
+    }
     try {
         outputGit(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
         const { body, time } = await urlReq(`${RAPIDS_HOST}/${key}/${eventType}`, "POST", payload, contentType);

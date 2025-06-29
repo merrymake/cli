@@ -21,7 +21,7 @@ function printExitMessages() {
 export function abort(): never {
   exit();
   printExitMessages();
-  process.exit(0);
+  process.exit(1);
 }
 export async function finish(): Promise<never> {
   try {

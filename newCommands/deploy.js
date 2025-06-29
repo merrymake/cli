@@ -2,6 +2,7 @@ import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { choice, Formatting, output, shortText } from "../prompt.js";
 import { execStreamPromise } from "../utils.js";
 import { execute, outputGit, spawnPromise } from "../printUtils.js";
+import { isDryrun } from "../dryrun.js";
 /*
 [remove .gitignored files]
 [clean workspace]
@@ -37,16 +38,23 @@ export async function do_deploy(pathToService) {
     try {
         const before = process.cwd();
         process.chdir(pathToService.toString());
-        const output = await do_deploy_internal("(git diff-index --quiet HEAD 2>/dev/null || git commit -m 'Deploy with Merrymake')");
+        if (isDryrun()) {
+            output("DRYRUN: Would commit changes");
+        }
+        else
+            await do_deploy_internal("(git diff-index --quiet HEAD 2>/dev/null || git commit -m 'Deploy with Merrymake')");
         process.chdir(before);
-        return !output.startsWith("Everything up-to-date");
     }
     catch (e) {
         throw e;
     }
 }
-function do_redeploy() {
-    return spawnPromise("git commit --allow-empty -m 'Redeploy with Merrymake' && git push origin HEAD 2>&1");
+async function do_redeploy() {
+    if (isDryrun()) {
+        output("DRYRUN: Would make empty commit and push");
+    }
+    else
+        await spawnPromise("git commit --allow-empty -m 'Redeploy with Merrymake' && git push origin HEAD 2>&1");
 }
 function redeploy() {
     addToExecuteQueue(() => do_redeploy());
@@ -58,19 +66,24 @@ async function rebaseOntoMain(monorepo) {
             const mat = a.match(/ref: refs\/heads\/(.+)\t/);
             return mat === null ? undefined : mat[1];
         })(await execute(`git ls-remote --symref origin HEAD 2>&1`));
-        const output = await execute((remoteHead !== undefined
-            ? `git fetch && ({ ! git ls-remote --exit-code origin ${remoteHead} >/dev/null; } || git rebase origin/${remoteHead}) && `
-            : "") + `git push origin HEAD:${remoteHead || "main"} 2>&1`, true);
-        if (output.trimEnd().endsWith("Everything up-to-date") && !monorepo) {
-            return choice([
-                {
-                    long: "again",
-                    text: "deploy again",
-                    action: () => redeploy(),
-                },
-            ], async () => {
-                return { options: [], header: "Would you like to redeploy?" };
-            }, { disableAutoPick: true });
+        if (isDryrun()) {
+            output("DRYRUN: Would push changes to remote");
+        }
+        else {
+            const output = await execute((remoteHead !== undefined
+                ? `git fetch && ({ ! git ls-remote --exit-code origin ${remoteHead} >/dev/null; } || git rebase origin/${remoteHead}) && `
+                : "") + `git push origin HEAD:${remoteHead || "main"} 2>&1`, true);
+            if (output.trimEnd().endsWith("Everything up-to-date") && !monorepo) {
+                return choice([
+                    {
+                        long: "again",
+                        text: "deploy again",
+                        action: () => redeploy(),
+                    },
+                ], async () => {
+                    return { options: [], header: "Would you like to redeploy?" };
+                }, { disableAutoPick: true });
+            }
         }
         return finish();
     }
@@ -85,7 +98,11 @@ async function getMessage(monorepo) {
         const msg = message.length === 0
             ? "[No message]"
             : message[0].toUpperCase() + message.substring(1);
-        await spawnPromise(`git commit -m "${msg}"`);
+        if (isDryrun()) {
+            output("DRYRUN: Would commit changes");
+        }
+        else
+            await spawnPromise(`git commit -m "${msg}"`);
         return rebaseOntoMain(monorepo);
     }
     catch (e) {

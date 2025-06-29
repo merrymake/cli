@@ -215,21 +215,3 @@ export async function do_spending(org: string) {
     throw e;
   }
 }
-
-export async function do_delete_group(org: string, group: string) {
-  try {
-    outputGit(await sshReq(`team`, `--delete`, `--org`, org, group));
-    if (existsSync(group)) await rename(group, `(deleted) ${group}`);
-  } catch (e) {
-    throw e;
-  }
-}
-
-export async function do_delete_org(org: string) {
-  try {
-    outputGit(await sshReq(`org`, `--delete`, org));
-    if (existsSync(org)) await rename(org, `(deleted) ${org}`);
-  } catch (e) {
-    throw e;
-  }
-}
