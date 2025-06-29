@@ -11,6 +11,7 @@ import {
 import { sshReq, urlReq } from "../utils.js";
 import { Str } from "@merrymake/utils";
 import { getCommand } from "../mmCommand.js";
+import { REPOSITORY, SERVICE_GROUP } from "../config.js";
 
 async function do_help(ctx: {
   repositoryId: RepositoryId | undefined;
@@ -46,17 +47,17 @@ async function do_help(ctx: {
     );
   }
   if (ctx.serviceGroup === undefined) {
-    outputGit(`Warning: Not inside service group.`);
+    outputGit(`Warning: Not inside ${SERVICE_GROUP}.`);
   } else {
     outputGit(
-      `${GRAY}Inside service group (${ctx.serviceGroup.id}).${NORMAL_COLOR}`
+      `${GRAY}Inside ${SERVICE_GROUP} (${ctx.serviceGroup.id}).${NORMAL_COLOR}`
     );
   }
   if (!existsSync("merrymake.json")) {
-    outputGit(`Warning: Not inside service repo.`);
+    outputGit(`Warning: Not inside ${REPOSITORY}.`);
   } else {
     outputGit(
-      `${GRAY}Inside service repo (${ctx.repositoryId}).${NORMAL_COLOR}`
+      `${GRAY}Inside ${REPOSITORY} (${ctx.repositoryId}).${NORMAL_COLOR}`
     );
   }
 }

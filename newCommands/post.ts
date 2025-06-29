@@ -101,16 +101,18 @@ async function post_key(
   }
 }
 
-async function post_event_payload_type(
+export async function post_event_payload_type(
   organizationId: OrganizationId,
   eventType: string,
-  contentType: string
+  contentType: string,
+  suggestion = ""
 ) {
   try {
+    resetCommand(`rapids post ${eventType} text`);
     const payload = await shortText(
       "Payload",
       "The data to be attached to the request",
-      ""
+      suggestion
     ).then();
     return post_key(organizationId, (key) =>
       do_post(eventType, key, contentType, payload)

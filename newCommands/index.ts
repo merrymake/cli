@@ -31,6 +31,8 @@ import { role } from "./role.js";
 import { rollback } from "./rollback.js";
 import { update } from "./update.js";
 import { upgrade } from "./upgrade.js";
+import { REPOSITORY, SERVICE_GROUP } from "../config.js";
+import { Str } from "@merrymake/utils";
 
 function partitionLast(str: string, radix: string) {
   const index = str.lastIndexOf(radix);
@@ -135,7 +137,7 @@ export async function index() {
           options.push({
             long: "deploy",
             short: "d",
-            text: "deploy this repository with git",
+            text: `deploy this ${REPOSITORY} with git`,
             weight: 900,
             action: () => deploy(monorepo),
           });
@@ -144,7 +146,7 @@ export async function index() {
           options.push({
             long: "rollback",
             short: "r",
-            text: "rollback individual hooks or the entire service to a stable version",
+            text: `rollback individual hooks or the entire ${REPOSITORY} to a stable version`,
             weight: 800,
             action: () => rollback(repositoryId),
           });
@@ -153,7 +155,7 @@ export async function index() {
           options.push({
             long: "build",
             short: "b",
-            text: "build this service locally",
+            text: `build this ${REPOSITORY} locally`,
             weight: 800,
             action: () => build(),
           });
@@ -177,7 +179,7 @@ export async function index() {
             {
               long: "envvar",
               short: "e",
-              text: "add or edit an envvar in this service group",
+              text: `add or edit an envvar in this ${SERVICE_GROUP}`,
               weight: 800,
               action: () =>
                 envvar(organization!.pathTo, organization!.id, serviceGroup.id),
@@ -185,7 +187,7 @@ export async function index() {
             {
               long: "repo",
               short: "r",
-              text: "add or edit a repository",
+              text: `add or edit a ${REPOSITORY}`,
               weight: 700,
               action: () => repo(organization!, serviceGroup),
             }
@@ -198,7 +200,10 @@ export async function index() {
             options.push({
               long: "fetch",
               short: "f",
-              text: "fetch updates to service groups and repos",
+              text: `fetch updates to ${Str.plural(
+                2,
+                SERVICE_GROUP
+              )}s and ${Str.plural(2, REPOSITORY)}`,
               weight: 600,
               action: () => fetch(organization),
             });
@@ -219,7 +224,7 @@ export async function index() {
               {
                 long: "group",
                 short: "g",
-                text: "add or edit a service group",
+                text: `add or edit a ${SERVICE_GROUP}`,
                 weight: 500,
                 action: () => group(organization),
               },

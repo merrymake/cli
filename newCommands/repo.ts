@@ -2,7 +2,7 @@ import { ProjectTypes } from "@merrymake/detect-project-type";
 import { Promise_all, Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { appendFile, mkdir, rename, rm } from "fs/promises";
-import { GIT_HOST } from "../config.js";
+import { GIT_HOST, REPOSITORY } from "../config.js";
 import { TODO, addToExecuteQueue, finish } from "../exitMessages.js";
 import { Option, choice, output, resetCommand, shortText } from "../prompt.js";
 import { languages, templates } from "../templates.js";
@@ -19,8 +19,9 @@ import {
 import { Path, execPromise, sshReq } from "../utils.js";
 import { do_deploy } from "./deploy.js";
 import { BITBUCKET_FILE, bitbucketStep } from "./hosting.js";
-import { post } from "./post.js";
+import { post, post_event_payload_type } from "./post.js";
 import { isDryrun } from "../dryrun.js";
+import { outputGit } from "../printUtils.js";
 
 async function do_pull(pth: PathToRepository, repo: string) {
   try {
@@ -42,7 +43,7 @@ export function do_fetch_template(
   template: string,
   projectType: string
 ) {
-  console.log(`Fetching ${projectType} template...`);
+  outputGit(`Fetching ${projectType} template...`);
   return do_pull(
     pth,
     `https://github.com/merrymake/${projectType}-${template}-template`
@@ -55,7 +56,7 @@ export function do_duplicate(
   groupId: ServiceGroupId,
   repositoryId: RepositoryId
 ) {
-  console.log(`Duplicating ${"local folder"} service...`);
+  outputGit(`Duplicating ${REPOSITORY}...`);
   return do_pull(
     pth,
     `${GIT_HOST}/o${organizationId}/g${groupId}/r${repositoryId}`
@@ -83,12 +84,12 @@ export async function do_createService(
   displayName: string
 ) {
   if (isDryrun()) {
-    output("DRYRUN: Would create repository");
+    output(`DRYRUN: Would create ${REPOSITORY}`);
     return "dryrun_id";
   }
   try {
     const repositoryPath = serviceGroup.pathTo.with(folderName);
-    console.log(`Creating repository '${displayName}'...`);
+    outputGit(`Creating ${REPOSITORY} '${displayName}'...`);
     const reply = await sshReq(
       `repository-create`,
       displayName,
@@ -136,11 +137,11 @@ export async function do_renameService(
   newDisplayName: string
 ) {
   if (isDryrun()) {
-    output("DRYRUN: Would rename repository");
+    output(`DRYRUN: Would rename ${REPOSITORY}`);
     return;
   }
   try {
-    console.log(`Renaming service to '${newDisplayName}'...`);
+    outputGit(`Renaming ${REPOSITORY} to '${newDisplayName}'...`);
     const reply = await sshReq(
       `repository-modify`,
       `--displayName`,
@@ -219,14 +220,20 @@ async function after_service_deploy(
         {
           long: "post",
           text: "post an event to the rapids",
-          action: () => post(organizationId),
+          action: () =>
+            post_event_payload_type(
+              organizationId,
+              "hello",
+              `text/plain`,
+              "friend"
+            ),
         },
       ],
       async () => {
         return {
           options: [],
           header:
-            "Would you like to post and event to the Rapids? (Trigger the service)",
+            "Would you like to post an event to the Rapids? (run the code)",
         };
       },
       { disableAutoPick: true }
@@ -246,14 +253,14 @@ function after_service(
       {
         long: "deploy",
         short: "d",
-        text: "deploy the service immediately",
+        text: `deploy the ${REPOSITORY} immediately`,
         action: () => after_service_deploy(pathToService, organizationId),
       },
     ],
     async () => {
       return {
         options: [],
-        header: "Would you like to deploy the new service?",
+        header: `Would you like to deploy the new ${REPOSITORY}?`,
       };
     },
     { disableAutoPick: true }
@@ -294,7 +301,7 @@ async function duplicate(
               new RepositoryId(x.id)
             ),
         })),
-        header: "Which service would you like to duplicate?",
+        header: `Which ${REPOSITORY} would you like to duplicate?`,
       };
     }).then();
   } catch (e) {
@@ -360,7 +367,7 @@ export async function repo_create_name(
           options.push({
             long: "duplicate",
             short: "d",
-            text: "duplicate an existing service",
+            text: `duplicate an existing ${REPOSITORY}`,
             action: () =>
               duplicate(pathToRepository, organization.id, serviceGroup.id),
           });
@@ -404,7 +411,7 @@ export async function repo_create_name(
         );
         return {
           options,
-          header: "What would you like the new repository to contain?",
+          header: `What would you like the new ${REPOSITORY} to contain?`,
         };
       }
     ).then();
@@ -423,7 +430,7 @@ export async function repo_create(
     while (existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
       num++;
     const displayName = await shortText(
-      "Repository name",
+      `${REPOSITORY[0].toUpperCase() + REPOSITORY.substring(1)} name`,
       "This is where the code lives.",
       "repo-" + num
     ).then();
@@ -440,7 +447,7 @@ async function repo_edit_rename(
 ) {
   try {
     const newDisplayName = await shortText(
-      "Repository name",
+      `${REPOSITORY[0].toUpperCase() + REPOSITORY.substring(1)} name`,
       "This is where the code lives.",
       oldDisplayName
     ).then();
@@ -469,7 +476,7 @@ async function repo_edit(
       [
         {
           long: "rename",
-          text: `rename repository`,
+          text: `rename ${REPOSITORY}`,
           action: () =>
             repo_edit_rename(
               pathToGroup.with(Str.toFolderName(displayName)),
@@ -479,12 +486,15 @@ async function repo_edit(
         },
         {
           long: "delete",
-          text: `delete repository '${displayName}' permanently`,
+          text: `delete ${REPOSITORY} '${displayName}' permanently`,
           action: TODO,
         },
       ],
       async () => {
-        return { options: [], header: "How would you like to edit the repo?" };
+        return {
+          options: [],
+          header: `How would you like to edit the ${REPOSITORY}?`,
+        };
       }
     ).then((x) => x);
   } catch (e) {
@@ -502,7 +512,7 @@ export async function repo(
         {
           long: "new",
           short: "n",
-          text: `create new repository`,
+          text: `create a new ${REPOSITORY}`,
           action: () => repo_create(organization, serviceGroup),
         },
       ],
@@ -520,7 +530,7 @@ export async function repo(
         });
         return {
           options,
-          header: "Which repository would you like to manage?",
+          header: `Which ${REPOSITORY} would you like to manage?`,
         };
       }
     ).then();

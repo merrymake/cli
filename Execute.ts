@@ -17,6 +17,7 @@ import { GRAY, INVISIBLE, NORMAL_COLOR, RED, WHITE, YELLOW } from "./prompt.js";
 import { PathTo, PathToOrganization, PathToRepository } from "./types.js";
 import { all, generateString } from "./utils.js";
 import { readdir, readFile } from "fs/promises";
+import { DEFAULT_EVENT_CATALOGUE_NAME } from "./config.js";
 
 interface Envelope {
   messageId: string;
@@ -550,9 +551,15 @@ ${NORMAL_COLOR}`);
       sessionId = "s" + Math.random();
       resp.cookie("sessionId", sessionId);
     }
+    const api_json_path = this.pathToRoot
+      .with(DEFAULT_EVENT_CATALOGUE_NAME)
+      .with("api.json")
+      .toString();
     const api_json: ApiJson = JSON.parse(
       await readFile(
-        this.pathToRoot.with("event-catalogue").with("api.json").toString(),
+        existsSync(api_json_path)
+          ? api_json_path
+          : this.pathToRoot.with("event-catalogue").with("api.json").toString(),
         "utf-8"
       )
     );

@@ -8,6 +8,19 @@
 -
 -->
 
+# 5.0.0
+## Breaking changes
+- Made service `group` actions consistent with others (eg. `mm delete` => `mm group XXX delete`, `mm group` => `mm group new`)
+- Made folder names more intuitive (eg. `event-catalogue` => `event-configuration`, `public` => `front-end`, `service-group-1` => `back-end`)
+- `mm org new` no longer asks for names for the service group and repo, since they can simply be renamed later
+## Fixes and improvements
+- More responsive. Generalized code for skipping server response if argument is given (ie. `mm rapids post`)
+- `dryrun` should work more reliably
+- Added short-hand for `version` (`-v`)
+- Made `start`, `init` (as npm), and `--init` (as tsc) into aliases for `register`
+- Prepared some of the features we are working on
+- On immediate post to a new service, don't ask for event type
+
 # 4.10.2
 ## Fixes and improvements
 - `keys` table fixed

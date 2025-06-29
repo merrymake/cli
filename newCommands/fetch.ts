@@ -1,7 +1,7 @@
 import { Promise_all, Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { chmod, mkdir, readFile, rename, writeFile } from "fs/promises";
-import { GIT_HOST } from "../config.js";
+import { GIT_HOST, SPECIAL_FOLDERS } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import {
@@ -33,10 +33,7 @@ export type ToBeStructure = {
 };
 
 async function getCurrentStructure(pathToOrganization: PathToOrganization) {
-  const folders = await directoryNames(pathToOrganization, [
-    "event-catalogue",
-    "public",
-  ]);
+  const folders = await directoryNames(pathToOrganization, SPECIAL_FOLDERS);
   const groups: AsIsStructure = {};
   await Promise_all(
     ...folders.map(async (f) => {
