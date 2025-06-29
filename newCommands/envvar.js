@@ -85,8 +85,6 @@ async function envvar_key_random(pathToOrganization, organizationId, serviceGrou
     try {
         const value = +(await shortText("Length", "How many bytes", "32").then());
         const bytes = randomBytes(value);
-        console.log(bytes.toString("base64"));
-        console.log(bytes.toString("hex"));
         return envvar_key_visible_value(pathToOrganization, organizationId, serviceGroupId, key, Buffer.from(bytes.toString("base64")), true, init, prod);
     }
     catch (e) {

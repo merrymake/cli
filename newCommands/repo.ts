@@ -3,8 +3,20 @@ import { Promise_all, Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { appendFile, mkdir, rename, rm } from "fs/promises";
 import { GIT_HOST, REPOSITORY } from "../config.js";
-import { TODO, addToExecuteQueue, finish } from "../exitMessages.js";
-import { Option, choice, output, resetCommand, shortText } from "../prompt.js";
+import {
+  TODO,
+  addExitMessage,
+  addToExecuteQueue,
+  finish,
+} from "../exitMessages.js";
+import {
+  NORMAL_COLOR,
+  Option,
+  choice,
+  output,
+  resetCommand,
+  shortText,
+} from "../prompt.js";
 import { languages, templates } from "../templates.js";
 import {
   Organization,
@@ -21,7 +33,7 @@ import { do_deploy } from "./deploy.js";
 import { BITBUCKET_FILE, bitbucketStep } from "./hosting.js";
 import { post, post_event_payload_type } from "./post.js";
 import { isDryrun } from "../dryrun.js";
-import { outputGit } from "../printUtils.js";
+import { COMMAND_COLOR, outputGit } from "../printUtils.js";
 
 async function do_pull(pth: PathToRepository, repo: string) {
   try {
@@ -225,7 +237,7 @@ async function after_service_deploy(
               organizationId,
               "hello",
               `text/plain`,
-              "friend"
+              "mellon"
             ),
         },
       ],
@@ -333,6 +345,9 @@ export async function repo_create_name(
       serviceGroup,
       folderName,
       displayName
+    );
+    addExitMessage(
+      `Remember to: '${COMMAND_COLOR}cd ${pathToRepository.toString()}${NORMAL_COLOR}'`
     );
     return await choice(
       [

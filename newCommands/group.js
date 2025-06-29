@@ -7,15 +7,17 @@ import { PathToServiceGroup, ServiceGroupId, } from "../types.js";
 import { sshReq } from "../utils.js";
 import { repo_create } from "./repo.js";
 import { isDryrun } from "../dryrun.js";
+import { outputGit } from "../printUtils.js";
+import { SERVICE_GROUP } from "../config.js";
 export async function do_deleteServiceGroup(serviceGroup, displayName) {
     if (isDryrun()) {
-        output("DRYRUN: Would delete service group");
+        output(`DRYRUN: Would delete ${SERVICE_GROUP}`);
         return;
     }
     try {
-        console.log(`Deleting service group '${displayName}'...`);
+        outputGit(`Deleting ${SERVICE_GROUP} '${displayName}'...`);
         const reply = await sshReq(`group-delete`, serviceGroup.id.toString());
-        console.log(reply);
+        outputGit(reply);
         if (existsSync(serviceGroup.pathTo.toString()))
             await rename(serviceGroup.pathTo.toString(), `(deleted) ${serviceGroup.pathTo}`);
     }
@@ -38,7 +40,7 @@ export async function deleteServiceGroup(organization) {
                 const folderName = Str.toFolderName(group.name);
                 return {
                     long: folderName,
-                    text: `Delete ${group.name} (${folderName})`,
+                    text: `Delete ${SERVICE_GROUP} ${group.name} permanently`,
                     action: () => deleteServiceGroupId({
                         id: new ServiceGroupId(group.id),
                         pathTo: new PathToServiceGroup(organization.pathTo, folderName),
@@ -47,7 +49,7 @@ export async function deleteServiceGroup(organization) {
             });
             return {
                 options,
-                header: "Which service group would you like to delete?",
+                header: `Which ${SERVICE_GROUP} would you like to delete?`,
             };
         }).then();
     }
@@ -57,11 +59,11 @@ export async function deleteServiceGroup(organization) {
 }
 export async function do_createServiceGroup(path, organizationId, displayName) {
     if (isDryrun()) {
-        output("DRYRUN: Would create service group");
+        output(`DRYRUN: Would create ${SERVICE_GROUP}`);
         return new ServiceGroupId("dryrun_id");
     }
     try {
-        console.log(`Creating service group '${displayName}'...`);
+        outputGit(`Creating ${SERVICE_GROUP} '${displayName}'...`);
         const reply = await sshReq(`group-create`, displayName, `--organizationId`, organizationId.toString());
         if (reply.length !== 8)
             throw reply;
@@ -80,7 +82,7 @@ export async function group_new(organization) {
         let num = 1;
         while (existsSync(organization.pathTo.with("service-group-" + num).toString()))
             num++;
-        const displayName = await shortText("Service group name", "Used to share envvars.", "service-group-" + num).then();
+        const displayName = await shortText(`${SERVICE_GROUP[0].toUpperCase() + SERVICE_GROUP.substring(1)} name`, "Used to share envvars.", "service-group-" + num).then();
         const folderName = Str.toFolderName(displayName);
         const pathToServiceGroup = organization.pathTo.with(folderName);
         const serviceGroupId = await do_createServiceGroup(pathToServiceGroup, organization.id, displayName);
@@ -95,11 +97,11 @@ export async function group_new(organization) {
 }
 export async function do_renameServiceGroup(oldPathToServiceGroup, newServiceGroup, newDisplayName) {
     if (isDryrun()) {
-        output("DRYRUN: Would rename service group");
+        output(`DRYRUN: Would rename ${SERVICE_GROUP}`);
         return;
     }
     try {
-        console.log(`Renaming service group to '${newDisplayName}'...`);
+        outputGit(`Renaming ${SERVICE_GROUP} to '${newDisplayName}'...`);
         const reply = await sshReq(`group-modify`, `--displayName`, newDisplayName, newServiceGroup.id.toString());
         if (existsSync(oldPathToServiceGroup.toString()))
             await rename(oldPathToServiceGroup.toString(), newServiceGroup.pathTo.toString());
@@ -110,7 +112,7 @@ export async function do_renameServiceGroup(oldPathToServiceGroup, newServiceGro
 }
 async function group_edit_rename(oldPathToServiceGroup, oldDisplayName, serviceGroupId) {
     try {
-        const newDisplayName = await shortText("Service group name", "Used to share envvars.", oldDisplayName).then();
+        const newDisplayName = await shortText(`${SERVICE_GROUP[0].toUpperCase() + SERVICE_GROUP.substring(1)} name`, "Used to share envvars.", oldDisplayName).then();
         const folderName = Str.toFolderName(newDisplayName);
         const newPathToServiceGroup = oldPathToServiceGroup
             .parent()
@@ -127,18 +129,18 @@ async function group_edit(serviceGroup, displayName) {
         return await choice([
             {
                 long: "rename",
-                text: `rename it`,
+                text: `rename ${SERVICE_GROUP}`,
                 action: () => group_edit_rename(serviceGroup.pathTo, displayName, serviceGroup.id),
             },
             {
                 long: "delete",
-                text: `delete it permanently`,
+                text: `delete ${SERVICE_GROUP} '${displayName}' permanently`,
                 action: () => deleteServiceGroupId(serviceGroup, displayName),
             },
         ], async () => {
             return {
                 options: [],
-                header: `How would you like to edit '${displayName}'?`,
+                header: `How would you like to edit the ${SERVICE_GROUP}?`,
             };
         }).then((x) => x);
     }
@@ -152,7 +154,7 @@ export async function group(organization) {
             {
                 long: "new",
                 short: "n",
-                text: `create new service group`,
+                text: `create a new ${SERVICE_GROUP}`,
                 action: () => group_new(organization),
             },
         ], async () => {
@@ -173,7 +175,7 @@ export async function group(organization) {
             });
             return {
                 options,
-                header: "Which service group would you like to manage?",
+                header: `Which ${SERVICE_GROUP} would you like to manage?`,
             };
         }).then();
     }

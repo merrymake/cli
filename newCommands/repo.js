@@ -2,16 +2,17 @@ import { ProjectTypes } from "@merrymake/detect-project-type";
 import { Promise_all, Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { appendFile, mkdir, rename, rm } from "fs/promises";
-import { GIT_HOST } from "../config.js";
-import { TODO, addToExecuteQueue, finish } from "../exitMessages.js";
-import { choice, output, resetCommand, shortText } from "../prompt.js";
+import { GIT_HOST, REPOSITORY } from "../config.js";
+import { TODO, addExitMessage, addToExecuteQueue, finish, } from "../exitMessages.js";
+import { NORMAL_COLOR, choice, output, resetCommand, shortText, } from "../prompt.js";
 import { languages, templates } from "../templates.js";
 import { RepositoryId, } from "../types.js";
 import { execPromise, sshReq } from "../utils.js";
 import { do_deploy } from "./deploy.js";
 import { BITBUCKET_FILE, bitbucketStep } from "./hosting.js";
-import { post } from "./post.js";
+import { post_event_payload_type } from "./post.js";
 import { isDryrun } from "../dryrun.js";
+import { COMMAND_COLOR, outputGit } from "../printUtils.js";
 async function do_pull(pth, repo) {
     try {
         const before = process.cwd();
@@ -29,11 +30,11 @@ async function do_pull(pth, repo) {
     }
 }
 export function do_fetch_template(pth, template, projectType) {
-    console.log(`Fetching ${projectType} template...`);
+    outputGit(`Fetching ${projectType} template...`);
     return do_pull(pth, `https://github.com/merrymake/${projectType}-${template}-template`);
 }
 export function do_duplicate(pth, organizationId, groupId, repositoryId) {
-    console.log(`Duplicating ${"local folder"} service...`);
+    outputGit(`Duplicating ${REPOSITORY}...`);
     return do_pull(pth, `${GIT_HOST}/o${organizationId}/g${groupId}/r${repositoryId}`);
 }
 async function service_template_language(pathToService, organizationId, template, projectType) {
@@ -47,12 +48,12 @@ async function service_template_language(pathToService, organizationId, template
 }
 export async function do_createService(organization, serviceGroup, folderName, displayName) {
     if (isDryrun()) {
-        output("DRYRUN: Would create repository");
+        output(`DRYRUN: Would create ${REPOSITORY}`);
         return "dryrun_id";
     }
     try {
         const repositoryPath = serviceGroup.pathTo.with(folderName);
-        console.log(`Creating repository '${displayName}'...`);
+        outputGit(`Creating ${REPOSITORY} '${displayName}'...`);
         const reply = await sshReq(`repository-create`, displayName, `--serviceGroupId`, serviceGroup.id.toString());
         if (reply.length !== 8)
             throw reply;
@@ -83,11 +84,11 @@ export async function do_createService(organization, serviceGroup, folderName, d
 }
 export async function do_renameService(oldPathToRepository, newRepository, newDisplayName) {
     if (isDryrun()) {
-        output("DRYRUN: Would rename repository");
+        output(`DRYRUN: Would rename ${REPOSITORY}`);
         return;
     }
     try {
-        console.log(`Renaming service to '${newDisplayName}'...`);
+        outputGit(`Renaming ${REPOSITORY} to '${newDisplayName}'...`);
         const reply = await sshReq(`repository-modify`, `--displayName`, newDisplayName, newRepository.id.toString());
         if (existsSync(oldPathToRepository.toString()))
             await rename(oldPathToRepository.toString(), newRepository.pathTo.toString());
@@ -133,12 +134,12 @@ async function after_service_deploy(pathToService, organizationId) {
             {
                 long: "post",
                 text: "post an event to the rapids",
-                action: () => post(organizationId),
+                action: () => post_event_payload_type(organizationId, "hello", `text/plain`, "mellon"),
             },
         ], async () => {
             return {
                 options: [],
-                header: "Would you like to post and event to the Rapids? (Trigger the service)",
+                header: "Would you like to post an event to the Rapids? (run the code)",
             };
         }, { disableAutoPick: true });
     }
@@ -152,13 +153,13 @@ function after_service(pathToService, organizationId) {
         {
             long: "deploy",
             short: "d",
-            text: "deploy the service immediately",
+            text: `deploy the ${REPOSITORY} immediately`,
             action: () => after_service_deploy(pathToService, organizationId),
         },
     ], async () => {
         return {
             options: [],
-            header: "Would you like to deploy the new service?",
+            header: `Would you like to deploy the new ${REPOSITORY}?`,
         };
     }, { disableAutoPick: true });
 }
@@ -181,7 +182,7 @@ async function duplicate(pathToService, organizationId, serviceGroupId) {
                     text: `${x.name} (${x.id})`,
                     action: () => duplicate_then(pathToService, organizationId, serviceGroupId, new RepositoryId(x.id)),
                 })),
-                header: "Which service would you like to duplicate?",
+                header: `Which ${REPOSITORY} would you like to duplicate?`,
             };
         }).then();
     }
@@ -205,6 +206,7 @@ export async function repo_create_name(organization, serviceGroup, displayName) 
         const folderName = Str.toFolderName(displayName);
         const pathToRepository = serviceGroup.pathTo.with(folderName);
         const repositoryId = await do_createService(organization, serviceGroup, folderName, displayName);
+        addExitMessage(`Remember to: '${COMMAND_COLOR}cd ${pathToRepository.toString()}${NORMAL_COLOR}'`);
         return await choice([
             {
                 long: "empty",
@@ -229,7 +231,7 @@ export async function repo_create_name(organization, serviceGroup, displayName) 
                 options.push({
                     long: "duplicate",
                     short: "d",
-                    text: "duplicate an existing service",
+                    text: `duplicate an existing ${REPOSITORY}`,
                     action: () => duplicate(pathToRepository, organization.id, serviceGroup.id),
                 });
             }
@@ -253,7 +255,7 @@ export async function repo_create_name(organization, serviceGroup, displayName) 
             }));
             return {
                 options,
-                header: "What would you like the new repository to contain?",
+                header: `What would you like the new ${REPOSITORY} to contain?`,
             };
         }).then();
     }
@@ -267,7 +269,7 @@ export async function repo_create(organization, serviceGroup) {
         let num = 1;
         while (existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
             num++;
-        const displayName = await shortText("Repository name", "This is where the code lives.", "repo-" + num).then();
+        const displayName = await shortText(`${REPOSITORY[0].toUpperCase() + REPOSITORY.substring(1)} name`, "This is where the code lives.", "repo-" + num).then();
         return await repo_create_name(organization, serviceGroup, displayName);
     }
     catch (e) {
@@ -276,7 +278,7 @@ export async function repo_create(organization, serviceGroup) {
 }
 async function repo_edit_rename(oldPathToRepository, oldDisplayName, repositoryId) {
     try {
-        const newDisplayName = await shortText("Repository name", "This is where the code lives.", oldDisplayName).then();
+        const newDisplayName = await shortText(`${REPOSITORY[0].toUpperCase() + REPOSITORY.substring(1)} name`, "This is where the code lives.", oldDisplayName).then();
         const folderName = Str.toFolderName(newDisplayName);
         const newPathToRepository = oldPathToRepository.parent().with(folderName);
         addToExecuteQueue(() => do_renameService(oldPathToRepository, { pathTo: newPathToRepository, id: repositoryId }, newDisplayName));
@@ -291,16 +293,19 @@ async function repo_edit(pathToGroup, displayName, repositoryId) {
         return await choice([
             {
                 long: "rename",
-                text: `rename repository`,
+                text: `rename ${REPOSITORY}`,
                 action: () => repo_edit_rename(pathToGroup.with(Str.toFolderName(displayName)), displayName, repositoryId),
             },
             {
                 long: "delete",
-                text: `delete repository '${displayName}' permanently`,
+                text: `delete ${REPOSITORY} '${displayName}' permanently`,
                 action: TODO,
             },
         ], async () => {
-            return { options: [], header: "How would you like to edit the repo?" };
+            return {
+                options: [],
+                header: `How would you like to edit the ${REPOSITORY}?`,
+            };
         }).then((x) => x);
     }
     catch (e) {
@@ -313,7 +318,7 @@ export async function repo(organization, serviceGroup) {
             {
                 long: "new",
                 short: "n",
-                text: `create new repository`,
+                text: `create a new ${REPOSITORY}`,
                 action: () => repo_create(organization, serviceGroup),
             },
         ], async () => {
@@ -329,7 +334,7 @@ export async function repo(organization, serviceGroup) {
             });
             return {
                 options,
-                header: "Which repository would you like to manage?",
+                header: `Which ${REPOSITORY} would you like to manage?`,
             };
         }).then();
     }

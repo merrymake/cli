@@ -1,16 +1,17 @@
+import { Promise_all } from "@merrymake/utils";
 import { stdin } from "node:process";
 import { initializeArgs } from "./args.js";
-import { abort, setDryrun } from "./exitMessages.js";
+import { enableDryrun } from "./dryrun.js";
+import { abort } from "./exitMessages.js";
 import { index } from "./newCommands/index.js";
 import { addKnownHost, register } from "./newCommands/register.js";
-import { CTRL_C, moveToBottom, NORMAL_COLOR } from "./prompt.js";
-import { checkVersionIfOutdated, outputGit, package_json, } from "./printUtils.js";
-import { Promise_all } from "@merrymake/utils";
 import { waitForConfigWrite } from "./persistance.js";
+import { checkVersionIfOutdated, outputGit, package_json, } from "./printUtils.js";
+import { CTRL_C, moveToBottom, NORMAL_COLOR } from "./prompt.js";
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
 if (process.argv[0] === "dryrun") {
-    setDryrun();
+    enableDryrun();
     process.argv.splice(0, 1);
 }
 initializeArgs(process.argv.flatMap((x) => x.startsWith("-") && x.length > 2

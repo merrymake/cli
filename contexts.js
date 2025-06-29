@@ -1,8 +1,9 @@
 import { existsSync } from "fs";
+import { lstat, readdir } from "fs/promises";
 import path from "path";
+import { REPOSITORY, SERVICE_GROUP, SPECIAL_FOLDERS } from "./config.js";
 import { GREEN, NORMAL_COLOR } from "./prompt.js";
 import { Path, directoryNames, fetchOrgRaw } from "./utils.js";
-import { lstat, readdir } from "fs/promises";
 async function downOrg(cmd) {
     try {
         const folders = await readdir(".");
@@ -44,7 +45,7 @@ async function upOrg(cmd) {
 }
 const SERVICE_CONTEXT = async (cmd) => {
     try {
-        let hint = `You can only run '${cmd}' from inside a service folder.`;
+        let hint = `You can only run '${cmd}' from inside a ${REPOSITORY}.`;
         const bfs = ["."];
         while (bfs.length !== 0) {
             const cur = bfs.shift();
@@ -67,18 +68,15 @@ const SERVICE_CONTEXT = async (cmd) => {
     }
 };
 const NOT_SERVICE_CONTEXT = (cmd) => {
-    let hint = `You cannot run '${cmd}' from inside a service folder.`;
+    let hint = `You cannot run '${cmd}' from inside a ${REPOSITORY}.`;
     hint += `\nUse '${GREEN}cd ..${NORMAL_COLOR}' or one of these:`;
     return Promise.resolve(hint);
 };
 const SERVICE_GROUP_CONTEXT = async (cmd) => {
     try {
         const struct = await fetchOrgRaw();
-        const serviceGroups = await directoryNames(new Path(struct.pathToRoot), [
-            "event-catalogue",
-            "public",
-        ]);
-        let hint = `You can only run '${cmd}' from inside a service group.`;
+        const serviceGroups = await directoryNames(new Path(struct.pathToRoot), SPECIAL_FOLDERS);
+        let hint = `You can only run '${cmd}' from inside a ${SERVICE_GROUP}.`;
         hint += `\nUse '${GREEN}cd ${path
             .join(struct.pathToRoot, serviceGroups[0].name)
             .replace(/\\/g, "\\\\")}${NORMAL_COLOR}' or one of these:`;

@@ -4,6 +4,7 @@ import { outputGit } from "../printUtils.js";
 import { GRAY, GREEN, NORMAL_COLOR } from "../prompt.js";
 import { sshReq, urlReq } from "../utils.js";
 import { Str } from "@merrymake/utils";
+import { REPOSITORY, SERVICE_GROUP } from "../config.js";
 async function do_help(ctx) {
     try {
         const whoami = JSON.parse(await sshReq("me-whoami"));
@@ -29,16 +30,16 @@ async function do_help(ctx) {
         outputGit(`${GRAY}Inside organization (${ctx.organization.id}).${NORMAL_COLOR}`);
     }
     if (ctx.serviceGroup === undefined) {
-        outputGit(`Warning: Not inside service group.`);
+        outputGit(`Warning: Not inside ${SERVICE_GROUP}.`);
     }
     else {
-        outputGit(`${GRAY}Inside service group (${ctx.serviceGroup.id}).${NORMAL_COLOR}`);
+        outputGit(`${GRAY}Inside ${SERVICE_GROUP} (${ctx.serviceGroup.id}).${NORMAL_COLOR}`);
     }
     if (!existsSync("merrymake.json")) {
-        outputGit(`Warning: Not inside service repo.`);
+        outputGit(`Warning: Not inside ${REPOSITORY}.`);
     }
     else {
-        outputGit(`${GRAY}Inside service repo (${ctx.repositoryId}).${NORMAL_COLOR}`);
+        outputGit(`${GRAY}Inside ${REPOSITORY} (${ctx.repositoryId}).${NORMAL_COLOR}`);
     }
 }
 export function help(ctx) {

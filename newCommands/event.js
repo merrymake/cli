@@ -5,6 +5,7 @@ import { key_create } from "./apikey.js";
 import { outputGit } from "../printUtils.js";
 import { Str } from "@merrymake/utils";
 import { isDryrun } from "../dryrun.js";
+import { DEFAULT_EVENT_CATALOGUE_NAME } from "../config.js";
 export async function do_event(apikeyId, events) {
     if (isDryrun()) {
         output("DRYRUN: Would allow events");
@@ -29,7 +30,7 @@ async function event_key(apikeyId) {
         const parsed = JSON.parse(resp);
         const events = {};
         parsed.forEach((x) => (events[x.event] = x.allowed));
-        return await multiSelect("Which events would you like to allow and disallow?", events, (s) => event_key_events(apikeyId, s), "No events in event-catalogue. Make sure you have added events to the event-catalogue and deployed it.");
+        return await multiSelect("Which events would you like to allow and disallow?", events, (s) => event_key_events(apikeyId, s), `No events in ${DEFAULT_EVENT_CATALOGUE_NAME}. Make sure you have added events to the ${DEFAULT_EVENT_CATALOGUE_NAME} and deployed it.`);
     }
     catch (e) {
         throw e;

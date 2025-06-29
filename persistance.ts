@@ -13,8 +13,8 @@ const configReady: Promise<void> = (async () => {
   if (!existsSync(configFolder)) await mkdir(configFolder);
   if (existsSync(configFile))
     (await readFile(configFile, "utf-8")).split("\n").forEach((line, index) => {
-      const [assignment, comment] = Str.partition(line, EOL_COMMENT_CHAR);
-      const [key, value] = Str.partition(assignment, "=");
+      const [assignment, comment] = Str.partitionLeft(line, EOL_COMMENT_CHAR);
+      const [key, value] = Str.partitionLeft(assignment, "=");
       fileContent.push([key, value, comment]);
       if (key.length > 0) {
         config[key] = value;

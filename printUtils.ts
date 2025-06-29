@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url);
 // IN THE FUTURE: import conf from "./package.json" with {type:"json"};
 export const package_json = require("./package.json");
 
-const COMMAND_COLOR = Str.PURPLE;
+export const COMMAND_COLOR = Str.PURPLE;
 
 export async function checkVersionIfOutdated() {
   try {
