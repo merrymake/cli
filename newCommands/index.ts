@@ -217,16 +217,9 @@ export async function index() {
             }
             options.push(
               {
-                long: "delete",
-                short: "d",
-                text: "delete a service group",
-                weight: 100,
-                action: () => deleteServiceGroup(organization),
-              },
-              {
                 long: "group",
                 short: "g",
-                text: "create a service group",
+                text: "add or edit a service group",
                 weight: 500,
                 action: () => group(organization),
               },

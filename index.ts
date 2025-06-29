@@ -9,6 +9,7 @@ import {
   outputGit,
   package_json,
 } from "./printUtils.js";
+import {} from "./utils.js";
 
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
@@ -48,9 +49,6 @@ if (stdin.isTTY) {
     }
   });
 }
-
-// TODO Change join to invite
-// TODO roles
 
 (async () => {
   checkVersionIfOutdated();

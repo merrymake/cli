@@ -1,7 +1,11 @@
 import { Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
-import { GIT_HOST } from "../config.js";
+import {
+  DEFAULT_EVENT_CATALOGUE_NAME,
+  DEFAULT_PUBLIC_NAME,
+  GIT_HOST,
+} from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { choice } from "../prompt.js";
@@ -24,7 +28,7 @@ export async function do_clone(
       `${folderName}/.merrymake/conf.json`,
       JSON.stringify(orgFile)
     );
-    const eventsDir = `${folderName}/event-configuration`;
+    const eventsDir = `${folderName}/${DEFAULT_EVENT_CATALOGUE_NAME}`;
     await mkdir(eventsDir, { recursive: true });
     await execPromise(`git init --initial-branch=main`, eventsDir);
     await execPromise(
@@ -40,7 +44,7 @@ export async function do_clone(
       if (!existsSync(eventsDir + "/cron.json"))
         await writeFile(eventsDir + "/cron.json", "{}");
     }
-    const publicDir = `${folderName}/front-end`;
+    const publicDir = `${folderName}/${DEFAULT_PUBLIC_NAME}`;
     await mkdir(publicDir, { recursive: true });
     await execPromise(`git init --initial-branch=main`, publicDir);
     await execPromise(

@@ -11,7 +11,7 @@ import { deploy } from "./deploy.js";
 import { envvar } from "./envvar.js";
 import { event } from "./event.js";
 import { fetch } from "./fetch.js";
-import { deleteServiceGroup, group } from "./group.js";
+import { group } from "./group.js";
 import { help } from "./help.js";
 import { BITBUCKET_FILE, hosting } from "./hosting.js";
 import { orgAction, rename } from "./org.js";
@@ -173,15 +173,9 @@ export async function index() {
                         });
                     }
                     options.push({
-                        long: "delete",
-                        short: "d",
-                        text: "delete a service group",
-                        weight: 100,
-                        action: () => deleteServiceGroup(organization),
-                    }, {
                         long: "group",
                         short: "g",
-                        text: "create a service group",
+                        text: "add or edit a service group",
                         weight: 500,
                         action: () => group(organization),
                     }, {

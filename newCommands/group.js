@@ -65,9 +65,9 @@ export async function do_createServiceGroup(path, organizationId, displayName) {
         throw e;
     }
 }
-export async function group(organization) {
+export async function group_new(organization) {
     try {
-        resetCommand("group");
+        resetCommand("group new");
         let num = 1;
         while (existsSync(organization.pathTo.with("service-group-" + num).toString()))
             num++;
@@ -79,6 +79,90 @@ export async function group(organization) {
             pathTo: pathToServiceGroup,
             id: serviceGroupId,
         });
+    }
+    catch (e) {
+        throw e;
+    }
+}
+export async function do_renameServiceGroup(oldPathToServiceGroup, newServiceGroup, newDisplayName) {
+    try {
+        console.log(`Renaming service group to '${newDisplayName}'...`);
+        const reply = await sshReq(`group-modify`, `--displayName`, newDisplayName, newServiceGroup.id.toString());
+        if (existsSync(oldPathToServiceGroup.toString()))
+            await rename(oldPathToServiceGroup.toString(), newServiceGroup.pathTo.toString());
+    }
+    catch (e) {
+        throw e;
+    }
+}
+async function group_edit_rename(oldPathToServiceGroup, oldDisplayName, serviceGroupId) {
+    try {
+        const newDisplayName = await shortText("Service group name", "Used to share envvars.", oldDisplayName).then();
+        const folderName = Str.toFolderName(newDisplayName);
+        const newPathToServiceGroup = oldPathToServiceGroup
+            .parent()
+            .with(folderName);
+        addToExecuteQueue(() => do_renameServiceGroup(oldPathToServiceGroup, { pathTo: newPathToServiceGroup, id: serviceGroupId }, newDisplayName));
+        return finish();
+    }
+    catch (e) {
+        throw e;
+    }
+}
+async function group_edit(serviceGroup, displayName) {
+    try {
+        return await choice([
+            {
+                long: "rename",
+                text: `rename it`,
+                action: () => group_edit_rename(serviceGroup.pathTo, displayName, serviceGroup.id),
+            },
+            {
+                long: "delete",
+                text: `delete it permanently`,
+                action: () => deleteServiceGroupId(serviceGroup, displayName),
+            },
+        ], async () => {
+            return {
+                options: [],
+                header: `How would you like to edit '${displayName}'?`,
+            };
+        }).then((x) => x);
+    }
+    catch (e) {
+        throw e;
+    }
+}
+export async function group(organization) {
+    try {
+        return await choice([
+            {
+                long: "new",
+                short: "n",
+                text: `create new service group`,
+                action: () => group_new(organization),
+            },
+        ], async () => {
+            const resp = await sshReq(`group-list`, organization.id.toString());
+            if (!resp.startsWith("["))
+                throw resp;
+            const groups = JSON.parse(resp);
+            const options = groups.map((group) => {
+                const folderName = Str.toFolderName(group.name);
+                return {
+                    long: folderName,
+                    text: `edit '${group.name}'`,
+                    action: () => group_edit({
+                        id: new ServiceGroupId(group.id),
+                        pathTo: new PathToServiceGroup(organization.pathTo, folderName),
+                    }, group.name),
+                };
+            });
+            return {
+                options,
+                header: "Which service group would you like to manage?",
+            };
+        }).then();
     }
     catch (e) {
         throw e;

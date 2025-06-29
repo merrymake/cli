@@ -1,14 +1,15 @@
+import { constify, Str } from "@merrymake/utils";
+import { DEFAULT_REPOSITORY_NAME, DEFAULT_SERVICE_GROUP_NAME, } from "../config.js";
 import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { outputGit } from "../printUtils.js";
 import { choice, shortText } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
 import { digits, generateString, lowercase, sshReq } from "../utils.js";
 import { ADJECTIVE, NOUN } from "../words.js";
-import { checkout, checkout_org, checkoutName, do_clone, } from "./clone.js";
+import { checkout, checkout_org, checkoutName, do_clone } from "./clone.js";
 import { do_createServiceGroup } from "./group.js";
-import { outputGit } from "../printUtils.js";
+import { repo_create_name } from "./repo.js";
 import { wait } from "./wait.js";
-import { constify, Str } from "@merrymake/utils";
-import { repo_create } from "./repo.js";
 export async function do_createOrganization(folderName, displayName) {
     try {
         const reply = await sshReq(`organization-create`, displayName);
@@ -64,13 +65,13 @@ export async function org() {
             return { id: organizationId, pathTo: new PathToOrganization(folderName) };
         });
         const serviceGroup = await constify(async () => {
-            const displayName = "back-end";
+            const displayName = DEFAULT_SERVICE_GROUP_NAME;
             const folderName = Str.toFolderName(displayName);
             const pathToServiceGroup = organization.pathTo.with(folderName);
             const serviceGroupId = await do_createServiceGroup(pathToServiceGroup, organization.id, displayName);
             return { pathTo: pathToServiceGroup, id: serviceGroupId };
         });
-        return repo_create(organization, serviceGroup);
+        return repo_create_name(organization, serviceGroup, DEFAULT_REPOSITORY_NAME);
     }
     catch (e) {
         throw e;

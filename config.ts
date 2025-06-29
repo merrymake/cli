@@ -9,3 +9,8 @@ export const SSH_USER = `mist`;
 export const GIT_HOST = `ssh://${SSH_USER}@${API_URL}`;
 
 export const SPECIAL_FOLDERS = ["event-catalogue", "public"];
+
+export const DEFAULT_SERVICE_GROUP_NAME = "back-end";
+export const DEFAULT_REPOSITORY_NAME = "service-1";
+export const DEFAULT_PUBLIC_NAME = "front-end";
+export const DEFAULT_EVENT_CATALOGUE_NAME = "event-configuration";

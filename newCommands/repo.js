@@ -190,13 +190,9 @@ export async function listRepos(serviceGroupId) {
     }
     return repoListCache;
 }
-export async function repo_create(organization, serviceGroup) {
+export async function repo_create_name(organization, serviceGroup, displayName) {
     try {
-        resetCommand("repo new");
-        let num = 1;
-        while (existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
-            num++;
-        const displayName = await shortText("Repository name", "This is where the code lives.", "repo-" + num).then();
+        resetCommand("repo new " + displayName);
         const folderName = Str.toFolderName(displayName);
         const pathToRepository = serviceGroup.pathTo.with(folderName);
         const repositoryId = await do_createService(organization, serviceGroup, folderName, displayName);
@@ -211,15 +207,16 @@ export async function repo_create(organization, serviceGroup) {
             const options = [];
             // console.log(repositories);
             const repositories = await listRepos(serviceGroup.id);
-            if (repositories.length === 1) {
+            const others = repositories.filter((x) => x.id !== repositoryId.toString());
+            if (others.length === 1) {
                 options.push({
                     long: "duplicate",
                     short: "d",
-                    text: `duplicate ${repositories[0].name}`,
-                    action: () => duplicate_then(pathToRepository, organization.id, serviceGroup.id, new RepositoryId(repositories[0].id)),
+                    text: `duplicate ${others[0].name}`,
+                    action: () => duplicate_then(pathToRepository, organization.id, serviceGroup.id, new RepositoryId(others[0].id)),
                 });
             }
-            else if (repositories.length > 0) {
+            else if (others.length > 1) {
                 options.push({
                     long: "duplicate",
                     short: "d",
@@ -250,6 +247,19 @@ export async function repo_create(organization, serviceGroup) {
                 header: "What would you like the new repository to contain?",
             };
         }).then();
+    }
+    catch (e) {
+        throw e;
+    }
+}
+export async function repo_create(organization, serviceGroup) {
+    try {
+        resetCommand("repo new");
+        let num = 1;
+        while (existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
+            num++;
+        const displayName = await shortText("Repository name", "This is where the code lives.", "repo-" + num).then();
+        return await repo_create_name(organization, serviceGroup, displayName);
     }
     catch (e) {
         throw e;
@@ -304,7 +314,7 @@ export async function repo(organization, serviceGroup) {
                 options.push({
                     long: x.id,
                     short: "e",
-                    text: `edit ${x.name} (${x.id})`,
+                    text: `edit '${x.name}'`,
                     action: () => repo_edit(serviceGroup.pathTo, x.name, new RepositoryId(x.id)),
                 });
             });

@@ -37,8 +37,6 @@ if (stdin.isTTY) {
         }
     });
 }
-// TODO Change join to invite
-// TODO roles
 (async () => {
     checkVersionIfOutdated();
     const token = await index();

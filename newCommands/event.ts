@@ -4,6 +4,7 @@ import { OrganizationId } from "../types.js";
 import { sshReq } from "../utils.js";
 import { key_create } from "./apikey.js";
 import { outputGit } from "../printUtils.js";
+import { Str } from "@merrymake/utils";
 
 export async function do_event(
   apikeyId: string,
@@ -13,9 +14,9 @@ export async function do_event(
     const selected = Object.keys(events).filter((x) => events[x]);
     await sshReq(`events-allow`, apikeyId, `--events`, selected.join(","));
     outputGit(
-      `Allowed event${selected.length > 1 ? "s" : ""} ${selected.join(
-        ", "
-      )} on key ${apikeyId}.`
+      `Allowed ${Str.plural(selected.length, "event")} ${Str.list(
+        selected
+      )} on the key ${apikeyId}.`
     );
   } catch (e) {
     throw e;

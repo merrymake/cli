@@ -6,8 +6,9 @@ import path from "path";
 import { SSH_HOST, SSH_USER } from "./config.js";
 import { MEGABYTES, Obj, Promise_all, Str, UnitType } from "@merrymake/utils";
 import { PathTo } from "./types.js";
-import { debugLog } from "./printUtils.js";
+import { debugLog, outputGit } from "./printUtils.js";
 import { readdir, readFile } from "fs/promises";
+import { output } from "./prompt.js";
 
 export const lowercase = "abcdefghijklmnopqrstuvwxyz";
 export const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

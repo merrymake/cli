@@ -303,20 +303,13 @@ export async function listRepos(serviceGroupId: ServiceGroupId) {
   return repoListCache!;
 }
 
-export async function repo_create(
+export async function repo_create_name(
   organization: Organization,
-  serviceGroup: ServiceGroup
+  serviceGroup: ServiceGroup,
+  displayName: string
 ) {
   try {
-    resetCommand("repo new");
-    let num = 1;
-    while (existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
-      num++;
-    const displayName = await shortText(
-      "Repository name",
-      "This is where the code lives.",
-      "repo-" + num
-    ).then();
+    resetCommand("repo new " + displayName);
     const folderName = Str.toFolderName(displayName);
     const pathToRepository = serviceGroup.pathTo.with(folderName);
     const repositoryId = await do_createService(
@@ -338,20 +331,23 @@ export async function repo_create(
         const options: Option[] = [];
         // console.log(repositories);
         const repositories = await listRepos(serviceGroup.id);
-        if (repositories.length === 1) {
+        const others = repositories.filter(
+          (x) => x.id !== repositoryId.toString()
+        );
+        if (others.length === 1) {
           options.push({
             long: "duplicate",
             short: "d",
-            text: `duplicate ${repositories[0].name}`,
+            text: `duplicate ${others[0].name}`,
             action: () =>
               duplicate_then(
                 pathToRepository,
                 organization.id,
                 serviceGroup.id,
-                new RepositoryId(repositories[0].id)
+                new RepositoryId(others[0].id)
               ),
           });
-        } else if (repositories.length > 0) {
+        } else if (others.length > 1) {
           options.push({
             long: "duplicate",
             short: "d",
@@ -403,6 +399,26 @@ export async function repo_create(
         };
       }
     ).then();
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function repo_create(
+  organization: Organization,
+  serviceGroup: ServiceGroup
+) {
+  try {
+    resetCommand("repo new");
+    let num = 1;
+    while (existsSync(serviceGroup.pathTo.with("repo-" + num).toString()))
+      num++;
+    const displayName = await shortText(
+      "Repository name",
+      "This is where the code lives.",
+      "repo-" + num
+    ).then();
+    return await repo_create_name(organization, serviceGroup, displayName);
   } catch (e) {
     throw e;
   }
@@ -488,7 +504,7 @@ export async function repo(
           options.push({
             long: x.id,
             short: "e",
-            text: `edit ${x.name} (${x.id})`,
+            text: `edit '${x.name}'`,
             action: () =>
               repo_edit(serviceGroup.pathTo, x.name, new RepositoryId(x.id)),
           });
