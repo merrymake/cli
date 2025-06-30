@@ -280,7 +280,7 @@ class Simulator {
                 }
             });
             // CORS
-            rapids.options("*", withSession, async (req, res) => {
+            rapids.options("*any", withSession, async (req, res) => {
                 res.set("Access-Control-Allow-Origin", "*");
                 res.set("Access-Control-Allow-Headers", "Content-Type");
                 res.send("Ok");
@@ -321,7 +321,7 @@ ${Str.FG_GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═�
                 });
             }));
             const pub = express();
-            pub.get("/*", withSession, (req, res) => {
+            pub.get("*any", withSession, (req, res) => {
                 res.sendFile(req.path, {
                     root: this.pathToRoot.with("public").toString(),
                 });

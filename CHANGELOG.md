@@ -8,6 +8,10 @@
 -
 -->
 
+# 5.0.2
+## Fixes and improvements
+- Fix `sim` after dependency update
+
 # 5.0.1
 ## Fixes and improvements
 - Fix an issue with `start`
