@@ -1,7 +1,7 @@
 import { Str } from "@merrymake/utils";
 import { rm, writeFile } from "fs/promises";
 import { API_URL, FINGERPRINT, GIT_HOST, SPECIAL_FOLDERS } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { Option, choice, output, shortText } from "../prompt.js";
 import {
@@ -149,7 +149,7 @@ async function hosting_bitbucket_key_host(
       "Pushes or pull requests to this branch will trigger a deploy. Normally: main, master, trunk, or release",
       `master`
     ).then();
-    addToExecuteQueue(() => do_bitbucket(organization, host, key, branch));
+    await do_bitbucket(organization, host, key, branch);
     return finish();
   } catch (e) {
     throw e;
@@ -177,9 +177,7 @@ async function hosting_bitbucket_create(organization: Organization) {
       `Service User`
     ).then();
     const file = ".merrymake/" + Str.toFolderName(name) + ".key";
-    addToExecuteQueue(() =>
-      do_create_deployment_agent(organization, name, file)
-    );
+    await do_create_deployment_agent(organization, name, file);
     return hosting_bitbucket_key(organization, file);
   } catch (e) {
     throw e;

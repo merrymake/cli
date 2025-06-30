@@ -6,14 +6,14 @@ import {
   DEFAULT_PUBLIC_NAME,
   GIT_HOST,
 } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { isDryrun } from "../dryrun.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { choice, output } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
 import { OrgFile, execPromise, sshReq, toSubdomain } from "../utils.js";
 import { ToBeStructure, ensureGroupStructure } from "./fetch.js";
 import { listOrgs } from "./org.js";
-import { isDryrun } from "../dryrun.js";
 
 export async function do_clone(
   struct: ToBeStructure,
@@ -98,9 +98,7 @@ export async function checkout_org(
   if (existsSync(folderName)) {
     throw `Folder '${folderName}' already exists.`;
   }
-  addToExecuteQueue(() =>
-    do_fetch_clone(displayName, folderName, organizationId)
-  );
+  await do_fetch_clone(displayName, folderName, organizationId);
   return finish();
 }
 

@@ -3,7 +3,7 @@ import {
   DEFAULT_REPOSITORY_NAME,
   DEFAULT_SERVICE_GROUP_NAME,
 } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { choice, Option, output, shortText } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
@@ -61,7 +61,7 @@ export async function rename(organizationId: OrganizationId) {
       "Used when collaborating with others.",
       "Acme Anvils"
     ).then();
-    addToExecuteQueue(() => do_renameOrganization(organizationId, displayName));
+    await do_renameOrganization(organizationId, displayName);
     return finish();
   } catch (e) {
     throw e;
@@ -194,8 +194,8 @@ async function do_join(org: string) {
   }
 }
 
-function join_org(org: string) {
-  addToExecuteQueue(() => do_join(org));
+async function join_org(org: string) {
+  await do_join(org);
   return finish();
 }
 

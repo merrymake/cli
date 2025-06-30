@@ -1,8 +1,7 @@
-import { Promise_all } from "@merrymake/utils";
+import { Promise_all, Str } from "@merrymake/utils";
 import { stdin } from "node:process";
-import { initializeArgs } from "./args.js";
+import { getArgs, initializeArgs } from "./args.js";
 import { enableDryrun } from "./dryrun.js";
-import { abort } from "./exitMessages.js";
 import { index } from "./newCommands/index.js";
 import { addKnownHost, register } from "./newCommands/register.js";
 import { waitForConfigWrite } from "./persistance.js";
@@ -11,8 +10,9 @@ import {
   outputGit,
   package_json,
 } from "./printUtils.js";
-import { CTRL_C, moveToBottom, NORMAL_COLOR } from "./prompt.js";
+import { CTRL_C, moveToBottom } from "./prompt.js";
 import {} from "./utils.js";
+import { finish } from "./exitMessages.js";
 
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
@@ -43,7 +43,7 @@ if (stdin.isTTY) {
   stdin.on("data", (key) => {
     const k = key.toString();
     if (k === CTRL_C) {
-      abort();
+      finish(1);
     }
   });
 }
@@ -53,30 +53,28 @@ if (stdin.isTTY) {
     console.log(package_json.version);
     process.exit(0);
   } else if (["start", "init", "--init"].includes(process.argv[0])) {
-    process.argv.splice(0, 1);
+    getArgs().splice(0, 1);
     const token: never = await register();
   } else {
     checkVersionIfOutdated();
     const token: never = await index();
   }
-})()
-  .catch((e) => {
-    moveToBottom();
-    const eStr1 = "" + e;
-    const eStr = eStr1 === "[object Object]" ? JSON.stringify(e) : eStr1;
-    if (eStr.includes("Permission denied (publickey)")) {
-      addKnownHost();
-      outputGit(
-        `A permission error occurred. Please try these solutions:
+})().catch((e) => {
+  moveToBottom();
+  const eStr1 = "" + e;
+  const eStr = eStr1 === "[object Object]" ? JSON.stringify(e) : eStr1;
+  if (eStr.includes("Permission denied (publickey)")) {
+    addKnownHost();
+    outputGit(
+      `A permission error occurred. Please try these solutions:
 1. Make sure you have registered the device with the correct email using 'mm start'
 2. Run 'mm help'
 3. Run this command again.
 4. If the problem persists reach out on http://discord.merrymake.eu` +
-          NORMAL_COLOR
-      );
-    } else {
-      console.error(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
-    }
-    abort();
-  })
-  .finally(() => Promise_all(waitForConfigWrite()));
+        Str.FG_DEFAULT
+    );
+  } else {
+    console.error(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
+  }
+  finish(1);
+});

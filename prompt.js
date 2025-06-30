@@ -2,73 +2,19 @@ import { stdin, stdout } from "node:process";
 import { getArgs } from "./args.js";
 import { CONTEXTS } from "./contexts.js";
 import { getCommand } from "./mmCommand.js";
-import { abort } from "./exitMessages.js";
+import { Str } from "@merrymake/utils";
+import { finish } from "./exitMessages.js";
 export const CTRL_C = "\u0003";
 // const CR = "\u000D";
 export const BACKSPACE = "\b";
 export const ESCAPE = "\u001b";
 export const DELETE = "\u001b[3~";
 export const ENTER = "\r";
-export const UP = "\u001b[A";
-export const DOWN = "\u001b[B";
-export const LEFT = "\u001b[D";
-export const RIGHT = "\u001b[C";
-export const HIDE_CURSOR = "\u001B[?25l";
-export const SHOW_CURSOR = "\u001B[?25h";
-export const NORMAL_COLOR = "\u001B[0m";
-export const BLACK = "\x1b[30m";
-export const RED = "\x1b[31m";
-export const GREEN = "\x1b[32m";
-export const YELLOW = "\x1b[33m";
-export const BLUE = "\x1b[34m";
-export const PURPLE = "\x1b[35m";
-export const CYAN = "\x1b[36m";
-export const WHITE = "\x1b[37m";
-export const GRAY = "\x1b[90m";
-export const BgBlack = "\x1b[40m";
-export const BgRed = "\x1b[41m";
-export const BgGreen = "\x1b[42m";
-export const BgYellow = "\x1b[43m";
-export const BgBlue = "\x1b[44m";
-export const BgPurple = "\x1b[45m";
-export const BgCyan = "\x1b[46m";
-export const BgWhite = "\x1b[47m";
-export const BgGray = "\x1b[100m";
-export const STRIKE = "\x1b[9m";
-export const NOSTRIKE = "\x1b[29m";
-export const INVISIBLE = new Set([
-    HIDE_CURSOR,
-    SHOW_CURSOR,
-    NORMAL_COLOR,
-    BLACK,
-    RED,
-    GREEN,
-    YELLOW,
-    BLUE,
-    PURPLE,
-    CYAN,
-    WHITE,
-    GRAY,
-    BgBlack,
-    BgRed,
-    BgGreen,
-    BgYellow,
-    BgBlue,
-    BgPurple,
-    BgCyan,
-    BgWhite,
-    BgGray,
-    STRIKE,
-    NOSTRIKE,
-]);
-export const REMOVE_INVISIBLE = new RegExp([...INVISIBLE]
-    .map((x) => x.replace(/\[/, "\\[").replace(/\?/, "\\?"))
-    .join("|"), "gi");
 let xOffset = 0;
 let yOffset = 0;
 let maxYOffset = 0;
 export function output(str) {
-    const cleanStr = str.replace(REMOVE_INVISIBLE, "");
+    const cleanStr = Str.withoutInvisible(str);
     stdout.write(stdout.isTTY ? str : cleanStr);
     if (!stdout.isTTY)
         return;
@@ -163,8 +109,7 @@ function makeSelectionQuietly(option) {
 }
 let listener;
 function cleanup() {
-    output(NORMAL_COLOR);
-    output(SHOW_CURSOR);
+    output(Str.FG_DEFAULT + Str.BG_DEFAULT + Str.SHOW_CURSOR);
 }
 export function choice(staticOptions, dynamicOptionsMaker, opts) {
     return new Promise(async (resolve, reject) => {
@@ -213,7 +158,7 @@ export function choice(staticOptions, dynamicOptionsMaker, opts) {
                 short: "x",
                 long: "x",
                 text: "exit",
-                action: () => abort(),
+                action: () => finish(),
             });
         const quick = {};
         const str = [heading + "\n"];
@@ -230,17 +175,17 @@ export function choice(staticOptions, dynamicOptionsMaker, opts) {
             }
             if (o.short)
                 quick[o.short] = o;
-            str.push(`  ${GRAY}[`);
+            str.push(`  ${Str.FG_GRAY}[`);
             str.push(o.short || "_");
-            str.push(`]${NORMAL_COLOR} `);
+            str.push(`]${Str.FG_DEFAULT} `);
             const index = o.text.indexOf(o.long);
             if (index >= 0) {
                 const before = o.text.substring(0, index);
                 const after = o.text.substring(index + o.long.length);
                 str.push(before);
-                str.push(YELLOW);
+                str.push(Str.FG_YELLOW);
                 str.push(o.long);
-                str.push(NORMAL_COLOR);
+                str.push(Str.FG_DEFAULT);
                 str.push(after);
             }
             else {
@@ -258,7 +203,7 @@ export function choice(staticOptions, dynamicOptionsMaker, opts) {
                     short: "x",
                     long: "x",
                     text: "exit",
-                    action: () => abort(),
+                    action: () => finish(),
                 });
                 prom.then(resolve);
                 prom.catch(reject);
@@ -275,17 +220,17 @@ export function choice(staticOptions, dynamicOptionsMaker, opts) {
             else if (CONTEXTS[arg] !== undefined)
                 output((await CONTEXTS[arg](arg)) + "\n");
             else
-                output(`${RED}Invalid argument in the current context: ${arg}${NORMAL_COLOR}\n`);
+                output(`${Str.FG_RED}Invalid argument in the current context: ${arg}${Str.FG_DEFAULT}\n`);
             getArgs().splice(0, getArgs().length);
         }
         output(" \n");
-        output(HIDE_CURSOR);
+        output(Str.HIDE_CURSOR);
         output(str.join(""));
         if (!stdin.isTTY || stdin.setRawMode === undefined) {
             console.log("This console does not support TTY, please use the 'mmk'-command instead.");
             process.exit(1);
         }
-        output(YELLOW);
+        output(Str.FG_YELLOW);
         moveCursor(0, -options.length + pos);
         output(`>`);
         moveCursor(-1, 0);
@@ -305,20 +250,20 @@ export function choice(staticOptions, dynamicOptionsMaker, opts) {
                 prom.catch(reject);
                 return;
             }
-            else if (k === UP && pos <= 0) {
+            else if (k === Str.UP && pos <= 0) {
                 return;
             }
-            else if (k === UP) {
+            else if (k === Str.UP) {
                 pos--;
                 output(` `);
                 moveCursor(-1, -1);
                 output(`>`);
                 moveCursor(-1, 0);
             }
-            else if (k === DOWN && pos >= options.length - 1) {
+            else if (k === Str.DOWN && pos >= options.length - 1) {
                 return;
             }
-            else if (k === DOWN) {
+            else if (k === Str.DOWN) {
                 pos++;
                 output(` `);
                 moveCursor(-1, 1);
@@ -358,7 +303,7 @@ export function multiSelect(heading, selection, after, errorMessage) {
             keys.forEach((e) => (result[e] = false));
             const illegal = es.filter((e) => !keys.includes(e));
             if (illegal.length > 0) {
-                output(`${RED}Invalid arguments in the current context: ${illegal.join(", ")}${NORMAL_COLOR}\n`);
+                output(`${Str.FG_RED}Invalid arguments in the current context: ${illegal.join(", ")}${Str.FG_DEFAULT}\n`);
             }
             else {
                 es.forEach((e) => (result[e] = true));
@@ -378,17 +323,17 @@ export function multiSelect(heading, selection, after, errorMessage) {
             str.push("\n");
         }
         // Add submit and exit
-        str.push(`  ${GRAY}[s]${NORMAL_COLOR} submit\n`);
-        str.push(`  ${GRAY}[x]${NORMAL_COLOR} exit\n`);
+        str.push(`  ${Str.FG_GRAY}[s]${Str.FG_DEFAULT} submit\n`);
+        str.push(`  ${Str.FG_GRAY}[x]${Str.FG_DEFAULT} exit\n`);
         output(" \n");
-        output(HIDE_CURSOR);
+        output(Str.HIDE_CURSOR);
         output(str.join(""));
         if (!stdin.isTTY || stdin.setRawMode === undefined) {
             console.log("This console does not support TTY, please use the 'mmk'-command instead.");
             process.exit(1);
         }
         let pos = 0;
-        output(YELLOW);
+        output(Str.FG_YELLOW);
         moveCursor(0, -(keys.length + 2) + pos);
         output(`>`);
         moveCursor(-1, 0);
@@ -425,7 +370,7 @@ export function multiSelect(heading, selection, after, errorMessage) {
                         short: "x",
                         long: "x",
                         text: "exit",
-                        action: () => abort(),
+                        action: () => finish(),
                     });
                     prom.then(resolve);
                     prom.catch(reject);
@@ -434,27 +379,27 @@ export function multiSelect(heading, selection, after, errorMessage) {
                 else {
                     const sel = (selection[keys[pos]] = !selection[keys[pos]]);
                     moveCursor(2, 0);
-                    output(NORMAL_COLOR);
+                    output(Str.FG_DEFAULT);
                     output(sel ? SELECTED_MARK : NOT_SELECTED_MARK);
-                    output(YELLOW);
+                    output(Str.FG_YELLOW);
                     moveCursor(-3, 0);
                 }
                 return;
             }
-            else if (k === UP && pos <= 0) {
+            else if (k === Str.UP && pos <= 0) {
                 return;
             }
-            else if (k === UP) {
+            else if (k === Str.UP) {
                 pos--;
                 output(` `);
                 moveCursor(-1, -1);
                 output(`>`);
                 moveCursor(-1, 0);
             }
-            else if (k === DOWN && pos >= keys.length + 2 - 1) {
+            else if (k === Str.DOWN && pos >= keys.length + 2 - 1) {
                 return;
             }
-            else if (k === DOWN) {
+            else if (k === Str.DOWN) {
                 pos++;
                 output(` `);
                 moveCursor(-1, 1);
@@ -466,7 +411,7 @@ export function multiSelect(heading, selection, after, errorMessage) {
                     short: "x",
                     long: "x",
                     text: "exit",
-                    action: () => abort(),
+                    action: () => finish(),
                 });
                 prom.then(resolve);
                 prom.catch(reject);
@@ -548,9 +493,9 @@ export function shortText(prompt, description, defaultValueArg, options) {
         let str = prompt;
         if (formatting === Formatting.Normal) {
             if (defaultValue === "")
-                str += ` (${YELLOW}optional${NORMAL_COLOR})`;
+                str += ` (${Str.FG_YELLOW}optional${Str.FG_DEFAULT})`;
             else
-                str += ` (suggestion: ${YELLOW}${defaultValue}${NORMAL_COLOR})`;
+                str += ` (suggestion: ${Str.FG_YELLOW}${defaultValue}${Str.FG_DEFAULT})`;
             str += ": ";
         }
         output(" \n");
@@ -594,7 +539,7 @@ export function shortText(prompt, description, defaultValueArg, options) {
                 resolve(result);
                 return;
             }
-            else if (k === UP || k === DOWN) {
+            else if (k === Str.UP || k === Str.DOWN) {
             }
             else if (k === ESCAPE) {
                 const [prevX, prevY] = getCursorPosition();
@@ -602,7 +547,7 @@ export function shortText(prompt, description, defaultValueArg, options) {
                 output(description);
                 moveCursorTo(prevX, prevY);
             }
-            else if (k === LEFT && beforeCursor.length > 0) {
+            else if (k === Str.LEFT && beforeCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 afterCursor =
                     beforeCursor.charAt(beforeCursor.length - 1) + afterCursor;
@@ -613,7 +558,7 @@ export function shortText(prompt, description, defaultValueArg, options) {
                     : beforeCursor + afterCursor);
                 moveCursor(-afterCursor.length, 0);
             }
-            else if (k === RIGHT && afterCursor.length > 0) {
+            else if (k === Str.RIGHT && afterCursor.length > 0) {
                 moveCursor(-beforeCursor.length, 0);
                 beforeCursor += afterCursor.charAt(0);
                 afterCursor = afterCursor.substring(1);

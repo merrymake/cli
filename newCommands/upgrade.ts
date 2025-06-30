@@ -2,12 +2,12 @@ import {
   detectProjectType,
   ProjectTypes,
 } from "@merrymake/detect-project-type";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit, spawnPromise } from "../printUtils.js";
 import { isDryrun } from "../dryrun.js";
 import { output } from "../prompt.js";
 
-async function do_upgrade() {
+export async function do_upgrade() {
   if (isDryrun()) {
     output("DRYRUN: Would upgrade dependencies");
     return;
@@ -25,7 +25,7 @@ async function do_upgrade() {
   }
 }
 
-export function upgrade() {
-  addToExecuteQueue(() => do_upgrade());
+export async function upgrade() {
+  await do_upgrade();
   return finish();
 }

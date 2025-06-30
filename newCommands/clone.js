@@ -2,14 +2,14 @@ import { Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
 import { DEFAULT_EVENT_CATALOGUE_NAME, DEFAULT_PUBLIC_NAME, GIT_HOST, } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { isDryrun } from "../dryrun.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { choice, output } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
 import { execPromise, sshReq, toSubdomain } from "../utils.js";
 import { ensureGroupStructure } from "./fetch.js";
 import { listOrgs } from "./org.js";
-import { isDryrun } from "../dryrun.js";
 export async function do_clone(struct, folderName, displayName, organizationId) {
     if (isDryrun()) {
         output("DRYRUN: Would checkout organization");
@@ -69,7 +69,7 @@ export async function checkout_org(displayName, organizationId) {
     if (existsSync(folderName)) {
         throw `Folder '${folderName}' already exists.`;
     }
-    addToExecuteQueue(() => do_fetch_clone(displayName, folderName, organizationId));
+    await do_fetch_clone(displayName, folderName, organizationId);
     return finish();
 }
 export async function checkout() {

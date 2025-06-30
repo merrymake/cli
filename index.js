@@ -1,13 +1,12 @@
-import { Promise_all } from "@merrymake/utils";
+import { Str } from "@merrymake/utils";
 import { stdin } from "node:process";
-import { initializeArgs } from "./args.js";
+import { getArgs, initializeArgs } from "./args.js";
 import { enableDryrun } from "./dryrun.js";
-import { abort } from "./exitMessages.js";
 import { index } from "./newCommands/index.js";
 import { addKnownHost, register } from "./newCommands/register.js";
-import { waitForConfigWrite } from "./persistance.js";
 import { checkVersionIfOutdated, outputGit, package_json, } from "./printUtils.js";
-import { CTRL_C, moveToBottom, NORMAL_COLOR } from "./prompt.js";
+import { CTRL_C, moveToBottom } from "./prompt.js";
+import { finish } from "./exitMessages.js";
 process.argv.splice(0, 1); // Remove node
 process.argv.splice(0, 1); // Remove index
 if (process.argv[0] === "dryrun") {
@@ -32,7 +31,7 @@ if (stdin.isTTY) {
     stdin.on("data", (key) => {
         const k = key.toString();
         if (k === CTRL_C) {
-            abort();
+            finish(1);
         }
     });
 }
@@ -42,15 +41,14 @@ if (stdin.isTTY) {
         process.exit(0);
     }
     else if (["start", "init", "--init"].includes(process.argv[0])) {
-        process.argv.splice(0, 1);
+        getArgs().splice(0, 1);
         const token = await register();
     }
     else {
         checkVersionIfOutdated();
         const token = await index();
     }
-})()
-    .catch((e) => {
+})().catch((e) => {
     moveToBottom();
     const eStr1 = "" + e;
     const eStr = eStr1 === "[object Object]" ? JSON.stringify(e) : eStr1;
@@ -61,11 +59,10 @@ if (stdin.isTTY) {
 2. Run 'mm help'
 3. Run this command again.
 4. If the problem persists reach out on http://discord.merrymake.eu` +
-            NORMAL_COLOR);
+            Str.FG_DEFAULT);
     }
     else {
         console.error(`\x1b[31mERROR ${eStr.trimEnd()}\x1b[0m`);
     }
-    abort();
-})
-    .finally(() => Promise_all(waitForConfigWrite()));
+    finish(1);
+});

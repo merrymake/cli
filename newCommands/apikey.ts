@@ -1,16 +1,7 @@
 import { Str } from "@merrymake/utils";
 import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import {
-  NORMAL_COLOR,
-  Option,
-  RED,
-  YELLOW,
-  choice,
-  output,
-  resetCommand,
-  shortText,
-} from "../prompt.js";
+import { Option, choice, output, resetCommand, shortText } from "../prompt.js";
 import { OrganizationId } from "../types.js";
 import { sshReq } from "../utils.js";
 import { isDryrun } from "../dryrun.js";
@@ -35,9 +26,9 @@ export async function do_key_create(
     const reply = await sshReq(...cmd);
     if (reply.length !== 8) throw reply;
     output(
-      `Created apikey${
-        description !== "" ? ` '${description}'` : ""
-      }: ${YELLOW}${reply}${NORMAL_COLOR}\n`
+      `Created apikey${description !== "" ? ` '${description}'` : ""}: ${
+        Str.FG_YELLOW
+      }${reply}${Str.FG_DEFAULT}\n`
     );
     return reply;
   } catch (e) {
@@ -59,6 +50,7 @@ export async function do_key_modify(
     if (description !== "") cmd.push(`--description`, description);
     await sshReq(...cmd);
     outputGit(`Updated key.`);
+    return finish();
   } catch (e) {
     throw e;
   }
@@ -135,7 +127,7 @@ export async function key(organizationId: OrganizationId) {
           long: `new`,
           short: `n`,
           text: `add a new apikey`,
-          action: () => key_create(organizationId, finish),
+          action: () => key_create(organizationId, () => finish()),
         },
       ],
       async () => {
@@ -154,7 +146,7 @@ export async function key(organizationId: OrganizationId) {
             const d = new Date(x.expiresOn);
             const ds =
               d.getTime() < Date.now()
-                ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
+                ? Str.FG_RED + d.toLocaleString() + Str.FG_DEFAULT
                 : d.toLocaleString();
             const n = x.name || "";
             return [x.id, n, ds];

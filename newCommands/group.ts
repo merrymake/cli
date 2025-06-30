@@ -1,21 +1,20 @@
 import { Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { mkdir, rename, writeFile } from "fs/promises";
-import { addToExecuteQueue, finish, TODO } from "../exitMessages.js";
+import { SERVICE_GROUP } from "../config.js";
+import { isDryrun } from "../dryrun.js";
+import { finish } from "../exitMessages.js";
+import { outputGit } from "../printUtils.js";
 import { choice, Option, output, resetCommand, shortText } from "../prompt.js";
 import {
   Organization,
   OrganizationId,
-  PathToOrganization,
   PathToServiceGroup,
   ServiceGroup,
   ServiceGroupId,
 } from "../types.js";
 import { sshReq } from "../utils.js";
 import { repo_create } from "./repo.js";
-import { isDryrun } from "../dryrun.js";
-import { outputGit } from "../printUtils.js";
-import { SERVICE_GROUP } from "../config.js";
 
 export async function do_deleteServiceGroup(
   serviceGroup: ServiceGroup,
@@ -39,10 +38,11 @@ export async function do_deleteServiceGroup(
   }
 }
 
-function deleteServiceGroupId(serviceGroup: ServiceGroup, displayName: string) {
-  addToExecuteQueue(async () =>
-    do_deleteServiceGroup(serviceGroup, displayName)
-  );
+async function deleteServiceGroupId(
+  serviceGroup: ServiceGroup,
+  displayName: string
+) {
+  await do_deleteServiceGroup(serviceGroup, displayName);
   return finish();
 }
 
@@ -178,12 +178,10 @@ async function group_edit_rename(
     const newPathToServiceGroup = oldPathToServiceGroup
       .parent()
       .with(folderName);
-    addToExecuteQueue(() =>
-      do_renameServiceGroup(
-        oldPathToServiceGroup,
-        { pathTo: newPathToServiceGroup, id: serviceGroupId },
-        newDisplayName
-      )
+    await do_renameServiceGroup(
+      oldPathToServiceGroup,
+      { pathTo: newPathToServiceGroup, id: serviceGroupId },
+      newDisplayName
     );
     return finish();
   } catch (e) {

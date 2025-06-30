@@ -34,12 +34,6 @@ import { upgrade } from "./upgrade.js";
 import { REPOSITORY, SERVICE_GROUP } from "../config.js";
 import { Str } from "@merrymake/utils";
 
-function partitionLast(str: string, radix: string) {
-  const index = str.lastIndexOf(radix);
-  if (index < 0) return [str, ""];
-  return [str.substring(0, index), str.substring(index + radix.length)];
-}
-
 async function getContext() {
   let repositoryPath: PathToRepository | undefined;
   let repositoryId: RepositoryId | undefined;
@@ -51,8 +45,8 @@ async function getContext() {
   for (let i = cwd.length - 1; i >= 0; i--) {
     if (existsSync(path.join(out, ".git"))) inGit = true;
     if (existsSync(path.join(out, "merrymake.json"))) {
-      const [serviceGroupPath, repositoryFolder] = partitionLast(out, "/");
-      const [organizationPath, serviceGroupFolder] = partitionLast(
+      const [serviceGroupPath, repositoryFolder] = Str.partitionRight(out, "/");
+      const [organizationPath, serviceGroupFolder] = Str.partitionRight(
         serviceGroupPath,
         "/"
       );
@@ -71,7 +65,10 @@ async function getContext() {
         repositoryId = new RepositoryId(buffer[buffer.length - 1].substring(1));
       }
     } else if (existsSync(path.join(out, ".group-id"))) {
-      const [organizationPath, serviceGroupFolder] = partitionLast(out, "/");
+      const [organizationPath, serviceGroupFolder] = Str.partitionRight(
+        out,
+        "/"
+      );
       serviceGroup = {
         id: new ServiceGroupId(
           await readFile(path.join(out, ".group-id"), "utf-8")
@@ -201,9 +198,8 @@ export async function index() {
               long: "fetch",
               short: "f",
               text: `fetch updates to ${Str.plural(
-                2,
                 SERVICE_GROUP
-              )}s and ${Str.plural(2, REPOSITORY)}`,
+              )}s and ${Str.plural(REPOSITORY)}`,
               weight: 600,
               action: () => fetch(organization),
             });

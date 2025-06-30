@@ -1,10 +1,7 @@
-import { ExecOptions, spawn } from "child_process";
-import fs, { existsSync } from "fs";
 import { stdout } from "process";
 import { outputGit } from "./printUtils.js";
-import { GRAY, NORMAL_COLOR } from "./prompt.js";
 import { sshReq } from "./utils.js";
-import { rename } from "fs/promises";
+import { Str } from "@merrymake/utils";
 
 export function alignRight(str: string, width: number) {
   return str.length > width
@@ -44,7 +41,7 @@ export function printTableHeader(
       .map((k) =>
         k.padEnd(widths[k] < 0 ? Math.min(rest, -widths[k]) : widths[k])
       )
-      .join(` ${GRAY}│${NORMAL_COLOR} `);
+      .join(` ${Str.FG_GRAY}│${Str.FG_DEFAULT} `);
   let result = header + "\n";
   const divider =
     prefix +
@@ -53,7 +50,7 @@ export function printTableHeader(
         "─".repeat(widths[k] < 0 ? Math.min(rest, -widths[k]) : widths[k])
       )
       .join("─┼─");
-  result += GRAY + divider + NORMAL_COLOR;
+  result += Str.FG_GRAY + divider + Str.FG_DEFAULT;
   return result;
 }
 
@@ -61,7 +58,7 @@ export function printTableHeader(
 //   try {
 //     await urlReq("https://google.com");
 //   } catch (e) {
-//     output2(`${RED}No internet connection.${NORMAL_COLOR}`);
+//     output2(`${RED}No internet connection.${FG_DEFAULT}`);
 //     return;
 //   }
 //   const whoami = JSON.parse(await sshReq("me-whoami"));
@@ -69,32 +66,32 @@ export function printTableHeader(
 //     const cache = getCache();
 //     if (!cache.registered) {
 //       output2(
-//         `${YELLOW}No key registered with ${process.env["COMMAND"]}.${NORMAL_COLOR}`
+//         `${YELLOW}No key registered with ${process.env["COMMAND"]}.${FG_DEFAULT}`
 //       );
 //     }
-//     output2(`${RED}No verified email.${NORMAL_COLOR}`);
+//     output2(`${RED}No verified email.${FG_DEFAULT}`);
 //   } else {
-//     output2(`${GREEN}Logged in as: ${whoami.join(", ")}.${NORMAL_COLOR}`);
+//     output2(`${GREEN}Logged in as: ${whoami.join(", ")}.${FG_DEFAULT}`);
 //   }
 //   const rawStruct = fetchOrgRaw();
 //   if (rawStruct.org === null) {
-//     output2(`${YELLOW}Not inside organization.${NORMAL_COLOR}`);
+//     output2(`${YELLOW}Not inside organization.${FG_DEFAULT}`);
 //   } else {
 //     output2(
-//       `${GREEN}Inside organization: ${rawStruct.org.name}${NORMAL_COLOR}`
+//       `${GREEN}Inside organization: ${rawStruct.org.name}${FG_DEFAULT}`
 //     );
 //   }
 //   if (rawStruct.serviceGroup === null) {
-//     output2(`${YELLOW}Not inside service group.${NORMAL_COLOR}`);
+//     output2(`${YELLOW}Not inside service group.${FG_DEFAULT}`);
 //   } else {
 //     output2(
-//       `${GREEN}Inside service group: ${rawStruct.serviceGroup}${NORMAL_COLOR}`
+//       `${GREEN}Inside service group: ${rawStruct.serviceGroup}${FG_DEFAULT}`
 //     );
 //   }
 //   if (!existsSync("merrymake.json")) {
-//     output2(`${YELLOW}Not inside service repo.${NORMAL_COLOR}`);
+//     output2(`${YELLOW}Not inside service repo.${FG_DEFAULT}`);
 //   } else {
-//     output2(`${GREEN}Inside service repo.${NORMAL_COLOR}`);
+//     output2(`${GREEN}Inside service repo.${FG_DEFAULT}`);
 //   }
 // }
 
@@ -196,19 +193,18 @@ export async function do_spending(org: string) {
       }
       const hook = x.srv === null ? "" : x.hook === null ? "= Total" : x.hook;
       outputGit(
-        `${alignLeft(group, 11)} ${GRAY}│${NORMAL_COLOR} ${alignLeft(
+        `${alignLeft(group, 11)} ${Str.FG_GRAY}│${Str.FG_DEFAULT} ${alignLeft(
           service,
           11
-        )} ${GRAY}│${NORMAL_COLOR} ${alignLeft(
-          hook,
-          20
-        )} ${GRAY}│${NORMAL_COLOR} ${alignRight(
+        )} ${Str.FG_GRAY}│${Str.FG_DEFAULT} ${alignLeft(hook, 20)} ${
+          Str.FG_GRAY
+        }│${Str.FG_DEFAULT} ${alignRight(
           "" + count_str + " " + count_unit,
           7
-        )} ${GRAY}│${NORMAL_COLOR} ${alignRight(
+        )} ${Str.FG_GRAY}│${Str.FG_DEFAULT} ${alignRight(
           "" + time_str + " " + time_unit,
           7
-        )} ${GRAY}│${NORMAL_COLOR} € ${alignRight(x.cost_eur, 7)}`
+        )} ${Str.FG_GRAY}│${Str.FG_DEFAULT} € ${alignRight(x.cost_eur, 7)}`
       );
     });
   } catch (e) {

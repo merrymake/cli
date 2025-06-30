@@ -158,17 +158,11 @@ export async function sshReq(...cmd) {
         spinner?.stop();
     }
 }
-export function partition(str, radix) {
-    const index = str.indexOf(radix);
-    if (index < 0)
-        return [str, ""];
-    return [str.substring(0, index), str.substring(index + radix.length)];
-}
 export function urlReq(url, method = "GET", data, contentType = "application/json") {
     return new Promise((resolve, reject) => {
-        const [protocol, fullPath] = url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
-        const [base, path] = partition(fullPath, "/");
-        const [host, port] = partition(base, ":");
+        const [protocol, fullPath] = url.indexOf("://") >= 0 ? Str.partitionLeft(url, "://") : ["http", url];
+        const [base, path] = Str.partitionLeft(fullPath, "/");
+        const [host, port] = Str.partitionLeft(base, ":");
         let headers;
         if (data !== undefined)
             headers = {

@@ -1,4 +1,4 @@
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { choice, multiSelect, output } from "../prompt.js";
 import { sshReq } from "../utils.js";
 import { key_create } from "./apikey.js";
@@ -14,14 +14,14 @@ export async function do_event(apikeyId, events) {
     try {
         const selected = Object.keys(events).filter((x) => events[x]);
         await sshReq(`events-allow`, apikeyId, `--events`, selected.join(","));
-        outputGit(`Allowed ${Str.plural(selected.length, "event")} ${Str.list(selected)} on the key ${apikeyId}.`);
+        outputGit(`Allowed ${Str.plural("event", selected.length)} ${Str.list(selected)} on the key ${apikeyId}.`);
     }
     catch (e) {
         throw e;
     }
 }
-function event_key_events(apikeyId, events) {
-    addToExecuteQueue(() => do_event(apikeyId, events));
+async function event_key_events(apikeyId, events) {
+    await do_event(apikeyId, events);
     return finish();
 }
 async function event_key(apikeyId) {

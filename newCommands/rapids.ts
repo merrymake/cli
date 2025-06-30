@@ -2,16 +2,7 @@ import { HOURS, is, Str, UnitType } from "@merrymake/utils";
 import { stdout } from "process";
 import { getArgs } from "../args.js";
 import { printTableHeader } from "../executors.js";
-import {
-  choice,
-  GRAY,
-  GREEN,
-  INVISIBLE,
-  NORMAL_COLOR,
-  Option,
-  RED,
-  YELLOW,
-} from "../prompt.js";
+import { choice, Option } from "../prompt.js";
 import { OrganizationId } from "../types.js";
 import { sshReq } from "../utils.js";
 import { post } from "./post.js";
@@ -39,16 +30,13 @@ export async function do_queue_time(org: string, time: number) {
     );
     queue.forEach((x) =>
       outputGit(
-        `${x.id} ${GRAY}│${NORMAL_COLOR} ${Str.alignRight(
-          x.r,
-          12
-        )} ${GRAY}│${NORMAL_COLOR} ${Str.alignLeft(
-          x.e,
-          12
-        )} ${GRAY}│${NORMAL_COLOR} ${Str.alignLeft(
-          x.s,
-          7
-        )} ${GRAY}│${NORMAL_COLOR} ${new Date(x.q).toLocaleString()}`
+        `${x.id} ${Str.FG_GRAY}│${Str.FG_DEFAULT} ${Str.alignRight(x.r, 12)} ${
+          Str.FG_GRAY
+        }│${Str.FG_DEFAULT} ${Str.alignLeft(x.e, 12)} ${Str.FG_GRAY}│${
+          Str.FG_DEFAULT
+        } ${Str.alignLeft(x.s, 7)} ${Str.FG_GRAY}│${Str.FG_DEFAULT} ${new Date(
+          x.q
+        ).toLocaleString()}`
       )
     );
   } catch (e) {
@@ -72,32 +60,30 @@ async function queue_event(id: string) {
       console.log(" ");
       const prefix = r.repo;
       const color = {
-        success: GREEN,
-        failure: RED,
-        timeout: RED,
-        warning: YELLOW,
+        success: Str.FG_GREEN,
+        failure: Str.FG_RED,
+        timeout: Str.FG_RED,
+        warning: Str.FG_YELLOW,
       }[r.status];
       const output = [
-        `${YELLOW}${r.riverEvent}${GRAY} started at ${new Date(
+        `${Str.FG_YELLOW}${r.riverEvent}${Str.FG_GRAY} started at ${new Date(
           r.startedOn
-        ).toLocaleString()}${NORMAL_COLOR}`,
+        ).toLocaleString()}${Str.FG_DEFAULT}`,
       ];
       const out = r.output.trimEnd();
       if (out.length > 0) output.push(out);
       output.push(
-        `${color}${r.status}${GRAY} after ${Str.withUnit(
+        `${color}${r.status}${Str.FG_GRAY} after ${Str.withUnit(
           r.executionDuration,
           UnitType.Duration
         )} (billing ${Str.withUnit(
           r.billingDuration,
           UnitType.Duration
-        )}) used ${Str.withUnit(
-          r.memoryKilobytes,
-          UnitType.Memory,
-          "kb"
-        )} ram${NORMAL_COLOR}`
+        )}) used ${Str.withUnit(r.memoryKilobytes, UnitType.Memory, "kb")} ram${
+          Str.FG_DEFAULT
+        }`
       );
-      Str.print(output.join("\n"), prefix, INVISIBLE, undefined);
+      Str.print(output.join("\n"), { prefix });
     });
     return finish();
     // return choice(
@@ -419,7 +405,10 @@ export async function queue(organizationId: OrganizationId) {
                         : b.length === 3
                         ? [
                             Str.alignRight(times[0], RESP_TIME_WIDTH),
-                            Str.alignRight(GRAY + times[1], RESP_TIME_WIDTH),
+                            Str.alignRight(
+                              Str.FG_GRAY + times[1],
+                              RESP_TIME_WIDTH
+                            ),
                             Str.alignRight(times[2], RESP_TIME_WIDTH),
                           ]
                         : [
@@ -431,7 +420,7 @@ export async function queue(organizationId: OrganizationId) {
                       `   ${GRAY}> `,
                       `   ${GRAY}>>`,
                     ]*/
-                            GRAY +
+                            Str.FG_GRAY +
                               ["▇▄▃▁▁", "▅▇▄▃▁", "▁▄▇▄▁", "▁▃▄▇▅", "▁▁▃▄▇"][
                                 ~~((t[1] - t[0]) / ((t[2] - t[0]) / 4))
                               ],
@@ -455,40 +444,46 @@ export async function queue(organizationId: OrganizationId) {
                             // })(),
                             Str.alignRight(times[2], RESP_TIME_WIDTH),
                           ];
-                    return `${q1}${GRAY}¦${NORMAL_COLOR}${q2}${GRAY}¦${NORMAL_COLOR}${q3}`;
+                    return `${q1}${Str.FG_GRAY}¦${Str.FG_DEFAULT}${q2}${Str.FG_GRAY}¦${Str.FG_DEFAULT}${q3}`;
                   })();
                   debugLog("    Formatting status...");
                   const status = ["cache"].includes(p.s)
-                    ? GREEN +
+                    ? Str.FG_GREEN +
                       p.s +
-                      NORMAL_COLOR +
+                      Str.FG_DEFAULT +
                       " ".repeat(Math.max(STATUS_WIDTH - p.s.length, 0))
                     : st.length === 1
-                    ? RED +
+                    ? Str.FG_RED +
                       p.s +
-                      NORMAL_COLOR +
+                      Str.FG_DEFAULT +
                       " ".repeat(Math.max(STATUS_WIDTH - p.s.length, 0))
                     : p.s === "1/0/0"
-                    ? Str.alignLeft(GREEN + "succ" + NORMAL_COLOR, STATUS_WIDTH)
+                    ? Str.alignLeft(
+                        Str.FG_GREEN + "succ" + Str.FG_DEFAULT,
+                        STATUS_WIDTH
+                      )
                     : p.s === "0/1/0"
                     ? Str.alignLeft(
-                        YELLOW + "warn" + NORMAL_COLOR,
+                        Str.FG_YELLOW + "warn" + Str.FG_DEFAULT,
                         STATUS_WIDTH
                       )
                     : p.s === "0/0/1"
-                    ? Str.alignLeft(RED + "fail" + NORMAL_COLOR, STATUS_WIDTH)
+                    ? Str.alignLeft(
+                        Str.FG_RED + "fail" + Str.FG_DEFAULT,
+                        STATUS_WIDTH
+                      )
                     : " ".repeat(Math.max(STATUS_WIDTH - p.s.length, 0)) +
-                      (+st[0] > 0 ? GREEN : GRAY) +
+                      (+st[0] > 0 ? Str.FG_GREEN : Str.FG_GRAY) +
                       st[0] +
-                      GRAY +
+                      Str.FG_GRAY +
                       "/" +
-                      (+st[1] > 0 ? YELLOW : "") +
+                      (+st[1] > 0 ? Str.FG_YELLOW : "") +
                       st[1] +
-                      GRAY +
+                      Str.FG_GRAY +
                       "/" +
-                      (+st[2] > 0 ? RED : "") +
+                      (+st[2] > 0 ? Str.FG_RED : "") +
                       st[2] +
-                      NORMAL_COLOR;
+                      Str.FG_DEFAULT;
                   debugLog("    Formatting latest...");
                   const timeDiff = Date.now() - latest.l.getTime();
                   const time =
@@ -500,20 +495,23 @@ export async function queue(organizationId: OrganizationId) {
                       : latest.l.getHours().toString().padStart(2, " ") +
                         ":" +
                         latest.l.getMinutes().toString().padStart(2, "0") +
-                        GRAY +
+                        Str.FG_GRAY +
                         ":" +
                         latest.l.getSeconds().toString().padStart(2, "0") +
-                        NORMAL_COLOR +
+                        Str.FG_DEFAULT +
                         " ";
-                  const text = `${Str.alignRight(
-                    p.e,
-                    varColumn
-                  )} ${GRAY}│${NORMAL_COLOR} ${status} ${GRAY}│${NORMAL_COLOR} ${Str.alignRight(
+                  const text = `${Str.alignRight(p.e, varColumn)} ${
+                    Str.FG_GRAY
+                  }│${Str.FG_DEFAULT} ${status} ${Str.FG_GRAY}│${
+                    Str.FG_DEFAULT
+                  } ${Str.alignRight(
                     b.length === 1 ? "" : b.length.toString(),
                     COUNT_WIDTH
-                  )} ${GRAY}│${NORMAL_COLOR} ${
+                  )} ${Str.FG_GRAY}│${Str.FG_DEFAULT} ${
                     WEEKDAYS[latest.l.getDay()]
-                  } ${GRAY}│${NORMAL_COLOR} ${responseTime} ${GRAY}│${NORMAL_COLOR} ${time}`;
+                  } ${Str.FG_GRAY}│${Str.FG_DEFAULT} ${responseTime} ${
+                    Str.FG_GRAY
+                  }│${Str.FG_DEFAULT} ${time}`;
                   return text;
                 })();
                 options.push({
@@ -540,7 +538,7 @@ export async function queue(organizationId: OrganizationId) {
           if (options[i].day !== options[i + 1].day)
             options[i].text = options[i].text.replace(
               /( +)/g,
-              (s) => `${GRAY}${"_".repeat(s.length)}${NORMAL_COLOR}`
+              (s) => Str.FG_GRAY + "_".repeat(s.length) + Str.FG_DEFAULT
             );
         }
         return {

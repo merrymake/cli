@@ -4,17 +4,16 @@ import { spawn, } from "child_process";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { existsSync } from "fs";
-import net from "net";
-import { addToExecuteQueue, finish } from "./exitMessages.js";
-import { GRAY, INVISIBLE, NORMAL_COLOR, RED, WHITE, YELLOW } from "./prompt.js";
-import { all, generateString } from "./utils.js";
 import { readdir, readFile } from "fs/promises";
+import net from "net";
 import { DEFAULT_EVENT_CATALOGUE_NAME } from "./config.js";
+import { finish } from "./exitMessages.js";
+import { all, generateString } from "./utils.js";
 let spacerTimer;
 function timedOutput(str, prefix) {
     if (spacerTimer !== undefined)
         clearTimeout(spacerTimer);
-    Str.print(str, prefix, INVISIBLE, undefined, true);
+    Str.print(str, { prefix, openEnded: true });
     spacerTimer = setTimeout(() => console.log(""), 10000);
 }
 async function prep(folder, runCommand, env, displayFolder) {
@@ -31,7 +30,7 @@ async function prep(folder, runCommand, env, displayFolder) {
             timedOutput(`${data.toString()}`, displayFolder);
         });
         p.stderr.on("data", (data) => {
-            timedOutput(`${RED}${data.toString()}${NORMAL_COLOR}`, displayFolder);
+            timedOutput(`${Str.FG_RED}${data.toString()}${Str.FG_DEFAULT}`, displayFolder);
         });
         return p;
     }
@@ -305,12 +304,12 @@ class Simulator {
                 res.send("Simulator ready.");
             });
             console.log(`
-${WHITE}███${GRAY}╗   ${WHITE}███${GRAY}╗${WHITE}███████${GRAY}╗${WHITE}██████${GRAY}╗ ${WHITE}██████${GRAY}╗ ${WHITE}██${GRAY}╗   ${WHITE}██${GRAY}╗${WHITE}███${GRAY}╗   ${WHITE}███${GRAY}╗ ${WHITE}█████${GRAY}╗ ${WHITE}██${GRAY}╗  ${WHITE}██${GRAY}╗${WHITE}███████${GRAY}╗
-${WHITE}████${GRAY}╗ ${WHITE}████${GRAY}║${WHITE}██${GRAY}╔════╝${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗╚${WHITE}██${GRAY}╗ ${WHITE}██${GRAY}╔╝${WHITE}████${GRAY}╗ ${WHITE}████${GRAY}║${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}║ ${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}╔════╝
-${WHITE}██${GRAY}╔${WHITE}████${GRAY}╔${WHITE}██${GRAY}║${WHITE}█████${GRAY}╗  ${WHITE}██████${GRAY}╔╝${WHITE}██████${GRAY}╔╝ ╚${WHITE}████${GRAY}╔╝ ${WHITE}██${GRAY}╔${WHITE}████${GRAY}╔${WHITE}██${GRAY}║${WHITE}███████${GRAY}║${WHITE}█████${GRAY}╔╝ ${WHITE}█████${GRAY}╗
-${WHITE}██${GRAY}║╚${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}║${WHITE}██${GRAY}╔══╝  ${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗  ╚${WHITE}██${GRAY}╔╝  ${WHITE}██${GRAY}║╚${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}║${WHITE}██${GRAY}╔══${WHITE}██${GRAY}║${WHITE}██${GRAY}╔═${WHITE}██${GRAY}╗ ${WHITE}██${GRAY}╔══╝
-${WHITE}██${GRAY}║ ╚═╝ ${WHITE}██${GRAY}║${WHITE}███████${GRAY}╗${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║   ${WHITE}██${GRAY}║   ${WHITE}██${GRAY}║ ╚═╝ ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}╗${WHITE}███████${GRAY}╗
-${GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝
+${Str.FG_WHITE}███${Str.FG_GRAY}╗   ${Str.FG_WHITE}███${Str.FG_GRAY}╗${Str.FG_WHITE}███████${Str.FG_GRAY}╗${Str.FG_WHITE}██████${Str.FG_GRAY}╗ ${Str.FG_WHITE}██████${Str.FG_GRAY}╗ ${Str.FG_WHITE}██${Str.FG_GRAY}╗   ${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}███${Str.FG_GRAY}╗   ${Str.FG_WHITE}███${Str.FG_GRAY}╗ ${Str.FG_WHITE}█████${Str.FG_GRAY}╗ ${Str.FG_WHITE}██${Str.FG_GRAY}╗  ${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}███████${Str.FG_GRAY}╗
+${Str.FG_WHITE}████${Str.FG_GRAY}╗ ${Str.FG_WHITE}████${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔════╝${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗╚${Str.FG_WHITE}██${Str.FG_GRAY}╗ ${Str.FG_WHITE}██${Str.FG_GRAY}╔╝${Str.FG_WHITE}████${Str.FG_GRAY}╗ ${Str.FG_WHITE}████${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}██${Str.FG_GRAY}║ ${Str.FG_WHITE}██${Str.FG_GRAY}╔╝${Str.FG_WHITE}██${Str.FG_GRAY}╔════╝
+${Str.FG_WHITE}██${Str.FG_GRAY}╔${Str.FG_WHITE}████${Str.FG_GRAY}╔${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}█████${Str.FG_GRAY}╗  ${Str.FG_WHITE}██████${Str.FG_GRAY}╔╝${Str.FG_WHITE}██████${Str.FG_GRAY}╔╝ ╚${Str.FG_WHITE}████${Str.FG_GRAY}╔╝ ${Str.FG_WHITE}██${Str.FG_GRAY}╔${Str.FG_WHITE}████${Str.FG_GRAY}╔${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}███████${Str.FG_GRAY}║${Str.FG_WHITE}█████${Str.FG_GRAY}╔╝ ${Str.FG_WHITE}█████${Str.FG_GRAY}╗
+${Str.FG_WHITE}██${Str.FG_GRAY}║╚${Str.FG_WHITE}██${Str.FG_GRAY}╔╝${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔══╝  ${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗  ╚${Str.FG_WHITE}██${Str.FG_GRAY}╔╝  ${Str.FG_WHITE}██${Str.FG_GRAY}║╚${Str.FG_WHITE}██${Str.FG_GRAY}╔╝${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔═${Str.FG_WHITE}██${Str.FG_GRAY}╗ ${Str.FG_WHITE}██${Str.FG_GRAY}╔══╝
+${Str.FG_WHITE}██${Str.FG_GRAY}║ ╚═╝ ${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}███████${Str.FG_GRAY}╗${Str.FG_WHITE}██${Str.FG_GRAY}║  ${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}║  ${Str.FG_WHITE}██${Str.FG_GRAY}║   ${Str.FG_WHITE}██${Str.FG_GRAY}║   ${Str.FG_WHITE}██${Str.FG_GRAY}║ ╚═╝ ${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}║  ${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}║  ${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}███████${Str.FG_GRAY}╗
+${Str.FG_GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝
 `);
             const rapidsPort = 3000;
             const publicPort = 3001;
@@ -335,7 +334,7 @@ ${GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚═
             }));
             Promise.all(waitFor).then(() => {
                 console.log(`Use ctrl+c to exit
-${NORMAL_COLOR}`);
+${Str.FG_DEFAULT}`);
             });
         });
     }
@@ -377,7 +376,7 @@ ${NORMAL_COLOR}`);
             const riverConfigs = await processFolders(this.pathToRoot, event);
             const rivers = Object.keys(riverConfigs);
             if (rivers.length === 0 && event[0] !== "$") {
-                timedOutput(`${YELLOW}Warning: No hooks for '${event}'${NORMAL_COLOR}`, traceId);
+                timedOutput(`${Str.FG_YELLOW}Warning: No hooks for '${event}'${Str.FG_DEFAULT}`, traceId);
             }
             rivers.forEach((r) => {
                 const actions = riverConfigs[r];
@@ -439,7 +438,7 @@ ${NORMAL_COLOR}`);
         };
         if (conf !== undefined && conf.waitFor !== undefined) {
             setTimeout(() => {
-                timedOutput(`Reply timeout for trace${NORMAL_COLOR}`, traceId);
+                timedOutput(`Reply timeout for trace${Str.FG_DEFAULT}`, traceId);
             }, conf.waitFor);
         }
         if (conf !== undefined && conf.streaming === true) {
@@ -466,8 +465,8 @@ ${NORMAL_COLOR}`);
         this.processEvent(event, payload, envelope);
     }
 }
-export function do_startSimulator(pathToRoot) {
+export async function do_startSimulator(pathToRoot) {
     const sim = new Simulator(pathToRoot);
-    addToExecuteQueue(() => sim.start());
+    await sim.start();
     return finish();
 }

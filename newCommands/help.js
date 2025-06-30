@@ -1,10 +1,9 @@
-import { existsSync } from "fs";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
-import { outputGit } from "../printUtils.js";
-import { GRAY, GREEN, NORMAL_COLOR } from "../prompt.js";
-import { sshReq, urlReq } from "../utils.js";
 import { Str } from "@merrymake/utils";
+import { existsSync } from "fs";
 import { REPOSITORY, SERVICE_GROUP } from "../config.js";
+import { finish } from "../exitMessages.js";
+import { outputGit } from "../printUtils.js";
+import { sshReq, urlReq } from "../utils.js";
 async function do_help(ctx) {
     try {
         const whoami = JSON.parse(await sshReq("me-whoami"));
@@ -12,7 +11,7 @@ async function do_help(ctx) {
             outputGit(`Warning: No verified email. Run 'mm register'`);
         }
         else {
-            outputGit(`Logged with: ${GREEN}${Str.list(whoami.map((x) => Str.censor(x)))}${NORMAL_COLOR}`);
+            outputGit(`Logged with: ${Str.FG_GREEN}${Str.list(whoami.map((x) => Str.censor(x)))}${Str.FG_DEFAULT}`);
         }
     }
     catch (e) {
@@ -27,22 +26,22 @@ async function do_help(ctx) {
         outputGit(`Warning: Not inside organization.`);
     }
     else {
-        outputGit(`${GRAY}Inside organization (${ctx.organization.id}).${NORMAL_COLOR}`);
+        outputGit(`${Str.FG_GRAY}Inside organization (${ctx.organization.id}).${Str.FG_DEFAULT}`);
     }
     if (ctx.serviceGroup === undefined) {
         outputGit(`Warning: Not inside ${SERVICE_GROUP}.`);
     }
     else {
-        outputGit(`${GRAY}Inside ${SERVICE_GROUP} (${ctx.serviceGroup.id}).${NORMAL_COLOR}`);
+        outputGit(`${Str.FG_GRAY}Inside ${SERVICE_GROUP} (${ctx.serviceGroup.id}).${Str.FG_DEFAULT}`);
     }
     if (!existsSync("merrymake.json")) {
         outputGit(`Warning: Not inside ${REPOSITORY}.`);
     }
     else {
-        outputGit(`${GRAY}Inside ${REPOSITORY} (${ctx.repositoryId}).${NORMAL_COLOR}`);
+        outputGit(`${Str.FG_GRAY}Inside ${REPOSITORY} (${ctx.repositoryId}).${Str.FG_DEFAULT}`);
     }
 }
-export function help(ctx) {
-    addToExecuteQueue(() => do_help(ctx));
+export async function help(ctx) {
+    await do_help(ctx);
     return finish();
 }

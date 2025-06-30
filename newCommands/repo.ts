@@ -3,20 +3,8 @@ import { Promise_all, Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { appendFile, mkdir, rename, rm } from "fs/promises";
 import { GIT_HOST, REPOSITORY } from "../config.js";
-import {
-  TODO,
-  addExitMessage,
-  addToExecuteQueue,
-  finish,
-} from "../exitMessages.js";
-import {
-  NORMAL_COLOR,
-  Option,
-  choice,
-  output,
-  resetCommand,
-  shortText,
-} from "../prompt.js";
+import { TODO, addExitMessage, finish } from "../exitMessages.js";
+import { Option, choice, output, resetCommand, shortText } from "../prompt.js";
 import { languages, templates } from "../templates.js";
 import {
   Organization,
@@ -347,7 +335,9 @@ export async function repo_create_name(
       displayName
     );
     addExitMessage(
-      `Remember to: '${COMMAND_COLOR}cd ${pathToRepository.toString()}${NORMAL_COLOR}'`
+      `Remember to: '${COMMAND_COLOR}cd ${pathToRepository.toString()}${
+        Str.FG_DEFAULT
+      }'`
     );
     return await choice(
       [
@@ -468,12 +458,10 @@ async function repo_edit_rename(
     ).then();
     const folderName = Str.toFolderName(newDisplayName);
     const newPathToRepository = oldPathToRepository.parent().with(folderName);
-    addToExecuteQueue(() =>
-      do_renameService(
-        oldPathToRepository,
-        { pathTo: newPathToRepository, id: repositoryId },
-        newDisplayName
-      )
+    await do_renameService(
+      oldPathToRepository,
+      { pathTo: newPathToRepository, id: repositoryId },
+      newDisplayName
     );
     return finish();
   } catch (e) {

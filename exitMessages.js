@@ -1,14 +1,6 @@
-import { BLUE, exit, NORMAL_COLOR, output } from "./prompt.js";
-const toExecute = [];
-let dryrun = false;
-export function setDryrun() {
-    output(`${BLUE}Dryrun mode, changes will not be performed.${NORMAL_COLOR}`);
-    dryrun = true;
-}
-export function addToExecuteQueue(f) {
-    if (!dryrun)
-        toExecute.push(f);
-}
+import { Promise_all } from "@merrymake/utils";
+import { exit, output } from "./prompt.js";
+import { waitForConfigWrite } from "./persistance.js";
 let printOnExit = [];
 export function addExitMessage(str) {
     printOnExit.push(str);
@@ -16,26 +8,14 @@ export function addExitMessage(str) {
 function printExitMessages() {
     printOnExit.forEach((x) => output(x + "\n"));
 }
-export function abort() {
+export async function finish(code = 0) {
     exit();
+    console.log();
     printExitMessages();
-    process.exit(1);
-}
-export async function finish() {
-    try {
-        exit();
-        for (let i = 0; i < toExecute.length; i++) {
-            await toExecute[i]();
-        }
-        printExitMessages();
-        process.exit(0);
-    }
-    catch (e) {
-        throw e;
-    }
+    await Promise_all(waitForConfigWrite());
+    process.exit(code);
 }
 export function TODO() {
     console.log("TODO");
-    exit();
-    process.exit(0);
+    return finish(1);
 }

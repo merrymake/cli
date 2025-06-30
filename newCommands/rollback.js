@@ -1,6 +1,6 @@
 import { Obj } from "@merrymake/utils";
 import { readFile } from "fs/promises";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { multiSelect, output } from "../prompt.js";
 import { sshReq } from "../utils.js";
@@ -17,9 +17,9 @@ async function do_rollback(repositoryId, hooks) {
         throw e;
     }
 }
-function rollback_hooks(repositoryId, hooks) {
+async function rollback_hooks(repositoryId, hooks) {
     if (hooks.length > 0)
-        addToExecuteQueue(() => do_rollback(repositoryId, hooks));
+        await do_rollback(repositoryId, hooks);
     else
         outputGit("No hooks selected for rollback.");
     return finish();

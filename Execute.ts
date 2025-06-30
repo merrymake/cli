@@ -10,14 +10,13 @@ import {
 } from "child_process";
 import cookieParser from "cookie-parser";
 import express, { Request, RequestHandler, Response } from "express";
-import fs, { existsSync } from "fs";
+import { existsSync } from "fs";
+import { readdir, readFile } from "fs/promises";
 import net from "net";
-import { addToExecuteQueue, finish } from "./exitMessages.js";
-import { GRAY, INVISIBLE, NORMAL_COLOR, RED, WHITE, YELLOW } from "./prompt.js";
+import { DEFAULT_EVENT_CATALOGUE_NAME } from "./config.js";
+import { finish } from "./exitMessages.js";
 import { PathTo, PathToOrganization, PathToRepository } from "./types.js";
 import { all, generateString } from "./utils.js";
-import { readdir, readFile } from "fs/promises";
-import { DEFAULT_EVENT_CATALOGUE_NAME } from "./config.js";
 
 interface Envelope {
   messageId: string;
@@ -47,7 +46,7 @@ interface ReplyBody {
 let spacerTimer: undefined | NodeJS.Timeout;
 function timedOutput(str: string, prefix?: string) {
   if (spacerTimer !== undefined) clearTimeout(spacerTimer);
-  Str.print(str, prefix, INVISIBLE, undefined, true);
+  Str.print(str, { prefix, openEnded: true });
   spacerTimer = setTimeout(() => console.log(""), 10000);
 }
 
@@ -70,7 +69,10 @@ async function prep(
       timedOutput(`${data.toString()}`, displayFolder);
     });
     p.stderr.on("data", (data: Buffer) => {
-      timedOutput(`${RED}${data.toString()}${NORMAL_COLOR}`, displayFolder);
+      timedOutput(
+        `${Str.FG_RED}${data.toString()}${Str.FG_DEFAULT}`,
+        displayFolder
+      );
     });
     return p;
   } catch (e) {
@@ -398,12 +400,12 @@ class Simulator {
         res.send("Simulator ready.");
       });
       console.log(`
-${WHITE}███${GRAY}╗   ${WHITE}███${GRAY}╗${WHITE}███████${GRAY}╗${WHITE}██████${GRAY}╗ ${WHITE}██████${GRAY}╗ ${WHITE}██${GRAY}╗   ${WHITE}██${GRAY}╗${WHITE}███${GRAY}╗   ${WHITE}███${GRAY}╗ ${WHITE}█████${GRAY}╗ ${WHITE}██${GRAY}╗  ${WHITE}██${GRAY}╗${WHITE}███████${GRAY}╗
-${WHITE}████${GRAY}╗ ${WHITE}████${GRAY}║${WHITE}██${GRAY}╔════╝${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗╚${WHITE}██${GRAY}╗ ${WHITE}██${GRAY}╔╝${WHITE}████${GRAY}╗ ${WHITE}████${GRAY}║${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}║ ${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}╔════╝
-${WHITE}██${GRAY}╔${WHITE}████${GRAY}╔${WHITE}██${GRAY}║${WHITE}█████${GRAY}╗  ${WHITE}██████${GRAY}╔╝${WHITE}██████${GRAY}╔╝ ╚${WHITE}████${GRAY}╔╝ ${WHITE}██${GRAY}╔${WHITE}████${GRAY}╔${WHITE}██${GRAY}║${WHITE}███████${GRAY}║${WHITE}█████${GRAY}╔╝ ${WHITE}█████${GRAY}╗
-${WHITE}██${GRAY}║╚${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}║${WHITE}██${GRAY}╔══╝  ${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗${WHITE}██${GRAY}╔══${WHITE}██${GRAY}╗  ╚${WHITE}██${GRAY}╔╝  ${WHITE}██${GRAY}║╚${WHITE}██${GRAY}╔╝${WHITE}██${GRAY}║${WHITE}██${GRAY}╔══${WHITE}██${GRAY}║${WHITE}██${GRAY}╔═${WHITE}██${GRAY}╗ ${WHITE}██${GRAY}╔══╝
-${WHITE}██${GRAY}║ ╚═╝ ${WHITE}██${GRAY}║${WHITE}███████${GRAY}╗${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║   ${WHITE}██${GRAY}║   ${WHITE}██${GRAY}║ ╚═╝ ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}║${WHITE}██${GRAY}║  ${WHITE}██${GRAY}╗${WHITE}███████${GRAY}╗
-${GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝
+${Str.FG_WHITE}███${Str.FG_GRAY}╗   ${Str.FG_WHITE}███${Str.FG_GRAY}╗${Str.FG_WHITE}███████${Str.FG_GRAY}╗${Str.FG_WHITE}██████${Str.FG_GRAY}╗ ${Str.FG_WHITE}██████${Str.FG_GRAY}╗ ${Str.FG_WHITE}██${Str.FG_GRAY}╗   ${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}███${Str.FG_GRAY}╗   ${Str.FG_WHITE}███${Str.FG_GRAY}╗ ${Str.FG_WHITE}█████${Str.FG_GRAY}╗ ${Str.FG_WHITE}██${Str.FG_GRAY}╗  ${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}███████${Str.FG_GRAY}╗
+${Str.FG_WHITE}████${Str.FG_GRAY}╗ ${Str.FG_WHITE}████${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔════╝${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗╚${Str.FG_WHITE}██${Str.FG_GRAY}╗ ${Str.FG_WHITE}██${Str.FG_GRAY}╔╝${Str.FG_WHITE}████${Str.FG_GRAY}╗ ${Str.FG_WHITE}████${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}██${Str.FG_GRAY}║ ${Str.FG_WHITE}██${Str.FG_GRAY}╔╝${Str.FG_WHITE}██${Str.FG_GRAY}╔════╝
+${Str.FG_WHITE}██${Str.FG_GRAY}╔${Str.FG_WHITE}████${Str.FG_GRAY}╔${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}█████${Str.FG_GRAY}╗  ${Str.FG_WHITE}██████${Str.FG_GRAY}╔╝${Str.FG_WHITE}██████${Str.FG_GRAY}╔╝ ╚${Str.FG_WHITE}████${Str.FG_GRAY}╔╝ ${Str.FG_WHITE}██${Str.FG_GRAY}╔${Str.FG_WHITE}████${Str.FG_GRAY}╔${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}███████${Str.FG_GRAY}║${Str.FG_WHITE}█████${Str.FG_GRAY}╔╝ ${Str.FG_WHITE}█████${Str.FG_GRAY}╗
+${Str.FG_WHITE}██${Str.FG_GRAY}║╚${Str.FG_WHITE}██${Str.FG_GRAY}╔╝${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔══╝  ${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}╗  ╚${Str.FG_WHITE}██${Str.FG_GRAY}╔╝  ${Str.FG_WHITE}██${Str.FG_GRAY}║╚${Str.FG_WHITE}██${Str.FG_GRAY}╔╝${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔══${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}╔═${Str.FG_WHITE}██${Str.FG_GRAY}╗ ${Str.FG_WHITE}██${Str.FG_GRAY}╔══╝
+${Str.FG_WHITE}██${Str.FG_GRAY}║ ╚═╝ ${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}███████${Str.FG_GRAY}╗${Str.FG_WHITE}██${Str.FG_GRAY}║  ${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}║  ${Str.FG_WHITE}██${Str.FG_GRAY}║   ${Str.FG_WHITE}██${Str.FG_GRAY}║   ${Str.FG_WHITE}██${Str.FG_GRAY}║ ╚═╝ ${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}║  ${Str.FG_WHITE}██${Str.FG_GRAY}║${Str.FG_WHITE}██${Str.FG_GRAY}║  ${Str.FG_WHITE}██${Str.FG_GRAY}╗${Str.FG_WHITE}███████${Str.FG_GRAY}╗
+${Str.FG_GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝
 `);
       const rapidsPort = 3000;
       const publicPort = 3001;
@@ -436,7 +438,7 @@ ${GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚═
       );
       Promise.all(waitFor).then(() => {
         console.log(`Use ctrl+c to exit
-${NORMAL_COLOR}`);
+${Str.FG_DEFAULT}`);
       });
     });
   }
@@ -487,7 +489,7 @@ ${NORMAL_COLOR}`);
       const rivers = Object.keys(riverConfigs);
       if (rivers.length === 0 && event[0] !== "$") {
         timedOutput(
-          `${YELLOW}Warning: No hooks for '${event}'${NORMAL_COLOR}`,
+          `${Str.FG_YELLOW}Warning: No hooks for '${event}'${Str.FG_DEFAULT}`,
           traceId
         );
       }
@@ -571,7 +573,7 @@ ${NORMAL_COLOR}`);
     };
     if (conf !== undefined && conf.waitFor !== undefined) {
       setTimeout(() => {
-        timedOutput(`Reply timeout for trace${NORMAL_COLOR}`, traceId);
+        timedOutput(`Reply timeout for trace${Str.FG_DEFAULT}`, traceId);
       }, conf.waitFor);
     }
     if (conf !== undefined && conf.streaming === true) {
@@ -599,8 +601,8 @@ ${NORMAL_COLOR}`);
   }
 }
 
-export function do_startSimulator(pathToRoot: PathToOrganization) {
+export async function do_startSimulator(pathToRoot: PathToOrganization) {
   const sim = new Simulator(pathToRoot);
-  addToExecuteQueue(() => sim.start());
+  await sim.start();
   return finish();
 }

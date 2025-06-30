@@ -1,19 +1,15 @@
 import { Str } from "@merrymake/utils";
 import { ExecOptions, spawn } from "child_process";
 import { createRequire } from "module";
-import { homedir } from "os";
 import { addExitMessage } from "./exitMessages.js";
 import { getShortCommand } from "./mmCommand.js";
-import { execPromise, execStreamPromise } from "./utils.js";
-import { existsSync } from "fs";
-import { mkdir, readFile, writeFile } from "fs/promises";
-import { GRAY, NORMAL_COLOR } from "./prompt.js";
 import { getConfig, setConfig } from "./persistance.js";
+import { execPromise, execStreamPromise } from "./utils.js";
 const require = createRequire(import.meta.url);
 // IN THE FUTURE: import conf from "./package.json" with {type:"json"};
 export const package_json = require("./package.json");
 
-export const COMMAND_COLOR = Str.PURPLE;
+export const COMMAND_COLOR = Str.FG_PURPLE;
 
 export async function checkVersionIfOutdated() {
   try {
@@ -25,7 +21,7 @@ export async function checkVersionIfOutdated() {
         addExitMessage(`
     A newer version of the merrymake-cli is available (${package_json.version} -> ${latestVersion}).
     Release notes: https://github.com/merrymake/cli/blob/main/CHANGELOG.md
-    Update command: ${COMMAND_COLOR}npm install --global @merrymake/cli@latest${Str.NORMAL_COLOR}`);
+    Update command: ${COMMAND_COLOR}npm install --global @merrymake/cli@latest${Str.FG_DEFAULT}`);
       }
     }
   } catch (e) {}
@@ -40,7 +36,7 @@ async function getLatestVersion() {
 }
 
 let timer: ReturnType<typeof Str.Timer.start> | undefined;
-export function outputGit(str: string, col = Str.GRAY) {
+export function outputGit(str: string, col = Str.FG_GRAY) {
   const st = (str || "").trimEnd();
   if (st.endsWith("elapsed")) {
     return;
@@ -58,13 +54,13 @@ export function outputGit(str: string, col = Str.GRAY) {
           const line = lineParts[lineParts.length - 1];
           const color =
             line.match(/fail|error|fatal/i) !== null
-              ? Str.RED
+              ? Str.FG_RED
               : line.match(/warn/i) !== null
-              ? Str.YELLOW
+              ? Str.FG_YELLOW
               : line.match(/succe/i) !== null
-              ? Str.GREEN
+              ? Str.FG_GREEN
               : lineParts.length > 1
-              ? Str.NORMAL_COLOR
+              ? Str.FG_DEFAULT
               : col;
           const commands = line.split("'mm");
           for (let i = 1; i < commands.length; i++) {
@@ -79,10 +75,10 @@ export function outputGit(str: string, col = Str.GRAY) {
           return lineParts.join(`remote: `);
         })
         .join("\n") +
-      NORMAL_COLOR
+      Str.FG_DEFAULT
   );
   if (st.endsWith("(this may take a few minutes)...")) {
-    process.stdout.write(`${col}remote: ${Str.NORMAL_COLOR}    `);
+    process.stdout.write(`${col}remote: ${Str.FG_DEFAULT}    `);
     timer = Str.Timer.start(new Str.Timer.Seconds("s elapsed"));
   }
 }

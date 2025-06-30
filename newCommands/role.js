@@ -2,7 +2,7 @@ import { choice, output, shortText } from "../prompt.js";
 import { AccessId } from "../types.js";
 import { sshReq } from "../utils.js";
 import { do_create_deployment_agent } from "./hosting.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { Arr, Obj, Str } from "@merrymake/utils";
 import { isDryrun } from "../dryrun.js";
@@ -53,8 +53,8 @@ export async function do_remove_auto_approve(organizationId, domain) {
         throw e;
     }
 }
-function role_user_attach_role_expiry(user, accessId, accessEmail, duration) {
-    addToExecuteQueue(() => do_attach_role(user, accessId, accessEmail, duration));
+async function role_user_attach_role_expiry(user, accessId, accessEmail, duration) {
+    await do_attach_role(user, accessId, accessEmail, duration);
     return finish();
 }
 async function role_user_attach_role(user, accessId, accessEmail) {
@@ -66,12 +66,12 @@ async function role_user_attach_role(user, accessId, accessEmail) {
         throw e;
     }
 }
-function role_auto_domain_role(domain, accessId) {
-    addToExecuteQueue(() => do_auto_approve(domain, accessId));
+async function role_auto_domain_role(domain, accessId) {
+    await do_auto_approve(domain, accessId);
     return finish();
 }
-function role_auto_remove(organizationId, domain) {
-    addToExecuteQueue(() => do_remove_auto_approve(organizationId, domain));
+async function role_auto_remove(organizationId, domain) {
+    await do_remove_auto_approve(organizationId, domain);
     return finish();
 }
 let roleListCache;
@@ -199,7 +199,7 @@ async function service_user(organization) {
     try {
         const name = await shortText("Name", "Display name for the service user", `Service User`).then();
         const file = ".merrymake/" + Str.toFolderName(name) + ".key";
-        addToExecuteQueue(() => do_create_deployment_agent(organization, name, file));
+        await do_create_deployment_agent(organization, name, file);
         return finish();
     }
     catch (e) {

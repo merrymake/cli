@@ -1,8 +1,9 @@
+import { Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { lstat, readdir } from "fs/promises";
 import path from "path";
 import { REPOSITORY, SERVICE_GROUP, SPECIAL_FOLDERS } from "./config.js";
-import { GREEN, NORMAL_COLOR } from "./prompt.js";
+import { COMMAND_COLOR } from "./printUtils.js";
 import { Path, directoryNames, fetchOrgRaw } from "./utils.js";
 async function downOrg(cmd) {
     try {
@@ -15,9 +16,9 @@ async function downOrg(cmd) {
                 break;
             }
         }
-        let hint = `You can only run '${cmd}' from inside an organization.`;
+        let hint = `You can only run '${COMMAND_COLOR + cmd + Str.FG_DEFAULT}' from inside an organization.`;
         if (org !== undefined) {
-            hint += `\nUse: '${GREEN}cd ${org}${NORMAL_COLOR}' or one of these:`;
+            hint += `\nUse '${COMMAND_COLOR}cd ${org}${Str.FG_DEFAULT}' or one of these:`;
         }
         else {
             hint += `\nUse one of these:`;
@@ -35,7 +36,7 @@ async function upOrg(cmd) {
             return downOrg(cmd);
         else {
             let hint = `You can only run '${cmd}' from the organization root folder.`;
-            hint += `\nUse '${GREEN}cd ${struct.pathToRoot.substring(0, struct.pathToRoot.length - 1)}${NORMAL_COLOR}' or one of these:`;
+            hint += `\nUse '${COMMAND_COLOR}cd ${struct.pathToRoot.substring(0, struct.pathToRoot.length - 1)}${Str.FG_DEFAULT}' or one of these:`;
             return hint;
         }
     }
@@ -50,7 +51,7 @@ const SERVICE_CONTEXT = async (cmd) => {
         while (bfs.length !== 0) {
             const cur = bfs.shift();
             if (existsSync(path.join(cur, "merrymake.json"))) {
-                hint += `\nUse '${GREEN}cd ${cur.replace(/\\/g, "\\\\")}${NORMAL_COLOR}' or one of these:`;
+                hint += `\nUse '${COMMAND_COLOR}cd ${cur.replace(/\\/g, "\\\\")}${Str.FG_DEFAULT}' or one of these:`;
                 break;
             }
             else {
@@ -69,7 +70,7 @@ const SERVICE_CONTEXT = async (cmd) => {
 };
 const NOT_SERVICE_CONTEXT = (cmd) => {
     let hint = `You cannot run '${cmd}' from inside a ${REPOSITORY}.`;
-    hint += `\nUse '${GREEN}cd ..${NORMAL_COLOR}' or one of these:`;
+    hint += `\nUse '${COMMAND_COLOR}cd ..${Str.FG_DEFAULT}' or one of these:`;
     return Promise.resolve(hint);
 };
 const SERVICE_GROUP_CONTEXT = async (cmd) => {
@@ -77,9 +78,9 @@ const SERVICE_GROUP_CONTEXT = async (cmd) => {
         const struct = await fetchOrgRaw();
         const serviceGroups = await directoryNames(new Path(struct.pathToRoot), SPECIAL_FOLDERS);
         let hint = `You can only run '${cmd}' from inside a ${SERVICE_GROUP}.`;
-        hint += `\nUse '${GREEN}cd ${path
+        hint += `\nUse '${COMMAND_COLOR}cd ${path
             .join(struct.pathToRoot, serviceGroups[0].name)
-            .replace(/\\/g, "\\\\")}${NORMAL_COLOR}' or one of these:`;
+            .replace(/\\/g, "\\\\")}${Str.FG_DEFAULT}' or one of these:`;
         return hint;
     }
     catch (e) {
@@ -92,7 +93,7 @@ const NOT_ORGANIZATION_CONTEXT = async (cmd) => {
     try {
         const struct = await fetchOrgRaw();
         let hint = `You can only run '${cmd}' from outside an organization.`;
-        hint += `\nUse '${GREEN}cd ${struct.pathToRoot.replace(/\\/g, "\\\\")}..${NORMAL_COLOR}' or one of these:`;
+        hint += `\nUse '${COMMAND_COLOR}cd ${struct.pathToRoot.replace(/\\/g, "\\\\")}..${Str.FG_DEFAULT}' or one of these:`;
         return hint;
     }
     catch (e) {

@@ -1,6 +1,6 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 import { RAPIDS_HOST } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { Option, choice, output, resetCommand, shortText } from "../prompt.js";
 import { OrganizationId } from "../types.js";
 import { sshReq, urlReq } from "../utils.js";
@@ -18,7 +18,7 @@ export async function do_post(
 ) {
   if (isDryrun()) {
     output("DRYRUN: Would send POST request");
-    return;
+    return finish();
   }
   try {
     outputGit(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
@@ -29,7 +29,8 @@ export async function do_post(
       contentType
     );
     outputGit(`Response after ${Str.withUnit(time, UnitType.Duration)}:`);
-    outputGit(body, Str.NORMAL_COLOR);
+    outputGit(body, Str.FG_DEFAULT);
+    return finish();
   } catch (e) {
     throw e;
   }
@@ -40,6 +41,10 @@ export async function do_post_file(
   key: string,
   filename: string
 ) {
+  if (isDryrun()) {
+    output("DRYRUN: Would send POST request");
+    return finish();
+  }
   try {
     const content = await readFile(filename, "utf-8");
     const type = optimisticMimeTypeOf(
@@ -53,21 +58,17 @@ export async function do_post_file(
       content,
       type.toString()
     );
-    outputGit(body, Str.NORMAL_COLOR);
+    outputGit(body, Str.FG_DEFAULT);
     outputGit(`Response time: ${Str.withUnit(time, UnitType.Duration)}`);
+    return finish();
   } catch (e) {
     throw e;
   }
 }
 
-function post_event_payload_key(foo: () => Promise<void>) {
-  addToExecuteQueue(foo);
-  return finish();
-}
-
 async function post_key(
   organizationId: OrganizationId,
-  foo: (key: string) => Promise<void>
+  foo: (key: string) => Promise<never>
 ) {
   try {
     return await choice(
@@ -76,10 +77,7 @@ async function post_key(
           long: `new`,
           short: `n`,
           text: `add a new apikey`,
-          action: () =>
-            key_create(organizationId, (key: string) =>
-              post_event_payload_key(() => foo(key))
-            ),
+          action: () => key_create(organizationId, (key: string) => foo(key)),
         },
       ],
       async () => {
@@ -90,7 +88,7 @@ async function post_key(
           return {
             long: x.id,
             text: `${x.id}${n}`,
-            action: () => post_event_payload_key(() => foo(x.id)),
+            action: () => foo(x.id),
           };
         });
         return { options, header: "Which key to post through?" };

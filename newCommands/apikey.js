@@ -1,7 +1,7 @@
 import { Str } from "@merrymake/utils";
 import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import { NORMAL_COLOR, RED, YELLOW, choice, output, resetCommand, shortText, } from "../prompt.js";
+import { choice, output, resetCommand, shortText } from "../prompt.js";
 import { sshReq } from "../utils.js";
 import { isDryrun } from "../dryrun.js";
 export async function do_key_create(organizationId, description, duration) {
@@ -21,7 +21,7 @@ export async function do_key_create(organizationId, description, duration) {
         const reply = await sshReq(...cmd);
         if (reply.length !== 8)
             throw reply;
-        output(`Created apikey${description !== "" ? ` '${description}'` : ""}: ${YELLOW}${reply}${NORMAL_COLOR}\n`);
+        output(`Created apikey${description !== "" ? ` '${description}'` : ""}: ${Str.FG_YELLOW}${reply}${Str.FG_DEFAULT}\n`);
         return reply;
     }
     catch (e) {
@@ -39,6 +39,7 @@ export async function do_key_modify(apikeyId, description, duration) {
             cmd.push(`--description`, description);
         await sshReq(...cmd);
         outputGit(`Updated key.`);
+        return finish();
     }
     catch (e) {
         throw e;
@@ -88,7 +89,7 @@ export async function key(organizationId) {
                 long: `new`,
                 short: `n`,
                 text: `add a new apikey`,
-                action: () => key_create(organizationId, finish),
+                action: () => key_create(organizationId, () => finish()),
             },
         ], async () => {
             const resp = await sshReq(`apikey-list`, organizationId.toString());
@@ -101,7 +102,7 @@ export async function key(organizationId) {
             }, keys, (x) => {
                 const d = new Date(x.expiresOn);
                 const ds = d.getTime() < Date.now()
-                    ? `${RED}${d.toLocaleString()}${NORMAL_COLOR}`
+                    ? Str.FG_RED + d.toLocaleString() + Str.FG_DEFAULT
                     : d.toLocaleString();
                 const n = x.name || "";
                 return [x.id, n, ds];

@@ -1,6 +1,6 @@
 {
   "name": "@merrymake/cli",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -27,7 +27,7 @@
     "@merrymake/detect-project-type": "5.0.1",
     "@merrymake/ext2mime": "1.0.3",
     "@merrymake/secret-lib": "1.0.0",
-    "@merrymake/utils": "9.5.0",
+    "@merrymake/utils": "10.0.0",
     "cookie-parser": "1.4.7",
     "express": "5.1.0"
   },

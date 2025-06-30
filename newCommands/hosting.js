@@ -1,7 +1,7 @@
 import { Str } from "@merrymake/utils";
 import { rm, writeFile } from "fs/promises";
 import { API_URL, FINGERPRINT, GIT_HOST, SPECIAL_FOLDERS } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { choice, output, shortText } from "../prompt.js";
 import { Path, RepositoryId, ServiceGroupId, } from "../types.js";
@@ -108,7 +108,7 @@ case $RES in "Everything up-to-date"*) exit 0 ;; *"Releasing service"*) exit 0 ;
 async function hosting_bitbucket_key_host(organization, host, key) {
     try {
         const branch = await shortText("Release branch", "Pushes or pull requests to this branch will trigger a deploy. Normally: main, master, trunk, or release", `master`).then();
-        addToExecuteQueue(() => do_bitbucket(organization, host, key, branch));
+        await do_bitbucket(organization, host, key, branch);
         return finish();
     }
     catch (e) {
@@ -128,7 +128,7 @@ async function hosting_bitbucket_create(organization) {
     try {
         const name = await shortText("Name", "Display name for the service user", `Service User`).then();
         const file = ".merrymake/" + Str.toFolderName(name) + ".key";
-        addToExecuteQueue(() => do_create_deployment_agent(organization, name, file));
+        await do_create_deployment_agent(organization, name, file);
         return hosting_bitbucket_key(organization, file);
     }
     catch (e) {

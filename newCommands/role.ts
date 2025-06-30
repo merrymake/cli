@@ -2,7 +2,7 @@ import { Option, choice, output, shortText } from "../prompt.js";
 import { AccessId, Organization, OrganizationId } from "../types.js";
 import { sshReq } from "../utils.js";
 import { do_create_deployment_agent } from "./hosting.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { Arr, Obj, Str } from "@merrymake/utils";
 import { isDryrun } from "../dryrun.js";
@@ -70,15 +70,13 @@ export async function do_remove_auto_approve(
   }
 }
 
-function role_user_attach_role_expiry(
+async function role_user_attach_role_expiry(
   user: string,
   accessId: AccessId,
   accessEmail: string,
   duration: string
 ) {
-  addToExecuteQueue(() =>
-    do_attach_role(user, accessId, accessEmail, duration)
-  );
+  await do_attach_role(user, accessId, accessEmail, duration);
   return finish();
 }
 
@@ -99,13 +97,16 @@ async function role_user_attach_role(
   }
 }
 
-function role_auto_domain_role(domain: string, accessId: AccessId) {
-  addToExecuteQueue(() => do_auto_approve(domain, accessId));
+async function role_auto_domain_role(domain: string, accessId: AccessId) {
+  await do_auto_approve(domain, accessId);
   return finish();
 }
 
-function role_auto_remove(organizationId: OrganizationId, domain: string) {
-  addToExecuteQueue(() => do_remove_auto_approve(organizationId, domain));
+async function role_auto_remove(
+  organizationId: OrganizationId,
+  domain: string
+) {
+  await do_remove_auto_approve(organizationId, domain);
   return finish();
 }
 
@@ -264,9 +265,7 @@ async function service_user(organization: Organization) {
       `Service User`
     ).then();
     const file = ".merrymake/" + Str.toFolderName(name) + ".key";
-    addToExecuteQueue(() =>
-      do_create_deployment_agent(organization, name, file)
-    );
+    await do_create_deployment_agent(organization, name, file);
     return finish();
   } catch (e) {
     throw e;

@@ -2,7 +2,7 @@ import { Promise_all, Str } from "@merrymake/utils";
 import { existsSync } from "fs";
 import { chmod, mkdir, readFile, rename, writeFile } from "fs/promises";
 import { GIT_HOST, SPECIAL_FOLDERS } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import {
   Organization,
@@ -206,7 +206,7 @@ export async function do_fetch(organization: Organization) {
   }
 }
 
-export function fetch(organization: Organization) {
-  addToExecuteQueue(() => do_fetch(organization));
+export async function fetch(organization: Organization) {
+  await do_fetch(organization);
   return finish();
 }

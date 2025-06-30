@@ -1,20 +1,14 @@
-import fs, { existsSync } from "fs";
+import { existsSync } from "fs";
+import { appendFile, mkdir, readFile, writeFile } from "fs/promises";
 import os from "os";
 import { API_URL, FINGERPRINT, HTTP_HOST, SSH_USER } from "../config.js";
+import { isDryrun } from "../dryrun.js";
 import { addExitMessage } from "../exitMessages.js";
-import {
-  choice,
-  NORMAL_COLOR,
-  Option,
-  output,
-  shortText,
-  YELLOW,
-} from "../prompt.js";
+import { choice, Option, output, resetCommand, shortText } from "../prompt.js";
 import { execPromise, getFiles, Path, urlReq } from "../utils.js";
 import { orgAction } from "./org.js";
 import { wait } from "./wait.js";
-import { appendFile, mkdir, readFile, writeFile } from "fs/promises";
-import { isDryrun } from "../dryrun.js";
+import { Str } from "@merrymake/utils";
 
 async function saveSSHConfig(path: string) {
   try {
@@ -139,7 +133,7 @@ export async function do_register(keyAction: KeyAction, email: string) {
     addKnownHost();
     if (email === "") {
       addExitMessage(`Notice: Anonymous accounts are automatically deleted permanently after ~2 weeks, without warning. To add an email and avoid automatic deletion, run the command:
-        ${YELLOW}${process.env["COMMAND"]} register ${keyFile}${NORMAL_COLOR}`);
+        ${Str.FG_YELLOW}${process.env["COMMAND"]} register ${keyFile}${Str.FG_DEFAULT}`);
     }
     if (isDryrun()) {
       output("DRYRUN: Would register user");
@@ -193,6 +187,7 @@ async function register_manual() {
 
 export async function register() {
   try {
+    resetCommand("register");
     return await choice(
       [
         {

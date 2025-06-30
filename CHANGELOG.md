@@ -8,6 +8,13 @@
 -
 -->
 
+# 5.0.1
+## Fixes and improvements
+- Fix an issue with `start`
+- Make `inspect` more space efficient
+- Correct exit code for `x`
+- Make dryrun work when `post`ing files
+
 # 5.0.0
 ## Breaking changes
 - Made service `group` actions consistent with others (eg. `mm delete` => `mm group XXX delete`, `mm group` => `mm group new`)

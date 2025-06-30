@@ -1,6 +1,6 @@
 import { constify, Str } from "@merrymake/utils";
 import { DEFAULT_REPOSITORY_NAME, DEFAULT_SERVICE_GROUP_NAME, } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
 import { choice, output, shortText } from "../prompt.js";
 import { OrganizationId, PathToOrganization } from "../types.js";
@@ -43,7 +43,7 @@ export async function do_renameOrganization(organizationId, displayName) {
 export async function rename(organizationId) {
     try {
         const displayName = await shortText("Organization name", "Used when collaborating with others.", "Acme Anvils").then();
-        addToExecuteQueue(() => do_renameOrganization(organizationId, displayName));
+        await do_renameOrganization(organizationId, displayName);
         return finish();
     }
     catch (e) {
@@ -149,8 +149,8 @@ async function do_join(org) {
         throw e;
     }
 }
-function join_org(org) {
-    addToExecuteQueue(() => do_join(org));
+async function join_org(org) {
+    await do_join(org);
     return finish();
 }
 async function join() {

@@ -1,4 +1,4 @@
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { choice, Formatting, output, shortText } from "../prompt.js";
 import { PathToRepository } from "../types.js";
 import { execStreamPromise } from "../utils.js";
@@ -65,8 +65,8 @@ async function do_redeploy() {
     );
 }
 
-function redeploy() {
-  addToExecuteQueue(() => do_redeploy());
+async function redeploy() {
+  await do_redeploy();
   return finish();
 }
 

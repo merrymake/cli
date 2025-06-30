@@ -186,12 +186,6 @@ export async function sshReq(...cmd: string[]) {
   }
 }
 
-export function partition(str: string, radix: string) {
-  const index = str.indexOf(radix);
-  if (index < 0) return [str, ""];
-  return [str.substring(0, index), str.substring(index + radix.length)];
-}
-
 export function urlReq(
   url: string,
   method: "POST" | "GET" = "GET",
@@ -201,9 +195,9 @@ export function urlReq(
   return new Promise<{ body: string; code: number | undefined; time: number }>(
     (resolve, reject) => {
       const [protocol, fullPath] =
-        url.indexOf("://") >= 0 ? partition(url, "://") : ["http", url];
-      const [base, path] = partition(fullPath, "/");
-      const [host, port] = partition(base, ":");
+        url.indexOf("://") >= 0 ? Str.partitionLeft(url, "://") : ["http", url];
+      const [base, path] = Str.partitionLeft(fullPath, "/");
+      const [host, port] = Str.partitionLeft(base, ":");
       let headers;
       if (data !== undefined)
         headers = {

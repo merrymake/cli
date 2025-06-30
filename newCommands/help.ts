@@ -1,7 +1,8 @@
+import { Str } from "@merrymake/utils";
 import { existsSync } from "fs";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { REPOSITORY, SERVICE_GROUP } from "../config.js";
+import { finish } from "../exitMessages.js";
 import { outputGit } from "../printUtils.js";
-import { CYAN, GRAY, GREEN, NORMAL_COLOR } from "../prompt.js";
 import {
   Organization,
   PathToRepository,
@@ -9,9 +10,6 @@ import {
   ServiceGroup,
 } from "../types.js";
 import { sshReq, urlReq } from "../utils.js";
-import { Str } from "@merrymake/utils";
-import { getCommand } from "../mmCommand.js";
-import { REPOSITORY, SERVICE_GROUP } from "../config.js";
 
 async function do_help(ctx: {
   repositoryId: RepositoryId | undefined;
@@ -27,9 +25,9 @@ async function do_help(ctx: {
       outputGit(`Warning: No verified email. Run 'mm register'`);
     } else {
       outputGit(
-        `Logged with: ${GREEN}${Str.list(
+        `Logged with: ${Str.FG_GREEN}${Str.list(
           whoami.map((x) => Str.censor(x))
-        )}${NORMAL_COLOR}`
+        )}${Str.FG_DEFAULT}`
       );
     }
   } catch (e) {
@@ -43,26 +41,26 @@ async function do_help(ctx: {
     outputGit(`Warning: Not inside organization.`);
   } else {
     outputGit(
-      `${GRAY}Inside organization (${ctx.organization.id}).${NORMAL_COLOR}`
+      `${Str.FG_GRAY}Inside organization (${ctx.organization.id}).${Str.FG_DEFAULT}`
     );
   }
   if (ctx.serviceGroup === undefined) {
     outputGit(`Warning: Not inside ${SERVICE_GROUP}.`);
   } else {
     outputGit(
-      `${GRAY}Inside ${SERVICE_GROUP} (${ctx.serviceGroup.id}).${NORMAL_COLOR}`
+      `${Str.FG_GRAY}Inside ${SERVICE_GROUP} (${ctx.serviceGroup.id}).${Str.FG_DEFAULT}`
     );
   }
   if (!existsSync("merrymake.json")) {
     outputGit(`Warning: Not inside ${REPOSITORY}.`);
   } else {
     outputGit(
-      `${GRAY}Inside ${REPOSITORY} (${ctx.repositoryId}).${NORMAL_COLOR}`
+      `${Str.FG_GRAY}Inside ${REPOSITORY} (${ctx.repositoryId}).${Str.FG_DEFAULT}`
     );
   }
 }
 
-export function help(ctx: {
+export async function help(ctx: {
   repositoryId: RepositoryId | undefined;
   repositoryPath: PathToRepository | undefined;
   serviceGroup: ServiceGroup | undefined;
@@ -70,6 +68,6 @@ export function help(ctx: {
   inGit: boolean;
   monorepo: boolean;
 }) {
-  addToExecuteQueue(() => do_help(ctx));
+  await do_help(ctx);
   return finish();
 }

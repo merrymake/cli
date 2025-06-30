@@ -1,7 +1,7 @@
 import { MerrymakeCrypto } from "@merrymake/secret-lib";
 import fs from "fs";
 import { GIT_HOST } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { Option, Visibility, choice, output, shortText } from "../prompt.js";
 import {
   OrganizationId,
@@ -66,7 +66,7 @@ async function do_envvar(
   }
 }
 
-function envvar_key_value_access_visible(
+async function envvar_key_value_access_visible(
   pathToOrganization: PathToOrganization,
   organizationId: OrganizationId,
   serviceGroupId: ServiceGroupId,
@@ -75,16 +75,14 @@ function envvar_key_value_access_visible(
   access: ("--inInitRun" | "--inProduction")[],
   secret: boolean
 ) {
-  addToExecuteQueue(() =>
-    do_envvar(
-      pathToOrganization,
-      organizationId,
-      serviceGroupId,
-      key,
-      value,
-      access,
-      secret
-    )
+  await do_envvar(
+    pathToOrganization,
+    organizationId,
+    serviceGroupId,
+    key,
+    value,
+    access,
+    secret
   );
   return finish();
 }

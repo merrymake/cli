@@ -1,4 +1,4 @@
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { choice, Formatting, output, shortText } from "../prompt.js";
 import { execStreamPromise } from "../utils.js";
 import { execute, outputGit, spawnPromise } from "../printUtils.js";
@@ -56,8 +56,8 @@ async function do_redeploy() {
     else
         await spawnPromise("git commit --allow-empty -m 'Redeploy with Merrymake' && git push origin HEAD 2>&1");
 }
-function redeploy() {
-    addToExecuteQueue(() => do_redeploy());
+async function redeploy() {
+    await do_redeploy();
     return finish();
 }
 async function rebaseOntoMain(monorepo) {

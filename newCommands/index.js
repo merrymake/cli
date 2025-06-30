@@ -24,12 +24,6 @@ import { update } from "./update.js";
 import { upgrade } from "./upgrade.js";
 import { REPOSITORY, SERVICE_GROUP } from "../config.js";
 import { Str } from "@merrymake/utils";
-function partitionLast(str, radix) {
-    const index = str.lastIndexOf(radix);
-    if (index < 0)
-        return [str, ""];
-    return [str.substring(0, index), str.substring(index + radix.length)];
-}
 async function getContext() {
     let repositoryPath;
     let repositoryId;
@@ -42,8 +36,8 @@ async function getContext() {
         if (existsSync(path.join(out, ".git")))
             inGit = true;
         if (existsSync(path.join(out, "merrymake.json"))) {
-            const [serviceGroupPath, repositoryFolder] = partitionLast(out, "/");
-            const [organizationPath, serviceGroupFolder] = partitionLast(serviceGroupPath, "/");
+            const [serviceGroupPath, repositoryFolder] = Str.partitionRight(out, "/");
+            const [organizationPath, serviceGroupFolder] = Str.partitionRight(serviceGroupPath, "/");
             repositoryPath = new PathToRepository(new PathToServiceGroup(new PathToOrganization(organizationPath), serviceGroupFolder), repositoryFolder);
             if (existsSync(path.join(out, ".git"))) {
                 const repositoryUrl = await execPromise(`git ls-remote --get-url origin`);
@@ -52,7 +46,7 @@ async function getContext() {
             }
         }
         else if (existsSync(path.join(out, ".group-id"))) {
-            const [organizationPath, serviceGroupFolder] = partitionLast(out, "/");
+            const [organizationPath, serviceGroupFolder] = Str.partitionRight(out, "/");
             serviceGroup = {
                 id: new ServiceGroupId(await readFile(path.join(out, ".group-id"), "utf-8")),
                 pathTo: new PathToServiceGroup(new PathToOrganization(organizationPath), serviceGroupFolder),
@@ -159,7 +153,7 @@ export async function index() {
                     options.push({
                         long: "fetch",
                         short: "f",
-                        text: `fetch updates to ${Str.plural(2, SERVICE_GROUP)}s and ${Str.plural(2, REPOSITORY)}`,
+                        text: `fetch updates to ${Str.plural(SERVICE_GROUP)}s and ${Str.plural(REPOSITORY)}`,
                         weight: 600,
                         action: () => fetch(organization),
                     });

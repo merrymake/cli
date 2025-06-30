@@ -1,6 +1,6 @@
 import { optimisticMimeTypeOf } from "@merrymake/ext2mime";
 import { RAPIDS_HOST } from "../config.js";
-import { addToExecuteQueue, finish } from "../exitMessages.js";
+import { finish } from "../exitMessages.js";
 import { choice, output, resetCommand, shortText } from "../prompt.js";
 import { sshReq, urlReq } from "../utils.js";
 import { key_create } from "./apikey.js";
@@ -11,19 +11,24 @@ import { isDryrun } from "../dryrun.js";
 export async function do_post(eventType, key, contentType, payload) {
     if (isDryrun()) {
         output("DRYRUN: Would send POST request");
-        return;
+        return finish();
     }
     try {
         outputGit(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
         const { body, time } = await urlReq(`${RAPIDS_HOST}/${key}/${eventType}`, "POST", payload, contentType);
         outputGit(`Response after ${Str.withUnit(time, UnitType.Duration)}:`);
-        outputGit(body, Str.NORMAL_COLOR);
+        outputGit(body, Str.FG_DEFAULT);
+        return finish();
     }
     catch (e) {
         throw e;
     }
 }
 export async function do_post_file(eventType, key, filename) {
+    if (isDryrun()) {
+        output("DRYRUN: Would send POST request");
+        return finish();
+    }
     try {
         const content = await readFile(filename, "utf-8");
         const type = optimisticMimeTypeOf(filename.substring(filename.lastIndexOf(".") + 1));
@@ -31,16 +36,13 @@ export async function do_post_file(eventType, key, filename) {
             throw "Could not determine content type";
         outputGit(`Sending POST request to ${RAPIDS_HOST}/${key}/${eventType}`);
         const { body, time } = await urlReq(`${RAPIDS_HOST}/${key}/${eventType}`, "POST", content, type.toString());
-        outputGit(body, Str.NORMAL_COLOR);
+        outputGit(body, Str.FG_DEFAULT);
         outputGit(`Response time: ${Str.withUnit(time, UnitType.Duration)}`);
+        return finish();
     }
     catch (e) {
         throw e;
     }
-}
-function post_event_payload_key(foo) {
-    addToExecuteQueue(foo);
-    return finish();
 }
 async function post_key(organizationId, foo) {
     try {
@@ -49,7 +51,7 @@ async function post_key(organizationId, foo) {
                 long: `new`,
                 short: `n`,
                 text: `add a new apikey`,
-                action: () => key_create(organizationId, (key) => post_event_payload_key(() => foo(key))),
+                action: () => key_create(organizationId, (key) => foo(key)),
             },
         ], async () => {
             const resp = await sshReq(`apikey-list`, organizationId.toString());
@@ -59,7 +61,7 @@ async function post_key(organizationId, foo) {
                 return {
                     long: x.id,
                     text: `${x.id}${n}`,
-                    action: () => post_event_payload_key(() => foo(x.id)),
+                    action: () => foo(x.id),
                 };
             });
             return { options, header: "Which key to post through?" };
