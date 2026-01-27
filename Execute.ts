@@ -54,7 +54,7 @@ async function prep(
   folder: PathToRepository,
   runCommand: (folder: string) => Promise<string>,
   env: NodeJS.ProcessEnv,
-  displayFolder: string
+  displayFolder: string,
 ) {
   try {
     const runCmd = await runCommand(folder.toString());
@@ -71,7 +71,7 @@ async function prep(
     p.stderr.on("data", (data: Buffer) => {
       timedOutput(
         `${Str.FG_RED}${data.toString()}${Str.FG_DEFAULT}`,
-        displayFolder
+        displayFolder,
       );
     });
     return p;
@@ -84,11 +84,11 @@ function run(
   p: ChildProcessWithoutNullStreams,
   action: string,
   envelope: Envelope,
-  payload: Buffer
+  payload: Buffer,
 ) {
   return new Promise<void>((resolve) => {
     p.stdin.write(
-      pack(Buffer.from(action), Buffer.from(JSON.stringify(envelope)), payload)
+      pack(Buffer.from(action), Buffer.from(JSON.stringify(envelope)), payload),
     );
     p.stdin.end();
     p.on("close", () => {
@@ -116,15 +116,15 @@ async function execute(
   repo: string,
   action: string,
   envelope: Envelope,
-  payload: Buffer
+  payload: Buffer,
 ) {
-  try {
+  return new Promise<void>(async (resolve) => {
     const server = net.createServer((socket: net.Socket) => {
       socket.on("end", () => {
         socket.end();
       });
       socket.on("close", () => {
-        server.close();
+        setTimeout(() => server.close(), 1000);
       });
       let missing = 0;
       const parsed: Buffer[] = [];
@@ -161,16 +161,14 @@ async function execute(
         }
       });
     });
-    server.listen(() => {});
-    const env = process.env || {};
-    env.RAPIDS = `localhost:${(server.address() as net.AddressInfo).port}`;
-    if (existsSync(pathToRoot.with(group).with("env.kv").toString())) {
-      (
-        await readFile(
-          pathToRoot.with(group).with("env.kv").toString(),
-          "utf-8"
-        )
-      )
+    const env = { ...(process.env || {}) };
+    const kvFile = existsSync(pathToRoot.with(group).with("env.kv").toString())
+      ? pathToRoot.with(group).with("env.kv")
+      : existsSync(pathToRoot.with(group).with(".env").toString())
+        ? pathToRoot.with(group).with(".env")
+        : undefined;
+    if (kvFile !== undefined) {
+      (await readFile(kvFile.toString(), "utf-8"))
         .split(/\r?\n/)
         .forEach((x) => {
           if (!x.includes("=")) return;
@@ -180,16 +178,19 @@ async function execute(
     }
     const folder = pathToRoot.with(group).with(repo);
     const pType = await detectProjectType(folder.toString());
-    const p = await prep(
-      folder,
-      (folder) => ProjectTypes[pType].runCommand(folder),
-      env,
-      `${envelope.traceId}:${group}/${repo}`
-    );
-    return run(p, action, envelope, payload);
-  } catch (e) {
-    throw e;
-  }
+    server.listen(0, () => {
+      env.RAPIDS = `localhost:${(server.address() as net.AddressInfo).port}`;
+
+      prep(
+        folder,
+        (folder) => ProjectTypes[pType].runCommand(folder),
+        env,
+        `${envelope.traceId}:${group}/${repo}`,
+      )
+        .then((p) => run(p, action, envelope, payload))
+        .then(resolve);
+    });
+  });
 }
 
 async function parseMerrymakeJson(folder: PathTo, event: string) {
@@ -197,7 +198,7 @@ async function parseMerrymakeJson(folder: PathTo, event: string) {
     if (!existsSync(folder.with("merrymake.json").toString()))
       throw "Missing merrymake.json";
     const config: MerrymakeJson = JSON.parse(
-      await readFile(folder.with("merrymake.json").toString(), "utf-8")
+      await readFile(folder.with("merrymake.json").toString(), "utf-8"),
     );
     return Object.keys(config.hooks)
       .filter((x) => x.endsWith(`/${event}`))
@@ -217,21 +218,17 @@ async function processFolders(pathToRoot: PathToOrganization, event: string) {
       [river: string]: { group: string; repo: string; action: string }[];
     } = {};
     await Arr.Async().forEach(
-      (
-        await readdir(pathToRoot.toString(), { withFileTypes: true })
-      ).filter(
+      (await readdir(pathToRoot.toString(), { withFileTypes: true })).filter(
         (x) =>
           x.isDirectory() &&
           !x.name.startsWith("(deleted) ") &&
-          !x.name.endsWith(".DS_Store")
+          !x.name.endsWith(".DS_Store"),
       ),
       async (g) => {
         const group = g.name;
         await Arr.Async().forEach(
-          (
-            await readdir(pathToRoot.with(group).toString())
-          ).filter(
-            (x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store")
+          (await readdir(pathToRoot.with(group).toString())).filter(
+            (x) => !x.startsWith("(deleted) ") && !x.endsWith(".DS_Store"),
           ),
           async (repo) => {
             if (
@@ -240,7 +237,7 @@ async function processFolders(pathToRoot: PathToOrganization, event: string) {
                   .with(group)
                   .with(repo)
                   .with("merrymake.json")
-                  .toString()
+                  .toString(),
               )
             )
               return;
@@ -250,9 +247,9 @@ async function processFolders(pathToRoot: PathToOrganization, event: string) {
               if (rivers[river] === undefined) rivers[river] = [];
               rivers[river].push({ group, repo, action });
             });
-          }
+          },
         );
-      }
+      },
     );
     return rivers;
   } catch (e) {
@@ -347,7 +344,7 @@ function reply(
   payload: Buffer,
   contentType: string | undefined,
   statusCode: number,
-  headers: { [key: string]: string }
+  headers: { [key: string]: string },
 ) {
   Object.keys(headers).forEach((k) => {
     const v = headers[k];
@@ -414,11 +411,11 @@ ${Str.FG_GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═�
         new Promise<void>((resolve) => {
           rapids.listen(rapidsPort, () => {
             console.log(
-              `Local rapids running on http://localhost:${rapidsPort}/`
+              `Local rapids running on http://localhost:${rapidsPort}/`,
             );
             resolve();
           });
-        })
+        }),
       );
       const pub = express();
       pub.get("*any", withSession, (req, res) => {
@@ -430,11 +427,11 @@ ${Str.FG_GRAY}╚═╝     ╚═╝╚══════╝╚═╝  ╚═�
         new Promise<void>((resolve) => {
           pub.listen(publicPort, () => {
             console.log(
-              `Local public running on http://localhost:${publicPort}/`
+              `Local public running on http://localhost:${publicPort}/`,
             );
             resolve();
           });
-        })
+        }),
       );
       Promise.all(waitFor).then(() => {
         console.log(`Use ctrl+c to exit
@@ -452,7 +449,7 @@ ${Str.FG_DEFAULT}`);
         Buffer.from(body.content),
         body["content-type"],
         body["status-code"] || 200,
-        body.headers || {}
+        body.headers || {},
       );
     }
   }
@@ -476,7 +473,7 @@ ${Str.FG_DEFAULT}`);
         }
       } else if (event === "$broadcast") {
         const p: { event: string; to: string; payload: string } = JSON.parse(
-          payload.toString()
+          payload.toString(),
         );
         const cs = this.channels[p.to] || [];
         cs.forEach((c) => {
@@ -490,42 +487,43 @@ ${Str.FG_DEFAULT}`);
       if (rivers.length === 0 && event[0] !== "$") {
         timedOutput(
           `${Str.FG_YELLOW}Warning: No hooks for '${event}'${Str.FG_DEFAULT}`,
-          traceId
+          traceId,
         );
       }
 
-      rivers.forEach((r) => {
-        const actions = riverConfigs[r];
-        const action = (() => {
-          if (actions.length === 1) {
-            return actions[0];
-            // } else if (mode === Mode.RECORDING) {
-            // TODO Ask user which to choose
-            // } else if (mode === Mode.PLAYING) {
-            // TODO Choose same as recording
-          } else {
-            return actions[~~(actions.length * Math.random())];
-          }
-        })();
-        const subEventCount: { [event: string]: number } = {};
-        execute(
-          (event, payload) => {
-            this.processEvent(event, payload, {
-              ...envelope,
-              messageId:
-                envelope.messageId +
-                event +
-                (subEventCount[event] = (subEventCount[event] || -1) + 1),
-            });
-          },
-          this.pathToRoot,
-          action.group,
-          action.repo,
-          action.action,
-          envelope,
-          payload
-        );
-      });
+      await Promise.all(
+        rivers.map((r) => {
+          const actions = riverConfigs[r];
+          const action = (() => {
+            if (actions.length === 1) {
+              return actions[0];
+              // } else if (mode === Mode.RECORDING) {
+              // TODO Ask user which to choose
+              // } else if (mode === Mode.PLAYING) {
+              // TODO Choose same as recording
+            } else {
+              return actions[~~(actions.length * Math.random())];
+            }
+          })();
+          const subEventCount: { [event: string]: number } = {};
+          return execute(
+            (event, payload) =>
+              this.processEvent(event, payload, {
+                ...envelope,
+                messageId:
+                  envelope.messageId +
+                  event +
+                  (subEventCount[event] = (subEventCount[event] || -1) + 1),
+              }),
+            this.pathToRoot,
+            action.group,
+            action.repo,
+            action.action,
+            envelope,
+            payload,
+          );
+        }),
+      );
     } catch (e) {
       throw e;
     }
@@ -535,69 +533,76 @@ ${Str.FG_DEFAULT}`);
     req: Request,
     resp: Response,
     event: string,
-    payload: Buffer
+    payload: Buffer,
   ) {
-    resp.set("Access-Control-Allow-Origin", "*");
-    resp.set("Access-Control-Allow-Headers", "Content-Type");
-    const headers = (() => {
-      const filtered = Object.keys(req.headersDistinct).filter(
-        (k) => !USUAL_HEADERS.has(k)
+    try {
+      resp.set("Access-Control-Allow-Origin", "*");
+      resp.set("Access-Control-Allow-Headers", "Content-Type");
+      const headers = (() => {
+        const filtered = Object.keys(req.headersDistinct).filter(
+          (k) => !USUAL_HEADERS.has(k),
+        );
+        if (filtered.length === 0) return undefined;
+        const result: { [key: string]: string } = {};
+        filtered.forEach((k) => (result[k] = req.headersDistinct[k]![0]));
+        return result;
+      })();
+      let sessionId = req.cookies.sessionId;
+      if (!sessionId) {
+        sessionId = "s" + Math.random();
+        resp.cookie("sessionId", sessionId);
+      }
+      const api_json_path = this.pathToRoot
+        .with(DEFAULT_EVENT_CATALOGUE_NAME)
+        .with("api.json")
+        .toString();
+      const api_json: ApiJson = JSON.parse(
+        await readFile(
+          existsSync(api_json_path)
+            ? api_json_path
+            : this.pathToRoot
+                .with("event-catalogue")
+                .with("api.json")
+                .toString(),
+          "utf-8",
+        ),
       );
-      if (filtered.length === 0) return undefined;
-      const result: { [key: string]: string } = {};
-      filtered.forEach((k) => (result[k] = req.headersDistinct[k]![0]));
-      return result;
-    })();
-    let sessionId = req.cookies.sessionId;
-    if (!sessionId) {
-      sessionId = "s" + Math.random();
-      resp.cookie("sessionId", sessionId);
-    }
-    const api_json_path = this.pathToRoot
-      .with(DEFAULT_EVENT_CATALOGUE_NAME)
-      .with("api.json")
-      .toString();
-    const api_json: ApiJson = JSON.parse(
-      await readFile(
-        existsSync(api_json_path)
-          ? api_json_path
-          : this.pathToRoot.with("event-catalogue").with("api.json").toString(),
-        "utf-8"
-      )
-    );
-    const conf = api_json[event];
-    const traceId = generateString(3, all);
-    this.pendingReplies[traceId] = {
-      resp,
-      channels: new Set(),
-    };
-    if (conf !== undefined && conf.waitFor !== undefined) {
-      setTimeout(() => {
-        timedOutput(`Reply timeout for trace${Str.FG_DEFAULT}`, traceId);
-      }, conf.waitFor);
-    }
-    if (conf !== undefined && conf.streaming === true) {
-      req.on("close", () => {
-        const rep = this.pendingReplies[traceId];
-        rep.channels.forEach((c) => {
-          this.channels[c].delete(rep.resp);
-          if (this.channels[c].size === 0) {
-            delete this.channels[c];
-          }
+      const conf = api_json[event];
+      const traceId = generateString(3, all);
+      this.pendingReplies[traceId] = {
+        resp,
+        channels: new Set(),
+      };
+      if (conf !== undefined && conf.waitFor !== undefined) {
+        setTimeout(() => {
+          timedOutput(`Reply timeout for trace${Str.FG_DEFAULT}`, traceId);
+        }, conf.waitFor);
+      }
+      if (conf !== undefined && conf.streaming === true) {
+        req.on("close", () => {
+          const rep = this.pendingReplies[traceId];
+          rep.channels.forEach((c) => {
+            this.channels[c].delete(rep.resp);
+            if (this.channels[c].size === 0) {
+              delete this.channels[c];
+            }
+          });
         });
-      });
-      resp.set("Content-Type", "text/event-stream");
-      resp.set("Cache-Control", "no-cache");
-      resp.set("Connection", "keep-alive");
-      resp.flushHeaders();
+        resp.set("Content-Type", "text/event-stream");
+        resp.set("Cache-Control", "no-cache");
+        resp.set("Connection", "keep-alive");
+        resp.flushHeaders();
+      }
+      const envelope: Envelope = {
+        messageId: "m" + Math.random(),
+        traceId,
+        sessionId,
+        headers,
+      };
+      await this.processEvent(event, payload, envelope);
+    } catch (e) {
+      timedOutput(`Event '${event}' failed`);
     }
-    const envelope: Envelope = {
-      messageId: "m" + Math.random(),
-      traceId,
-      sessionId,
-      headers,
-    };
-    this.processEvent(event, payload, envelope);
   }
 }
 

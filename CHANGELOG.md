@@ -8,6 +8,10 @@
 -
 -->
 
+# 5.0.3
+## Fixes and improvements
+- Fix `sim` crash when concurrent jobs
+
 # 5.0.2
 ## Fixes and improvements
 - Fix `sim` after dependency update
